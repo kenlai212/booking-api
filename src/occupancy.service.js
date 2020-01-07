@@ -36,33 +36,33 @@ function checkAvailability(input){
 		resolve();
 	})
 	.then(async () => {
-		//convert input string to time
-		const startTime = new Date(input.startTime);
-		const endTime = new Date(input.endTime);
-		console.log("startTime : ", startTime);
-		console.log("endTime : ", endTime);
 
 		//expand range by 2 hour
-		const searchTimeRangeStart = startTime;
-		const searchTimeRangeEnd = endTime;
-		searchTimeRangeStart.setTime(startTime.getTime() - (2*60*60*1000));
-		searchTimeRangeEnd.setTime(endTime.getTime() + (2*60*60*1000));
+		const searchTimeRangeStart = new Date(input.startTime);
+		const searchTimeRangeEnd = new Date(input.endTime);
+		searchTimeRangeStart.setTime(searchTimeRangeStart.getTime() - (2*60*60*1000));
+		searchTimeRangeEnd.setTime(searchTimeRangeEnd.getTime() + (2*60*60*1000));
 
 		const occupancies = await occupancyModel.searchOccupancyByTime(searchTimeRangeStart, searchTimeRangeEnd, ASSET_ID);
 
+		const startTime = new Date(input.startTime);
+		const endTime = new Date(input.endTime);
+		var isAvailable = true;
 		occupancies.forEach((item, index) => {
 			//console.log(item);
-			console.log("item"+index+".startTime : ", item.startTime);
-			console.log("item"+index+".endTime : ", item.endTime);
+			//console.log("startTime : ", startTime);
+			//console.log("endTime : ", endTime);
+			//console.log("item"+index+".startTime : ", item.startTime);
+			//console.log("item"+index+".endTime : ", item.endTime);
 			
-			if((startTime <= item.startTime && startTime >= item.endTime) 
-				|| (endTime >= item.startTime && endTime <= item.endTime)
-				|| (startTime <= item.startTime && endTime >= item.endTime)){
-				console.log("hit time slot number " + index);
+			if((startTime >= item.startTime && startTime <= item.endTime) ||
+				(endTime >= item.startTime && endTime <= item.endTime) ||
+				(startTime <= item.startTime && endTime >= item.endTime)){
+				isAvailable = false;
 			}
 		});
 		
-		
+		return isAvailable;
 	});
 }
 
