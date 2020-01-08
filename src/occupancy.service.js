@@ -3,6 +3,7 @@ const uuid = require("uuid");
 const logger = require("./logger");
 const helper = require("./helper");
 const occupancyModel = require("./occupancy.model");
+const {MissingMandateError, DBError} = require("./error");
 
 const ASSET_ID = "A001";
 
@@ -37,11 +38,9 @@ function checkAvailability(input){
 	})
 	.then(async () => {
 
-		//expand range by 2 hour
-		const searchTimeRangeStart = new Date(input.startTime);
-		const searchTimeRangeEnd = new Date(input.endTime);
-		searchTimeRangeStart.setTime(searchTimeRangeStart.getTime() - (2*60*60*1000));
-		searchTimeRangeEnd.setTime(searchTimeRangeEnd.getTime() + (2*60*60*1000));
+
+		const searchTimeRangeStart = helper.expandStartSearchRange(new Date(input.startTime));
+		const searchTimeRangeEnd = helper.expandEndSearchRange(new Date(input.endTime));
 
 		const occupancies = await occupancyModel.searchOccupancyByTime(searchTimeRangeStart, searchTimeRangeEnd, ASSET_ID);
 
@@ -65,6 +64,7 @@ function checkAvailability(input){
 		return isAvailable;
 	});
 }
+
 
 function occupyAsset(input){
 	return new Promise((resolve, reject) => {
