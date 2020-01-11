@@ -3,9 +3,13 @@ const uuid = require("uuid");
 const logger = require("./logger");
 const helper = require("./helper");
 const bookingModel = require("./booking.model");
+const bookingHistoryModel = require("./booking-history.model");
 const occupancyService = require("./occupancy.service");
 
 require('dotenv').config();
+
+const CANCELLED_STATUS = "CANCELLED";
+const DEFAULT_BOOKING_SEARCH_DAYS_RANGE = 7;
 
 function addNewBooking(input){
 	return new Promise(async (resolve, reject) => {
@@ -56,6 +60,7 @@ function addNewBooking(input){
 			}
 		}
 
+		//validate telephone number
 		if(input.telephoneNumber == null){
 			reject({
 				status : 400,
@@ -66,11 +71,23 @@ function addNewBooking(input){
 		resolve();
 	})
 	.then(async () => {
-		await occupancyService.checkAvailability(input);
-		//return;
+		//check if there is conflict witht the time slot
+		const isAvailable = await occupancyService.checkAvailability(input);
+
+		if(isAvailable==false){
+			throw {
+				status : 400,
+				message : "Asset not available during this time range"
+			}
+		}else{
+			return;
+		}
+
 	})
 	.then(async () => {
+		//setup and save newBooking record
 		var inputBooking = new Object();
+		inputBooking.creationTime = new Date();
 		inputBooking.startTime = new Date(input.startTime);
 		inputBooking.endTime = new Date(input.endTime);
 		inputBooking.timezoneOffset = inputBooking.startTime.getTimezoneOffset();
@@ -83,18 +100,21 @@ function addNewBooking(input){
 		inputBooking.status = "AWAITING_PAYMENT";
 
 		const newBooking = await bookingModel.addNewBooking(inputBooking);
+
+		//show newBooking startTime and endTime as string
+		newBooking.startTime = newBooking.startTime.toString();
+		newBooking.endTime = newBooking.endTime.toString();
 		return newBooking;
 	})
 	.then(newBooking => {
+		//setup and save occupancy record
 		var occupancy = new Object();
+		occupancy.creationTime = new Date();
 		occupancy.bookingId = newBooking._id;
 		occupancy.startTime = input.startTime;
 		occupancy.endTime = input.endTime;
 
 		occupancyService.occupyAsset(occupancy);
-
-		newBooking.startTime = newBooking.startTime.toString();
-		newBooking.endTime = newBooking.endTime.toString();
 
 		return newBooking;
 	})
@@ -112,6 +132,92 @@ function addNewBooking(input){
 	});
 }
 
+function cancelBooking(bookingId){
+	return new Promise((resolve, reject) => {
+		//validate bookingId
+		if(bookingId==null){
+			reject({
+				status : 400,
+				message : "bookingId is mandatory"
+			});
+		}
+
+		resolve();
+	})
+	.then(async () =>  {
+
+		//validate bookingId
+		const targetBooking = await bookingModel.findBookingById(bookingId);
+
+		if(targetBooking == null){
+			throw {
+				status : 400,
+				message : "Invalid bookingId"
+			};
+		}
+
+		return targetBooking;
+	})
+	.then(targetBooking => {
+		//delete booking record from db
+		bookingModel.deleteBooking(targetBooking._id);
+
+		//add new booking history
+		targetBooking.status = CANCELLED_STATUS;
+		bookingHistoryModel.addNewBookingHistory(targetBooking);
+
+		//release occupancy
+		occupancyService.releaseOccupancy(targetBooking._id);
+
+	})
+	.catch(err => {
+		if(err.status!=null){
+			logger.warn(err.message);
+			throw err
+		}else{
+			logger.error("Error while running booking.service.cancelBooking() : ", err);
+			throw{
+				message: "Booking service not available",
+				status: 500
+			}
+		}
+	});
+}
+
+function viewBookings(input){
+	return new Promise(async (resolve, reject) => {
+		
+		//set start time
+		var startTime = new Date();
+		startTime.setHours(0,0,0,0);
+		if(input.startTime != null){
+			startTime = new Date(input.startTime);
+		}
+
+		//set end time
+		var endTime = new Date(startTime);
+		endTime.setHours(0,0,0,0);
+		if(input.endTime !=  null){
+			endTime = new Date(input.endTime);
+		}else{
+			endTime.setDate(endTime.getDate() + DEFAULT_BOOKING_SEARCH_DAYS_RANGE);
+		}
+
+		const bookings = await bookingModel.searchBookingsByDatetime(startTime, endTime);
+
+		if(bookings == null){
+			reject({
+				status : 404,
+				message : "No bookings available"
+			});
+		}
+
+		resolve(bookings);
+	});
+}
+
 module.exports = {
-	addNewBooking
+	addNewBooking,
+	cancelBooking,
+	viewBookings
 }

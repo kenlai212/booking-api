@@ -6,7 +6,7 @@ const occupancyService = require("../src/occupancy.service");
 const occupancyModel = require("../src/occupancy.model");
 const helper = require("../src/helper");
 
-describe("Test user.service", function(){
+describe("Test occupancy.service", function(){
 	
 	var searchOccupancyByTimeStub;
     

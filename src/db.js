@@ -88,7 +88,7 @@ function insertOne(collection, object){
 	});
 }
 
-function updateOne(collection, target, set, callback){
+function updateOne(collection, target, set){
 	return new Promise((resolve, reject) => {
 		try{
 			const data = _db
@@ -103,7 +103,7 @@ function updateOne(collection, target, set, callback){
 	});
 }
 
-function deleteOne(collection, target, callback){
+function deleteOne(collection, target){
 	return new Promise((resolve, reject) => {
 		try{
 			const data = _db

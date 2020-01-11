@@ -6,6 +6,35 @@ const logger = require("./logger");
 const OCCUPANCY_COLLECTION = "occupancies";
 const {MissingMandateError, DBError} = require("./error");
 
+function deleteOccupancy(occupancyId){
+
+	if(occupancyId == null){
+		throw(new MissingMandateError("occupancyId"));
+	}
+
+	try{
+		db.deleteOne(OCCUPANCY_COLLECTION, {"_id":ObjectId(occupancyId)});	
+	}catch(err){
+		throw(err);
+	}
+	
+}
+
+function findOccupancyByBookingId(bookingId){
+	return new Promise(async (resolve, reject) => {
+		if(bookingId == null){
+			reject(new MissingMandateError("startTime"));
+		}
+
+		try{
+			resolve(await db.findOne(OCCUPANCY_COLLECTION, {bookingId:bookingId}));
+		}catch(err){
+			logger.error(err);
+			reject(err);
+		}
+	});	
+}
+
 function searchOccupancyByTime(startTime, endTime, assetId){
 	return new Promise(async (resolve, reject) => {
 		if(startTime == null){
@@ -25,8 +54,8 @@ function searchOccupancyByTime(startTime, endTime, assetId){
 				{
 					startTime : {$gte: startTime},
 					endTime : {$lt : endTime},
-        			assetId : assetId
-        		});
+					assetId : assetId
+				});
 			resolve(result);
 		}catch(err){
 			logger.error(err);
@@ -64,5 +93,7 @@ function addNewOccupancy(occupancy){
 
 module.exports = {
 	searchOccupancyByTime,
-	addNewOccupancy
+	addNewOccupancy,
+	findOccupancyByBookingId,
+	deleteOccupancy
 }

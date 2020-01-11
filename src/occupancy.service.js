@@ -7,6 +7,47 @@ const {MissingMandateError, DBError} = require("./error");
 
 const ASSET_ID = "A001";
 
+function releaseOccupancy(bookingId){
+	return new Promise((resolve, reject) => {
+		if(bookingId == null){
+			reject({
+				status : 400,
+				message : "bookingId is mandatory"
+			});
+		}
+
+		resolve();
+	})
+	.then(async () => {
+
+		const targetOccupancy = await occupancyModel.findOccupancyByBookingId(bookingId);
+
+		if(targetOccupancy == null){
+			reject({
+				status : 400,
+				message : "Invalid bookingId"
+			});
+		}
+
+		return targetOccupancy;
+	})
+	.then(targetOccupancy => {
+		occupancyModel.deleteOccupancy(targetOccupancy._id);
+	})
+	.catch(err => {
+		if(err.status!=null){
+			logger.warn(err.message);
+			throw err
+		}else{
+			logger.error("Error while running occupancy.service.releaseOccupancy() : ", err);
+			throw{
+				message: "Booking service not available",
+				status: 500
+			}
+		}
+	});
+}
+
 function checkAvailability(input){
 	return new Promise((resolve, reject) => {
 		
@@ -37,7 +78,6 @@ function checkAvailability(input){
 		resolve();
 	})
 	.then(async () => {
-
 
 		const searchTimeRangeStart = helper.expandStartSearchRange(new Date(input.startTime));
 		const searchTimeRangeEnd = helper.expandEndSearchRange(new Date(input.endTime));
@@ -99,6 +139,8 @@ function occupyAsset(input){
 				message : "Invalid endTime"
 			});
 		}
+
+		resolve();
 	})
 	.then(() => {
 
@@ -111,7 +153,7 @@ function occupyAsset(input){
 		occupancy.timezoneOffset = occupancy.startTime.getTimezoneOffset();
 		occupancy.assetId = ASSET_ID;
 
-		resolve(occupancy);
+		return occupancy;
 	})
 	.then(occupancy => {
 		return occupancyModel.addNewOccupancy(occupancy);
@@ -132,5 +174,6 @@ function occupyAsset(input){
 
 module.exports = {
 	checkAvailability,
-	occupyAsset
+	occupyAsset,
+	releaseOccupancy
 }
