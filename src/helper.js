@@ -14,6 +14,9 @@ function logOutgoingResponse(res){
 	logger.info(`${res.statusCode} ${res.statusMessage}; ${res.get('Content-Length') || 0}b sent`);
 }
 
+/********************************************************
+extends start search range by 2 hrs
+********************************************************/
 function expandStartSearchRange(startTime){
 	if(startTime == null){
 		throw new MissingMandateError("startTime");
@@ -24,6 +27,9 @@ function expandStartSearchRange(startTime){
 	return startTime;
 }
 
+/********************************************************
+extends end search range by 2 hrs
+********************************************************/
 function expandEndSearchRange(endTime){
 	if(endTime == null){
 		throw new MissingMandateError("endTime");

@@ -79,6 +79,7 @@ function checkAvailability(input){
 	})
 	.then(async () => {
 
+		//search all occupancies 2 hrs befor and after target startTime and endTime
 		const searchTimeRangeStart = helper.expandStartSearchRange(new Date(input.startTime));
 		const searchTimeRangeEnd = helper.expandEndSearchRange(new Date(input.endTime));
 
@@ -172,8 +173,60 @@ function occupyAsset(input){
 	});
 }
 
+function getOccupancies(input){
+	return new Promise((resolve, reject) => {
+
+		if(input.startTime == null){
+			reject({
+				status : 400,
+				message : "startTime is mandatory"
+			});
+		}
+
+		if(input.endTime == null){
+			reject({
+				status : 400,
+				message : "endTime is mandatory"
+			});
+		}
+
+		const startTime = new Date(input.startTime);
+		const endTime = new Date(input.endTime);
+
+		if(startTime > endTime){
+			reject({
+				status : 400,
+				message : "Invalid endTime"
+			});
+		}
+
+		resolve();
+	})
+	.then(async () => {
+		const searchTimeRangeStart = new Date(input.startTime);
+		const searchTimeRangeEnd = new Date(input.endTime);
+
+		const occupancies = await occupancyModel.searchOccupancyByTime(searchTimeRangeStart, searchTimeRangeEnd, ASSET_ID);
+
+		return occupancies;
+	})
+	.catch(err => {
+		if(err.status!=null){
+			logger.warn(err.message);
+			throw err
+		}else{
+			logger.error("Error while running occupancy.service.getOccupancies() : ", err);
+			throw{
+				message: "Occupancy service not available",
+				status: 500
+			}
+		}	
+	});
+}
+
 module.exports = {
 	checkAvailability,
 	occupyAsset,
-	releaseOccupancy
+	releaseOccupancy,
+	getOccupancies
 }
