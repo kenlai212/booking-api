@@ -48,7 +48,7 @@ module.exports = function(app){
 	});
 
 	//view all bookings
-	app.get("/bookings", async (req, res) => {
+	app.post("/bookings", async (req, res) => {
 		helper.logIncommingRequest(req);
 
 		try{
@@ -67,7 +67,7 @@ module.exports = function(app){
 	});
 
 	//view all occupancy
-	app.get("/occupancies", async (req, res) => {
+	app.post("/occupancies", async (req, res) => {
 		helper.logIncommingRequest(req);
 
 		try{

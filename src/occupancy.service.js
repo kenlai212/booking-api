@@ -106,7 +106,11 @@ function checkAvailability(input){
 	});
 }
 
+/*********************************************************
+By : Ken Lai
 
+Create occupancy record in database
+*********************************************************/
 function occupyAsset(input){
 	return new Promise((resolve, reject) => {
 
@@ -131,8 +135,8 @@ function occupyAsset(input){
 			});
 		}
 
-		const startTime = new Date(input.startTime);
-		const endTime = new Date(input.endTime);
+		const startTime = helper.standardStringToDate(input.startTime);
+		const endTime = helper.standardStringToDate(input.endTime);
 
 		if(startTime > endTime){
 			reject({
@@ -141,20 +145,14 @@ function occupyAsset(input){
 			});
 		}
 
-		resolve();
-	})
-	.then(() => {
-
-		//set values
+		//init new occupancy object
 		var occupancy = new Object();
 		occupancy.bookingId = input.bookingId;
-		
-		occupancy.startTime = new Date(input.startTime);
-		occupancy.endTime = new Date(input.endTime);
-		occupancy.timezoneOffset = occupancy.startTime.getTimezoneOffset();
-		occupancy.assetId = ASSET_ID;
+		occupancy.startTime = startTime;
+		occupancy.endTime = endTime;
+		occupancy.assedId = ASSET_ID;
 
-		return occupancy;
+		resolve(occupancy);
 	})
 	.then(occupancy => {
 		return occupancyModel.addNewOccupancy(occupancy);

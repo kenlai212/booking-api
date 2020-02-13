@@ -11,18 +11,25 @@ require('dotenv').config();
 const CANCELLED_STATUS = "CANCELLED";
 const DEFAULT_BOOKING_SEARCH_DAYS_RANGE = 7;
 
+/***********************************************************************
+By : Ken Lai
+
+Add new booking record to database, then add a corrisponding 
+new occupancy record by calling occupancy service
+************************************************************************/
 function addNewBooking(input){
 	return new Promise(async (resolve, reject) => {
 		
-		//validate start time
+		/******************************************
+		validate and set startTime & endTime
+		******************************************/
 		if(input.startTime == null){
 			reject({
 				status : 400,
 				message : "startTime is mandatory"
 			});
 		}
-		const startTime = new Date(input.startTime);
-		const startTimeInMinutes = startTime.getMinutes() + startTime.getHours() * 60;
+		const startTime = helper.standardStringToDate(input.startTime);
 
 		//validate end time
 		if(input.endTime == null){
@@ -31,10 +38,9 @@ function addNewBooking(input){
 				message : "endTime is mandatory"
 			});
 		}
-		const endTime = new Date(input.endTime);
-		const endTimeInMinutes = endTime.getMinutes() + endTime.getHours() * 60;
+		const endTime = helper.standardStringToDate(input.endTime);
 
-		if(startTimeInMinutes > endTimeInMinutes){
+		if(startTime > endTime){
 			reject({
 				status : 400,
 				message : "Invalid endTime"
@@ -42,6 +48,8 @@ function addNewBooking(input){
 		}
 
 		//check minimum booking duration
+		const startTimeInMinutes = startTime.getMinutes() + startTime.getHours() * 60;
+		const endTimeInMinutes = endTime.getMinutes() + endTime.getHours() * 60;
 		const durationInMinutes = endTimeInMinutes - startTimeInMinutes;
 		if(durationInMinutes < process.env.MINIMUM_BOOKING_DURATION_MINUTES){
 			reject({
@@ -60,18 +68,48 @@ function addNewBooking(input){
 			}
 		}
 
+		var booking = new Object();
+		booking.startTime = startTime;
+		booking.endTime = endTime;
+
+		resolve(booking);
+	})
+	.then(booking => {
+		
+		/********************************************
+		validate and set contact infomation
+		********************************************/
+
+		//validate contact name
+		if(input.contactName == null){
+			throw{
+				status : 400,
+				message : "contactName is mandatory"
+			}
+		}
+		booking.contactName = input.contactName;
+
 		//validate telephone number
 		if(input.telephoneNumber == null){
-			reject({
+			throw{
 				status : 400,
 				message : "telephoneNumber is mandatory"
-			});
+			}
+		}
+		booking.telephoneNumber = input.telephoneNumber;
+
+		//validate email address
+		//TODO validate email format
+		if(input.emailAddress!=null){
+			booking.emailAddress = input.emailAddress;
 		}
 
-		resolve();
+		return booking;
 	})
-	.then(async () => {
-		//check if there is conflict witht the time slot
+	.then(async booking => {
+		/*****************************************************
+		Check if there is conflict witht the time slot.
+		*****************************************************/
 		const isAvailable = await occupancyService.checkAvailability(input);
 
 		if(isAvailable==false){
@@ -80,43 +118,33 @@ function addNewBooking(input){
 				message : "Asset not available during this time range"
 			}
 		}else{
-			return;
+			return booking;
 		}
-
 	})
-	.then(async () => {
-		//setup and save newBooking record
-		var inputBooking = new Object();
-		inputBooking.creationTime = new Date();
-		inputBooking.startTime = new Date(input.startTime);
-		inputBooking.endTime = new Date(input.endTime);
-		inputBooking.timezoneOffset = inputBooking.startTime.getTimezoneOffset();
-		inputBooking.telephoneNumber = input.telephoneNumber;
+	.then(async booking => {
+		/************************************************************
+		setup and save newBooking record
+		************************************************************/
+		booking.creationTime = new Date();
+		booking.status = "AWAITING_PAYMENT";
 
-		if(input.emailAddress!=null){
-			inputBooking.emailAddress = input.emailAddress;
-		}
+		booking = await bookingModel.addNewBooking(booking);
 
-		inputBooking.status = "AWAITING_PAYMENT";
-
-		const newBooking = await bookingModel.addNewBooking(inputBooking);
-
-		//show newBooking startTime and endTime as string
-		newBooking.startTime = newBooking.startTime.toString();
-		newBooking.endTime = newBooking.endTime.toString();
-		return newBooking;
+		return booking;
 	})
-	.then(newBooking => {
-		//setup and save occupancy record
+	.then(booking => {
+		/***************************************************************
+		setup and save occupancy record
+		***************************************************************/
 		var occupancy = new Object();
 		occupancy.creationTime = new Date();
-		occupancy.bookingId = newBooking._id;
+		occupancy.bookingId = booking._id;
 		occupancy.startTime = input.startTime;
 		occupancy.endTime = input.endTime;
 
 		occupancyService.occupyAsset(occupancy);
 
-		return newBooking;
+		return booking;
 	})
 	.catch(err => {
 		if(err.status!=null){
@@ -132,6 +160,12 @@ function addNewBooking(input){
 	});
 }
 
+/************************************************************************
+By : Ken Lai
+
+delete booking from database, delete the corrisponding occupancy record
+by calling occupancy service.
+************************************************************************/
 function cancelBooking(bookingId){
 	return new Promise((resolve, reject) => {
 		//validate bookingId
@@ -184,25 +218,40 @@ function cancelBooking(bookingId){
 	});
 }
 
+/*************************************************************
+By : Ken Lai
+
+-Returns all bookings withint a datetime range
+-If no startTime or endTime from input, then its default
+ to start of today and end of x date later. 
+ x = DEFAULT_BOOKING_SEARCH_DAYS_RANGE
+*************************************************************/
 function viewBookings(input){
 	return new Promise(async (resolve, reject) => {
 		
-		//set start time
+		//initate startTime
 		var startTime = new Date();
 		startTime.setHours(0,0,0,0);
+
+		//if input contains startTime, use it
 		if(input.startTime != null){
-			startTime = new Date(input.startTime);
+			startTime = helper.standardStringToDate(input.startTime);
 		}
 
-		//set end time
+		//initiage end Time
 		var endTime = new Date(startTime);
 		endTime.setHours(0,0,0,0);
+
+		//if input contains endTime, use it.
+		//if not use 
 		if(input.endTime !=  null){
-			endTime = new Date(input.endTime);
+			endTime = helper.standardStringToDate(input.endTime);
 		}else{
 			endTime.setDate(endTime.getDate() + DEFAULT_BOOKING_SEARCH_DAYS_RANGE);
 		}
 
+		console.log(startTime);
+		console.log(endTime);
 		const bookings = await bookingModel.searchBookingsByDatetime(startTime, endTime);
 
 		if(bookings == null){

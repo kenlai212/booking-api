@@ -40,11 +40,28 @@ function expandEndSearchRange(endTime){
 	return endTime;
 }
 
+/*********************************************************
+By : Ken Lai
 
+Turn standard input date string -
+YYYY-MM-DD HH:mm:ss into a UTC date
+*********************************************************/
+function standardStringToDate(dateStr){
+	const year = dateStr.substring(0,4);
+	const month = dateStr.substring(5,7);
+	const date = dateStr.substring(8,10);
+	const hour = dateStr.substring(11,13);
+	const minute = dateStr.substring(14,16);
+	const second = dateStr.substring(17,19);
+	const dateTime = new Date(Date.UTC(year, month - 1, date, hour, minute, second, 0));
+
+	return dateTime;
+}
 
 module.exports = {
 	logIncommingRequest,
 	logOutgoingResponse,
 	expandStartSearchRange,
-	expandEndSearchRange
+	expandEndSearchRange,
+	standardStringToDate
 }
