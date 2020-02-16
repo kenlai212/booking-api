@@ -4,7 +4,6 @@ const jwt = require("jsonwebtoken");
 const helper = require("./helper");
 const logger = require("./logger");
 const bookingService = require("./booking.service");
-const occupancyService = require("./occupancy.service");
 require('dotenv').config();
 
 module.exports = function(app){
@@ -57,25 +56,6 @@ module.exports = function(app){
 			res.status(200);
 		}catch(err){
 			logger.error("Error while calling bookingService.viewBookings() : ", err);
-			res.status(err.status);
-			res.json({ message: err.message });
-		}
-
-		res.on("finish", function(){
-			helper.logOutgoingResponse(res);
-		});
-	});
-
-	//view all occupancy
-	app.post("/occupancies", async (req, res) => {
-		helper.logIncommingRequest(req);
-
-		try{
-			const occupancies = await occupancyService.getOccupancies(req.body);
-			res.json(occupancies);
-			res.status(200);
-		}catch(err){
-			logger.error("Error while calling occupancyService.getOccupancies() : ", err);
 			res.status(err.status);
 			res.json({ message: err.message });
 		}

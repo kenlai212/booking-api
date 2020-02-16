@@ -1,10 +1,10 @@
 "use strict";
+const fetch = require("node-fetch");
 const uuid = require("uuid");
 const logger = require("./logger");
 const helper = require("./helper");
 const bookingModel = require("./booking.model");
 const bookingHistoryModel = require("./booking-history.model");
-const occupancyService = require("./occupancy.service");
 
 require('dotenv').config();
 
@@ -110,16 +110,43 @@ function addNewBooking(input){
 		/*****************************************************
 		Check if there is conflict witht the time slot.
 		*****************************************************/
-		const isAvailable = await occupancyService.checkAvailability(input);
-
-		if(isAvailable==false){
-			throw {
-				status : 400,
-				message : "Asset not available during this time range"
-			}
-		}else{
-			return booking;
+		const url = "http://OccupancyApi-env.pkny93vkkt.us-west-2.elasticbeanstalk.com/availability";
+		const headers = {
+			"content-Type": "application/json",
 		}
+		const data = {
+			"startTime": helper.dateToStandardString(booking.startTime),
+			"endTime": helper.dateToStandardString(booking.endTime)
+		}
+
+		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
+		.then((res) => {
+			/**********************************************************************
+			throw 500 error, external occupancyService/availability service not available
+			***********************************************************************/
+			if (res.status >= 200 && res.status < 300) {
+				return res.json()
+			}else{
+				logger.error(res.statusText);
+				throw {
+					status : 500,
+					message : "Booking Service not available"
+				}
+			}
+		})
+		.then((result) => {
+			/*******************************
+			throw 400 error if not available
+			********************************/
+			if(result.isAvailable==false){
+				throw {
+					status : 400,
+					message : "Asset not available during this time range"
+				}
+			}
+		});
+
+		return booking;
 	})
 	.then(async booking => {
 		/************************************************************
@@ -134,16 +161,42 @@ function addNewBooking(input){
 	})
 	.then(booking => {
 		/***************************************************************
-		setup and save occupancy record
+		call external occupancy API to save occupancy record
 		***************************************************************/
-		var occupancy = new Object();
-		occupancy.creationTime = new Date();
-		occupancy.bookingId = booking._id;
-		occupancy.startTime = input.startTime;
-		occupancy.endTime = input.endTime;
+		const url = "http://OccupancyApi-env.pkny93vkkt.us-west-2.elasticbeanstalk.com/occupancy";
+		const headers = {
+			"content-Type": "application/json",
+		}
+		const data = {
+			"occupancyType" : "OPEN_BOOKING",
+			"associatedId" : booking._id,
+			"startTime": helper.dateToStandardString(booking.startTime),
+			"endTime": helper.dateToStandardString(booking.endTime)
+		}
 
-		occupancyService.occupyAsset(occupancy);
+		fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
+		.then((res) => {
+			/**********************************************************************
+			-throw 500 error, external occupancyService/occupancy service not available
+			-reverse the booking record
+			***********************************************************************/
+			if (res.status >= 200 && res.status < 300) {
+				//success - do nothing!
+			}else{
+				//TODO - Reverse booking sisnce external occupancy service not available
+				logger.error(res.statusText);
+				throw {
+					status : 500,
+					message : "Booking Service not available"
+				}
+			}
+		});
 
+		return booking;
+	})
+	.then(booking => {
+		booking.startTime = helper.dateToStandardString(booking.startTime);
+		booking.endTime = helper.dateToStandardString(booking.endTime);
 		return booking;
 	})
 	.catch(err => {

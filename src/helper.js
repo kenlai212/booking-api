@@ -58,10 +58,30 @@ function standardStringToDate(dateStr){
 	return dateTime;
 }
 
+/*********************************************************
+By : Ken Lai
+
+Turn date into stardard output date string -
+YYYY-MM-DD HH:mm:ss
+**********************************************************/
+function dateToStandardString(date){
+	const year = date.getFullYear();
+	const month = ("0" + (date.getMonth() + 1)).slice(-2);
+	const day = ("0" + date.getDate()).slice(-2);
+	const hours = ("0" + date.getUTCHours()).slice(-2);
+	const minutes = ("0" + date.getUTCMinutes()).slice(-2);
+	const seconds = ("0" + date.getUTCSeconds()).slice(-2);
+
+	const standardStr = year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
+
+	return standardStr;
+}
+
 module.exports = {
 	logIncommingRequest,
 	logOutgoingResponse,
 	expandStartSearchRange,
 	expandEndSearchRange,
-	standardStringToDate
+	standardStringToDate,
+	dateToStandardString
 }
