@@ -7,11 +7,14 @@ const bookingService = require("./booking.service");
 const OCCUPANCY_DOMAIN = "http://OccupancyApi-env.pkny93vkkt.us-west-2.elasticbeanstalk.com";
 const OCCUPANCIES_SERVICE = "/occupancies";
 const UNIT_PRICE = 1400;
+const DAY_START = 5;
+const DAY_END = 14;
 
 /**********************************************************
 By : Ken Lai
 
-returns hourly slots of target date
+Returns hourly slots of target date.
+Will include unitPrice and availability in each slot
 **********************************************************/
 function getSlots(input){
 	return new Promise(async (resolve, reject) => {
@@ -38,42 +41,23 @@ function getSlots(input){
 		/********************************************
 		generate slots from 5am to 7pm
 		********************************************/
-		const targetDate = criteria.targetDate;
-		var hour = 4;
-		var slots = new Array();
-
-		for (var i=0; i<14; i++){
-
-			var slot = new Object();
-			slot.index = i;
-			hour = hour + 1;
-
-			slot.startTime = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 0 ,0));
-			slot.endTime = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 59, 59));
-			slot.available = true;
-
-			slots.push(slot); 
-		}
-
+		const slots = generateSlots(criteria.targetDate, DAY_START, DAY_END);
+		
 		criteria.slots = slots;
 
 		return criteria;
 	})
 	.then(async criteria => {
 		
-		/*************************************************************************************
-		Set the availbility of each slot.
-		It will get all the occupancies of the targetDate,
-		then compare each slot to define availability (boolean) flag.
-		*************************************************************************************/
+		/***************************************************************
+		call external occupancy API to save occupancy record
+		***************************************************************/
 
 		const targetDate = new Date(criteria.slots[0].startTime);
 		const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
 		const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
 
-		/***************************************************************
-		call external occupancy API to save occupancy record
-		***************************************************************/
+		
 		const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SERVICE;
 		const headers = {
 			"content-Type": "application/json",
@@ -171,6 +155,186 @@ function getSlots(input){
 	});
 }
 
+/*********************************************************************
+By : Ken Lai
+
+Returns all immediate available end slots after the target start slot
+**********************************************************************/
+function getAvailableEndSlots(input){
+	return new Promise(async (resolve, reject) => {
+		
+		//validate target date
+		if(input.startTime == null){
+			reject({
+				status : 400,
+				message : "startTime is mandatory"
+			});
+		}
+
+		//init and set criteria.startTime and criteria,targetDate
+		var criteria = new Object();
+
+		criteria.startTime = helper.standardStringToDate(input.startTime);
+		
+		const year = input.startTime.substring(0,4);
+		const month = input.startTime.substring(5,7);
+		const date = input.startTime.substring(8,10);
+		criteria.targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));;
+
+		resolve(criteria);
+	})
+	.then(criteria => {
+		//generate all the slots of target date
+		const slots = generateSlots(criteria.targetDate, DAY_START, DAY_END);
+		criteria.slots = slots;
+
+		return criteria;
+	})
+	.then(async criteria => {
+		
+		/***************************************************************
+		call external occupancy API to save occupancy record
+		***************************************************************/
+
+		const targetDate = new Date(criteria.slots[0].startTime);
+		const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
+		const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
+
+		
+		const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SERVICE;
+		const headers = {
+			"content-Type": "application/json",
+		}
+
+		const data = {
+			"startTime": helper.dateToStandardString(dayBegin),
+			"endTime": helper.dateToStandardString(dayEnd)
+		}
+
+		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
+		.then((res) => {
+			/**********************************************************************
+			throw 500 error, external occupancyService/occupancies service not available
+			***********************************************************************/
+			if (res.status >= 200 && res.status < 300) {
+				return res.json();
+			}else{
+				logger.error(res.statusText);
+				throw {
+					status : 500,
+					message : "Booking Service not available"
+				}
+			}
+		})
+		.then((result) => {
+			criteria.occupancies = result;
+		});
+		
+		return criteria;
+	})
+	.then(criteria => {
+		/***************************************************************************
+		Set the availbility of each slot.
+		It will get all the occupancies of the targetDate,
+		then compare each slot to define availability (boolean) flag.
+		****************************************************************************/
+		var slots = criteria.slots;
+		const occupancies = criteria.occupancies;
+
+		for (var i = 0; i < slots.length; i++) {
+			
+			var slotStartTime = slots[i].startTime;
+			var slotEndTime = slots[i].endTime;
+
+			for(var j = 0; j < occupancies.length; j++){
+				
+				const occupancyStartTime = helper.standardStringToDate(occupancies[j].startTime);
+				const occupancyEndTime = helper.standardStringToDate(occupancies[j].endTime);
+
+				if((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
+					(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
+					(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)){
+					slots[i].available = false;
+				}
+			}	
+		}
+
+		criteria.slots = slots;
+		return criteria;
+	})
+	.then(criteria => {
+		/*******************************************************
+		Get all the available end slots after a start slot
+		*******************************************************/
+		const slots = criteria.slots;
+		const startSlot = getSlotByStartTime(criteria.startTime, slots);
+		
+		var availableEndSlots = new Array();
+		
+		for (var i = startSlot.index; i < slots.length; i++) {
+			if(slots[i].available == true){
+				availableEndSlots.push(slots[i]);
+			}else{
+				break;
+			}
+		}
+
+		return availableEndSlots;
+
+	})
+	.catch(err => {
+		if(err.status!=null){
+			logger.warn(err.message);
+			throw err
+		}else{
+			logger.error("Error while running slot.service.getSlots() : ", err);
+			throw{
+				message: "Booking service not available",
+				status: 500
+			}
+		}
+	});
+}
+
+/****************************************************************
+By : Ken Lai
+
+private function - generate all slots of target day
+****************************************************************/
+function generateSlots(targetDate, dayStart, dayEnd){
+
+	var hour = dayStart;
+	var slots = new Array();
+
+	for (var i=0; i<dayEnd; i++){
+
+		var slot = new Object();
+		slot.index = i;
+		hour = hour + 1;
+
+		slot.startTime = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 0 ,0));
+		slot.endTime = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 59, 59));
+		slot.available = true;
+		slots.push(slot); 
+	}
+
+	return slots;
+}
+
+/****************************************************************
+By : Ken Lai
+
+private function - return a specific slot by its startTime
+****************************************************************/
+function getSlotByStartTime(startTime, slots){
+	for (var i = 0; i < slots.length; i++) {
+		if((startTime >= slots[i].startTime && startTime <= slots[i].startTime)){
+			return slots[i];
+		}
+	}
+}
+
 module.exports = {
-	getSlots
+	getSlots,
+	getAvailableEndSlots
 }

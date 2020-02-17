@@ -71,11 +71,30 @@ module.exports = function(app){
 		helper.logIncommingRequest(req);
 
 		try{
-			const bookings = await slotService.getSlots(req.body);
-			res.json(bookings);
+			const slots = await slotService.getSlots(req.body);
+			res.json(slots);
 			res.status(200);
 		}catch(err){
-			logger.error("Error while calling bookingService.getSlots() : ", err);
+			logger.error("Error while calling slotService.getSlots() : ", err);
+			res.status(err.status);
+			res.json({ message: err.message });
+		}
+
+		res.on("finish", function(){
+			helper.logOutgoingResponse(res);
+		});
+	});
+
+	//get end slots
+	app.post("/end-slots", async (req, res) => {
+		helper.logIncommingRequest(req);
+
+		try{
+			const endSlots = await slotService.getAvailableEndSlots(req.body);
+			res.json(endSlots);
+			res.status(200);
+		}catch(err){
+			logger.error("Error while calling slotService.getAvailableEndSlots() : ", err);
 			res.status(err.status);
 			res.json({ message: err.message });
 		}
