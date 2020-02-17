@@ -10,6 +10,9 @@ require('dotenv').config();
 
 const CANCELLED_STATUS = "CANCELLED";
 const DEFAULT_BOOKING_SEARCH_DAYS_RANGE = 7;
+const OCCUPANCY_DOMAIN = "http://OccupancyApi-env.pkny93vkkt.us-west-2.elasticbeanstalk.com";
+const OCCUPANCY_SERVICE = "/occupancy";
+const AVAILABILITY_SERVICE = "/availability"
 
 /***********************************************************************
 By : Ken Lai
@@ -110,7 +113,7 @@ function addNewBooking(input){
 		/*****************************************************
 		Check if there is conflict witht the time slot.
 		*****************************************************/
-		const url = "http://OccupancyApi-env.pkny93vkkt.us-west-2.elasticbeanstalk.com/availability";
+		const url = OCCUPANCY_DOMAIN + AVAILABILITY_SERVICE;
 		const headers = {
 			"content-Type": "application/json",
 		}
@@ -125,7 +128,7 @@ function addNewBooking(input){
 			throw 500 error, external occupancyService/availability service not available
 			***********************************************************************/
 			if (res.status >= 200 && res.status < 300) {
-				return res.json()
+				return res.json();
 			}else{
 				logger.error(res.statusText);
 				throw {
@@ -163,7 +166,7 @@ function addNewBooking(input){
 		/***************************************************************
 		call external occupancy API to save occupancy record
 		***************************************************************/
-		const url = "http://OccupancyApi-env.pkny93vkkt.us-west-2.elasticbeanstalk.com/occupancy";
+		const url = OCCUPANCY_DOMAIN + OCCUPANCY_SERVICE;
 		const headers = {
 			"content-Type": "application/json",
 		}

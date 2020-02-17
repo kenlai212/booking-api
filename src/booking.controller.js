@@ -4,6 +4,7 @@ const jwt = require("jsonwebtoken");
 const helper = require("./helper");
 const logger = require("./logger");
 const bookingService = require("./booking.service");
+const slotService = require("./slot.service");
 require('dotenv').config();
 
 module.exports = function(app){
@@ -56,6 +57,25 @@ module.exports = function(app){
 			res.status(200);
 		}catch(err){
 			logger.error("Error while calling bookingService.viewBookings() : ", err);
+			res.status(err.status);
+			res.json({ message: err.message });
+		}
+
+		res.on("finish", function(){
+			helper.logOutgoingResponse(res);
+		});
+	});
+
+	//get slots
+	app.post("/slots", async (req, res) => {
+		helper.logIncommingRequest(req);
+
+		try{
+			const bookings = await slotService.getSlots(req.body);
+			res.json(bookings);
+			res.status(200);
+		}catch(err){
+			logger.error("Error while calling bookingService.getSlots() : ", err);
 			res.status(err.status);
 			res.json({ message: err.message });
 		}
