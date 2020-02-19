@@ -103,4 +103,23 @@ module.exports = function(app){
 			helper.logOutgoingResponse(res);
 		});
 	});
+
+	//get slot
+	app.post("/slot", async (req, res) => {
+		helper.logIncommingRequest(req);
+
+		try{
+			const slots = await slotService.getSlot(req.body);
+			res.json(slots);
+			res.status(200);
+		}catch(err){
+			logger.error("Error while calling slotService.getSlot() : ", err);
+			res.status(err.status);
+			res.json({ message: err.message });
+		}
+
+		res.on("finish", function(){
+			helper.logOutgoingResponse(res);
+		});
+	});
 }

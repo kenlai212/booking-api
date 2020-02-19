@@ -31,91 +31,22 @@ function getSlots(input){
 		const month = input.targetDate.substring(5,7);
 		const date = input.targetDate.substring(8,10);
 
-		//init and set criteria object
-		var criteria = new Object();
-		criteria.targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));;
+		const targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));;
 
-		resolve(criteria);
+		resolve(targetDate);
 	})
-	.then(criteria => {
+	.then(targetDate => {
 		/********************************************
 		generate slots from 5am to 7pm
 		********************************************/
-		const slots = generateSlots(criteria.targetDate, DAY_START, DAY_END);
-		
-		criteria.slots = slots;
-
-		return criteria;
+		const slots = generateSlots(targetDate, DAY_START, DAY_END);
+		return slots;
 	})
-	.then(async criteria => {
-		
-		/***************************************************************
-		call external occupancy API to save occupancy record
-		***************************************************************/
-
-		const targetDate = new Date(criteria.slots[0].startTime);
-		const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
-		const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
-
-		
-		const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SERVICE;
-		const headers = {
-			"content-Type": "application/json",
-		}
-
-		const data = {
-			"startTime": helper.dateToStandardString(dayBegin),
-			"endTime": helper.dateToStandardString(dayEnd)
-		}
-
-		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-		.then((res) => {
-			/**********************************************************************
-			throw 500 error, external occupancyService/occupancies service not available
-			***********************************************************************/
-			if (res.status >= 200 && res.status < 300) {
-				return res.json();
-			}else{
-				logger.error(res.statusText);
-				throw {
-					status : 500,
-					message : "Booking Service not available"
-				}
-			}
-		})
-		.then((result) => {
-			criteria.occupancies = result;
-		});
-		
-		return criteria;
-	})
-	.then(criteria => {
-		/***************************************************************************
-		Set the availbility of each slot.
-		It will get all the occupancies of the targetDate,
-		then compare each slot to define availability (boolean) flag.
-		****************************************************************************/
-		var slots = criteria.slots;
-		const occupancies = criteria.occupancies;
-
-		for (var i = 0; i < slots.length; i++) {
-			
-			var slotStartTime = slots[i].startTime;
-			var slotEndTime = slots[i].endTime;
-
-			for(var j = 0; j < occupancies.length; j++){
-				
-				const occupancyStartTime = helper.standardStringToDate(occupancies[j].startTime);
-				const occupancyEndTime = helper.standardStringToDate(occupancies[j].endTime);
-
-				if((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
-					(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
-					(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)){
-					slots[i].available = false;
-				}
-			}	
-		}
-
+	.then(async slots => {
+		/**********************************************
+		set availbility for all slots
+		**********************************************/
+		slots = await setAvailbilities(slots);
 		return slots;
 	})
 	.then(slots => {
@@ -184,82 +115,17 @@ function getAvailableEndSlots(input){
 		resolve(criteria);
 	})
 	.then(criteria => {
-		//generate all the slots of target date
-		const slots = generateSlots(criteria.targetDate, DAY_START, DAY_END);
-		criteria.slots = slots;
-
+		/********************************************
+		generate slots from 5am to 7pm
+		********************************************/
+		criteria.slots = generateSlots(criteria.targetDate, DAY_START, DAY_END);
 		return criteria;
 	})
 	.then(async criteria => {
-		
-		/***************************************************************
-		call external occupancy API to save occupancy record
-		***************************************************************/
-
-		const targetDate = new Date(criteria.slots[0].startTime);
-		const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
-		const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
-
-		
-		const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SERVICE;
-		const headers = {
-			"content-Type": "application/json",
-		}
-
-		const data = {
-			"startTime": helper.dateToStandardString(dayBegin),
-			"endTime": helper.dateToStandardString(dayEnd)
-		}
-
-		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-		.then((res) => {
-			/**********************************************************************
-			throw 500 error, external occupancyService/occupancies service not available
-			***********************************************************************/
-			if (res.status >= 200 && res.status < 300) {
-				return res.json();
-			}else{
-				logger.error(res.statusText);
-				throw {
-					status : 500,
-					message : "Booking Service not available"
-				}
-			}
-		})
-		.then((result) => {
-			criteria.occupancies = result;
-		});
-		
-		return criteria;
-	})
-	.then(criteria => {
-		/***************************************************************************
-		Set the availbility of each slot.
-		It will get all the occupancies of the targetDate,
-		then compare each slot to define availability (boolean) flag.
-		****************************************************************************/
-		var slots = criteria.slots;
-		const occupancies = criteria.occupancies;
-
-		for (var i = 0; i < slots.length; i++) {
-			
-			var slotStartTime = slots[i].startTime;
-			var slotEndTime = slots[i].endTime;
-
-			for(var j = 0; j < occupancies.length; j++){
-				
-				const occupancyStartTime = helper.standardStringToDate(occupancies[j].startTime);
-				const occupancyEndTime = helper.standardStringToDate(occupancies[j].endTime);
-
-				if((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
-					(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
-					(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)){
-					slots[i].available = false;
-				}
-			}	
-		}
-
-		criteria.slots = slots;
+		/**********************************************
+		set availbility for all slots
+		**********************************************/
+		criteria.slots = await setAvailbilities(criteria.slots);
 		return criteria;
 	})
 	.then(criteria => {
@@ -281,6 +147,89 @@ function getAvailableEndSlots(input){
 
 		return availableEndSlots;
 
+	})
+	.catch(err => {
+		if(err.status!=null){
+			logger.warn(err.message);
+			throw err
+		}else{
+			logger.error("Error while running slot.service.getSlots() : ", err);
+			throw{
+				message: "Booking service not available",
+				status: 500
+			}
+		}
+	});
+}
+
+/****************************************************************
+By : Ken Lai
+
+private function - set availbility of each slot by calling
+external occupancy api
+*****************************************************************/
+function setAvailbilities(slots){
+	return new Promise(async (resolve, reject) => {
+	
+		/***************************************************************
+		call external occupancy API to save occupancy record
+		***************************************************************/
+		const targetDate = new Date(slots[0].startTime);
+		const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
+		const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
+		
+		const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SERVICE;
+		const headers = {
+			"content-Type": "application/json",
+		}
+		const data = {
+			"startTime": helper.dateToStandardString(dayBegin),
+			"endTime": helper.dateToStandardString(dayEnd)
+		}
+
+		var occupancies = new Array();
+		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
+		.then((res) => {
+			/**********************************************************************
+			throw 500 error, external occupancyService/occupancies service not available
+			***********************************************************************/
+			if (res.status >= 200 && res.status < 300) {
+				return res.json();
+			}else{
+				logger.error(res.statusText);
+				throw {
+					status : 500,
+					message : "Booking Service not available"
+				}
+			}
+		})
+		.then((result) => {
+			occupancies = result;
+		})
+
+		resolve(occupancies);
+	})
+	.then(occupancies => {
+		
+		for (var i = 0; i < slots.length; i++) {
+				
+			var slotStartTime = slots[i].startTime;
+			var slotEndTime = slots[i].endTime;
+
+			for(var j = 0; j < occupancies.length; j++){
+				
+				const occupancyStartTime = helper.standardStringToDate(occupancies[j].startTime);
+				const occupancyEndTime = helper.standardStringToDate(occupancies[j].endTime);
+
+				if((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
+					(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
+					(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)){
+					slots[i].available = false;
+				}
+			}	
+		}
+
+		return slots;
 	})
 	.catch(err => {
 		if(err.status!=null){
