@@ -4,9 +4,9 @@ const logger = require("./logger");
 const helper = require("./helper");
 const bookingService = require("./booking.service");
 
-const OCCUPANCY_DOMAIN = "http://OccupancyApi-env.pkny93vkkt.us-west-2.elasticbeanstalk.com";
-const OCCUPANCIES_SERVICE = "/occupancies";
-const UNIT_PRICE = 1400;
+const OCCUPANCY_DOMAIN = process.env.OCCUPANCY_DOMAIN;
+const OCCUPANCIES_SUBDOMAIN = process.env.OCCUPANCIES_SUBDOMAIN;
+const UNIT_PRICE = process.env.UNIT_PRICE;
 const DAY_START = 5;
 const DAY_END = 14;
 
@@ -50,14 +50,10 @@ function getSlots(input){
 		return slots;
 	})
 	.then(slots => {
-		/***************************************************************************
+		/*********************************************
 		Set the unit price of each slot
-		will fetch from external pricing API
-		****************************************************************************/
-		for (var i = 0; i < slots.length; i++) {
-			//TODO - change this to fetch from external pricing API
-			slots[i].unitPrice = UNIT_PRICE;
-		}
+		*********************************************/
+		slots = setUnitPrices(slots);
 
 		return slots;
 	})
@@ -65,10 +61,7 @@ function getSlots(input){
 		/***************************************************
 		change startTime and endTime into standard string
 		***************************************************/
-		for (var i = 0; i < slots.length; i++) {
-			slots[i].startTime = helper.dateToStandardString(slots[i].startTime);
-			slots[i].endTime = helper.dateToStandardString(slots[i].endTime);
-		}
+		slots = setResponseFormatting(slots);
 
 		return slots;
 	})
@@ -148,6 +141,22 @@ function getAvailableEndSlots(input){
 		return availableEndSlots;
 
 	})
+	.then(slots => {
+		/*********************************************
+		Set the unit price of each slot
+		*********************************************/
+		slots = setUnitPrices(slots);
+
+		return slots;
+	})
+	.then(slots => {
+		/***************************************************
+		change startTime and endTime into standard string
+		***************************************************/
+		slots = setResponseFormatting(slots);
+
+		return slots;
+	})
 	.catch(err => {
 		if(err.status!=null){
 			logger.warn(err.message);
@@ -160,6 +169,36 @@ function getAvailableEndSlots(input){
 			}
 		}
 	});
+}
+
+/****************************************************************
+By : Ken Lai
+
+private function - set the response JSON formatting of each slot
+Chage startTime and endTime to standardDateStr format
+*****************************************************************/
+function setResponseFormatting(slots){
+		for (var i = 0; i < slots.length; i++) {
+			slots[i].startTime = helper.dateToStandardString(slots[i].startTime);
+			slots[i].endTime = helper.dateToStandardString(slots[i].endTime);
+		}
+
+		return slots;
+}
+
+/****************************************************************
+By : Ken Lai
+
+private function - set unit of each slot
+//TODO - will fetch from external pricing API
+*****************************************************************/
+function setUnitPrices(slots){
+	for (var i = 0; i < slots.length; i++) {
+		//TODO - change this to fetch from external pricing API
+		slots[i].unitPrice = UNIT_PRICE;
+	}
+
+	return slots;
 }
 
 /****************************************************************
@@ -178,7 +217,7 @@ function setAvailbilities(slots){
 		const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
 		const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
 		
-		const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SERVICE;
+		const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SUBDOMAIN;
 		const headers = {
 			"content-Type": "application/json",
 		}

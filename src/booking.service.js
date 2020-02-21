@@ -10,9 +10,11 @@ require('dotenv').config();
 
 const CANCELLED_STATUS = "CANCELLED";
 const DEFAULT_BOOKING_SEARCH_DAYS_RANGE = 7;
-const OCCUPANCY_DOMAIN = "http://OccupancyApi-env.pkny93vkkt.us-west-2.elasticbeanstalk.com";
-const OCCUPANCY_SERVICE = "/occupancy";
-const AVAILABILITY_SERVICE = "/availability"
+const MINIMUM_BOOKING_DURATION_MINUTES =  process.env.MINIMUM_BOOKING_DURATION_MINUTES;
+const MAXIMUM_BOOKING_DURATION_MINUTES =  process.env.MAXIMUM_BOOKING_DURATION_MINUTES;
+const OCCUPANCY_DOMAIN = process.env.OCCUPANCY_DOMAIN;
+const OCCUPANCY_SUBDOMAIN = process.env.OCCUPANCY_SUBDOMAIN;
+const AVAILABILITY_SUBDOMAIN = process.env.AVAILABILITY_DOMAIN;
 
 /***********************************************************************
 By : Ken Lai
@@ -54,19 +56,19 @@ function addNewBooking(input){
 		const startTimeInMinutes = startTime.getMinutes() + startTime.getHours() * 60;
 		const endTimeInMinutes = endTime.getMinutes() + endTime.getHours() * 60;
 		const durationInMinutes = endTimeInMinutes - startTimeInMinutes;
-		if(durationInMinutes < process.env.MINIMUM_BOOKING_DURATION_MINUTES){
+		if(durationInMinutes < MINIMUM_BOOKING_DURATION_MINUTES){
 			reject({
 				status : 400,
-				message : "booking duration cannot be less then "+ process.env.MINIMUM_BOOKING_DURATION_MINUTES +" minutes"
+				message : "booking duration cannot be less then "+ MINIMUM_BOOKING_DURATION_MINUTES +" minutes"
 			});
 		}
 
 		//check maximum booking duration
 		if(process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == 1){
-			if(durationInMinutes > process.env.MAXIMUM_BOOKING_DURATION_MINUTES){
+			if(durationInMinutes > MAXIMUM_BOOKING_DURATION_MINUTES){
 				reject({
 					status : 400,
-					message : "booking duration cannot be more then "+ process.env.MAXIMUM_BOOKING_DURATION_MINUTES +" minutes"
+					message : "booking duration cannot be more then "+ MAXIMUM_BOOKING_DURATION_MINUTES +" minutes"
 				});	
 			}
 		}
@@ -113,7 +115,7 @@ function addNewBooking(input){
 		/*****************************************************
 		Check if there is conflict witht the time slot.
 		*****************************************************/
-		const url = OCCUPANCY_DOMAIN + AVAILABILITY_SERVICE;
+		const url = OCCUPANCY_DOMAIN + AVAILABILITY_SUBDOMAIN;
 		const headers = {
 			"content-Type": "application/json",
 		}
@@ -166,7 +168,7 @@ function addNewBooking(input){
 		/***************************************************************
 		call external occupancy API to save occupancy record
 		***************************************************************/
-		const url = OCCUPANCY_DOMAIN + OCCUPANCY_SERVICE;
+		const url = OCCUPANCY_DOMAIN + OCCUPANCY_SUBDOMAIN;
 		const headers = {
 			"content-Type": "application/json",
 		}
