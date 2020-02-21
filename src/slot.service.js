@@ -195,7 +195,7 @@ private function - set unit of each slot
 function setUnitPrices(slots){
 	for (var i = 0; i < slots.length; i++) {
 		//TODO - change this to fetch from external pricing API
-		slots[i].unitPrice = UNIT_PRICE;
+		slots[i].unitPrice = parseInt(UNIT_PRICE);
 	}
 
 	return slots;
