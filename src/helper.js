@@ -3,7 +3,7 @@ const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
-const {MissingMandateError, DBError} = require("./error");
+const {MissingMandateError, DBError, InvalidDataError} = require("./error");
 require('dotenv').config();
 
 function logIncommingRequest(req){
@@ -55,6 +55,10 @@ function standardStringToDate(dateStr){
 	const second = dateStr.substring(17,19);
 	const dateTime = new Date(Date.UTC(year, month - 1, date, hour, minute, second, 0));
 
+	if (isNaN(dateTime.getTime())){
+		throw new InvalidDataError(dateStr);
+	}
+	
 	return dateTime;
 }
 

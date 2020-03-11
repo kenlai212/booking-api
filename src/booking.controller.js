@@ -20,12 +20,14 @@ module.exports = function(app){
 		}catch(err){
 			logger.error("Error while calling bookingService.addNewBooking() : ", err);
 			res.status(err.status);
-			res.json({ message: err.message });
+			res.statusMessage = err.message;
 		}
 
 		res.on("finish", function(){
 			helper.logOutgoingResponse(res);
 		});
+
+		res.send();
 	});
 
 	//cancel booking
@@ -39,12 +41,14 @@ module.exports = function(app){
 		}catch(err){
 			logger.error("Error while calling bookingService.cancelBooking() : ", err);
 			res.status(err.status);
-			res.json({ message: err.message });
+			res.statusMessage = err.message;
 		}
 
 		res.on("finish", function(){
 			helper.logOutgoingResponse(res);
 		});
+
+		res.send();
 	});
 
 	//view all bookings
@@ -58,12 +62,14 @@ module.exports = function(app){
 		}catch(err){
 			logger.error("Error while calling bookingService.viewBookings() : ", err);
 			res.status(err.status);
-			res.json({ message: err.message });
+			res.statusMessage = err.message;
 		}
 
 		res.on("finish", function(){
 			helper.logOutgoingResponse(res);
 		});
+
+		res.send();
 	});
 
 	//get slots
@@ -77,12 +83,14 @@ module.exports = function(app){
 		}catch(err){
 			logger.error("Error while calling slotService.getSlots() : ", err);
 			res.status(err.status);
-			res.json({ message: err.message });
+			res.statusMessage = err.message;
 		}
 
 		res.on("finish", function(){
 			helper.logOutgoingResponse(res);
 		});
+
+		res.send();
 	});
 
 	//get end slots
@@ -96,12 +104,14 @@ module.exports = function(app){
 		}catch(err){
 			logger.error("Error while calling slotService.getAvailableEndSlots() : ", err);
 			res.status(err.status);
-			res.json({ message: err.message });
+			res.statusMessage = err.message;
 		}
 
 		res.on("finish", function(){
 			helper.logOutgoingResponse(res);
 		});
+
+		res.send();
 	});
 
 	//get slot
@@ -115,11 +125,13 @@ module.exports = function(app){
 		}catch(err){
 			logger.error("Error while calling slotService.getSlot() : ", err);
 			res.status(err.status);
-			res.json({ message: err.message });
+			res.statusMessage = err.message;
 		}
 
 		res.on("finish", function(){
 			helper.logOutgoingResponse(res);
 		});
+
+		res.send();
 	});
 }

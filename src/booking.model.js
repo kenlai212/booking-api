@@ -6,81 +6,91 @@ const logger = require("./logger");
 const BOOKING_COLLECTION = "bookings";
 const {MissingMandateError, DBError} = require("./error");
 
-function searchBookingsByDatetime(startTime, endTime){
-	return new Promise(async (resolve, reject) => {
-		if(startTime == null){
-			reject(new MissingMandateError("startTime"));
-		}
+async function searchBookingsByDatetime(startTime, endTime){
+	if(startTime == null){
+		throw new MissingMandateError("startTime");
+	}
 
-		if(endTime == null){
-			reject(new MissingMandateError("endTime"));
-		}
+	if(endTime == null){
+		throw new MissingMandateError("endTime");
+	}
 
-		try{
-			resolve(await db.search(BOOKING_COLLECTION,
-				{
-					startTime : {$gte: startTime},
-					endTime : {$lt : endTime}
-				})
-			);
-		}catch(err){
-			reject(err);
-		}
+	var bookings = [];
+	await db.search(BOOKING_COLLECTION,{
+		startTime : {$gte: startTime},
+		endTime : {$lt : endTime}
+	})
+	.then(result => {
+		bookings = result;
+	})
+	.catch(dbErr => {
+		logger.error("db.search() error : " + dbErr);
+		throw dbErr;
 	});
+
+	return bookings;
 }
 
-function addNewBooking(booking){
-	return new Promise(async (resolve, reject) => {
+async function addNewBooking(booking){
+	if(booking.startTime == null){
+		throw new MissingMandateError("startTime");
+	}
 
-		if(booking.startTime == null){
-			reject(new MissingMandateError("startTime"));
-		}
+	if(booking.endTime == null){
+		throw new MissingMandateError("endTime");
+	}
 
-		if(booking.endTime == null){
-			reject(new MissingMandateError("endTime"));
-		}
+	if(booking.telephoneNumber == null){
+		throw new MissingMandateError("telephoneNumber");
+	}
 
-		if(booking.telephoneNumber == null){
-			reject(new MissingMandateError("telephoneNumber"));
-		}
-
-		try{
-			resolve(await db.insertOne(BOOKING_COLLECTION, booking));
-		}catch(err){
-			reject(err);
-		}
+	var newBooking;
+	await db.insertOne(BOOKING_COLLECTION, booking)
+	.then(result => {
+		newBooking = result.ops[0];
+	})
+	.catch(dbErr => {
+		logger.error("db.insertOne() error : " + dbErr);
+		throw dbErr;
 	});
+
+	return newBooking;
 }
 
-function deleteBooking(bookingId){
-
+async function deleteBooking(bookingId){
 	if(bookingId == null){
-		throw(new MissingMandateError("bookingId"));
+		throw new MissingMandateError("bookingId");
 	}
 
-	try{
-		db.deleteOne(BOOKING_COLLECTION, {"_id":ObjectId(bookingId)});	
-	}catch(err){
-		throw(err);
-	}
-	
+	var deleteResult;
+	await db.deleteOne(BOOKING_COLLECTION, {"_id":ObjectId(bookingId)})
+	.then(result => {
+		deleteResult = result;
+	})
+	.catch(dbErr => {
+		logger.error("db.deleteOne() error : " + dbErr);
+		throw dbErr;
+	});
+
+	return deleteResult;
 }
 
-function findBookingById(bookingId){
-	return new Promise(async (resolve, reject) => {
-		
-		if(bookingId == null){
-			reject(new MissingMandateError("bookingId"));
-		}
+async function findBookingById(bookingId){
+	if(bookingId == null){
+		throw new MissingMandateError("bookingId");
+	}
 
-		try{
-			const targetBooking = await db.findOne(BOOKING_COLLECTION, {"_id":ObjectId(bookingId)});
-			resolve(targetBooking);	
-		}catch(err){
-			reject(err);
-		}
-		
+	var booking;
+	await db.findOne(BOOKING_COLLECTION, {"_id":ObjectId(bookingId)})
+	.then(result => {
+		booking =result;
+	})
+	.catch(dbErr => {
+		logger.error("db.findOne() error : " + dbErr);
+		throw dbErr;
 	});
+
+	return booking;
 }
 
 module.exports = {

@@ -5,6 +5,13 @@ class MissingMandateError extends Error{
   }
 }
 
+class InvalidDataError extends Error{
+  constructor(data) {
+    super(data + " is invalid")
+    this.name = this.constructor.name
+  }
+}
+
 class DBError extends Error{
   constructor(message){
     super(message);
@@ -14,5 +21,6 @@ class DBError extends Error{
 
 module.exports = { 
   MissingMandateError, 
+  InvalidDataError,
   DBError 
 };

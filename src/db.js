@@ -28,93 +28,79 @@ function initDb(callback){
 
 function findAll(collection){
 	return new Promise((resolve, reject) => {
-		try{
-			const data = _db
-			.collection(collection)
-			.find({})
-			.toArray();
-
-			resolve(data);
-		}catch(err){
-			logger.error("Error while running db.findAll() : ",err);
-			reject(new DBError("findAll Error"));
-		}
+		const data = _db.collection(collection).find({}).toArray((err, data) => {
+			if (err) {
+				logger.error("Error while running db.findAll() : ",err);
+				reject(new DBError("findAll Error"));
+			} else {
+				resolve(data);
+			}
+		});
 	});
 }
 
 function search(collection, param){
 	return new Promise((resolve, reject) => {
-		try{
-			const data = _db
-			.collection(collection)
-			.find(param)
-			.toArray();
-
-			resolve(data);
-		}catch(err){
-			logger.error("Error while running db.findAll() : ",err);
-			reject(new DBError("findAll Error"));
-		}
+		_db.collection(collection).find(param).toArray((err, data) => {
+			if (err) {
+				logger.error("Error while running db.search() : ",err);
+				reject(new DBError("search() Error"));
+			} else {
+				resolve(data);
+			}
+		});
 	});
 }
 
 function findOne(collection, param){
 	return new Promise((resolve, reject) => {
-		try{
-			const data = _db
-			.collection(collection)
-			.findOne(param);
-
+		_db.collection(collection).findOne(param)
+		.then(data => {
 			resolve(data);
-		}catch(err){
+		})
+		.catch(err => {
 			logger.error("Error while runnung db.findOne() : ",err);
 			reject(new DBError("findOne Error"));
-		}
+		});
 	});
 }
 
 function insertOne(collection, object){
 	return new Promise(async (resolve, reject) => {
-		try{
-			const data = await _db
-			.collection(collection)
-			.insertOne(object);
-			
-			resolve(data.ops[0]);
-		}catch(err){
+		_db.collection(collection).insertOne(object)
+		.then(data => {
+			resolve(data);
+		})
+		.catch(err => {
 			logger.error("Error while running db.insertOne() : ",err);
 			reject(new DBError("insertOne Error"));
-		}
+		});
 	});
 }
 
 function updateOne(collection, target, set){
 	return new Promise((resolve, reject) => {
-		try{
-			const data = _db
-			.collection(collection)
-			.updateOne(target, set);
-			
-			resolve(data);	
-		}catch(err){
+		_db.collection(collection).updateOne(target, set)
+		.then(data => {
+			resolve(data);
+		})
+		.catch(err => {
 			logger.error("Error while running db.updateOne() : ",err);
 			reject(new DBError("updateOne Error"));
-		}
+		});
 	});
 }
 
 function deleteOne(collection, target){
 	return new Promise((resolve, reject) => {
-		try{
-			const data = _db
-			.collection(collection)
-			.deleteOne(target);
-
+		_db.collection(collection).deleteOne(target)
+		.then(data => {
 			resolve(data);
-		}catch(err){
+		})
+		.catch(err => {
 			logger.error("Error while running db.deleteOne() : ",err);
 			reject(new DBError("deleteOne Error"));
-		}
+		});
 	});
 }
 

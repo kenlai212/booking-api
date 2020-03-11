@@ -9,12 +9,12 @@ const bookingHistoryModel = require("./booking-history.model");
 require('dotenv').config();
 
 const CANCELLED_STATUS = "CANCELLED";
-const DEFAULT_BOOKING_SEARCH_DAYS_RANGE = 7;
 const MINIMUM_BOOKING_DURATION_MINUTES =  process.env.MINIMUM_BOOKING_DURATION_MINUTES;
 const MAXIMUM_BOOKING_DURATION_MINUTES =  process.env.MAXIMUM_BOOKING_DURATION_MINUTES;
 const OCCUPANCY_DOMAIN = process.env.OCCUPANCY_DOMAIN;
 const OCCUPANCY_SUBDOMAIN = process.env.OCCUPANCY_SUBDOMAIN;
 const AVAILABILITY_SUBDOMAIN = process.env.AVAILABILITY_SUBDOMAIN;
+const RELEASE_OCCUPANCY_SUBDOMAIN = process.env.RELEASE_OCCUPANCY_SUBDOMIAN;
 
 /***********************************************************************
 By : Ken Lai
@@ -22,200 +22,198 @@ By : Ken Lai
 Add new booking record to database, then add a corrisponding 
 new occupancy record by calling occupancy service
 ************************************************************************/
-function addNewBooking(input){
-	return new Promise(async (resolve, reject) => {
+async function addNewBooking(input){
+	var response = new Object;
+	var booking = new Object();
+
+	/******************************************
+	validate and set startTime & endTime
+	******************************************/
+	if(input.startTime == null){
+		response.status = 400;
+		response.message = "startTime is mandatory";
+		throw response;
+	}
+
+	//validate end time
+	if(input.endTime == null){
+		response.status = 400;
+		response.message = "endTime is mandatory";
+		throw response;
+	}
+
+	var startTime;
+	var endTime;
+	try{
+		startTime = helper.standardStringToDate(input.startTime);
+		endTime = helper.standardStringToDate(input.endTime);
+	}catch(err){
+		//invalid input date string format
+		response.status = 400;
+		response.message = err.message;
+		throw response;
+	}
 		
-		/******************************************
-		validate and set startTime & endTime
-		******************************************/
-		if(input.startTime == null){
-			reject({
-				status : 400,
-				message : "startTime is mandatory"
-			});
+	if(startTime > endTime){
+		response.status = 400;
+		response.message = "Invalid endTime";
+		throw response;
+	}
+
+	booking.startTime = startTime;
+	booking.endTime = endTime;
+
+	//check minimum booking duration
+	const startTimeInMinutes = startTime.getMinutes() + startTime.getHours() * 60;
+	const endTimeInMinutes = endTime.getMinutes() + endTime.getHours() * 60;
+	const durationInMinutes = endTimeInMinutes - startTimeInMinutes;
+	if(durationInMinutes < MINIMUM_BOOKING_DURATION_MINUTES){
+		response.status = 400;
+		response.message = "booking duration cannot be less then "+ MINIMUM_BOOKING_DURATION_MINUTES +" minutes";
+		throw response;
+	}
+
+	//check maximum booking duration
+	if(process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == 1){
+		if(durationInMinutes > MAXIMUM_BOOKING_DURATION_MINUTES){
+			response.status = 400;
+			response.message = "booking duration cannot be more then "+ MAXIMUM_BOOKING_DURATION_MINUTES +" minutes";
+			throw response;
 		}
-		const startTime = helper.standardStringToDate(input.startTime);
+	}
 
-		//validate end time
-		if(input.endTime == null){
-			reject({
-				status : 400,
-				message : "endTime is mandatory"
-			});
-		}
-		const endTime = helper.standardStringToDate(input.endTime);
+	//validate contact name
+	if(input.contactName == null){
+		response.status = 400;
+		response.message = "contactName is mandatory";
+		throw response;
+	}
+	booking.contactName = input.contactName;
 
-		if(startTime > endTime){
-			reject({
-				status : 400,
-				message : "Invalid endTime"
-			});
-		}
+	//validate telephone number
+	if(input.telephoneNumber == null){
+		response.status = 400;
+		response.message = "telephoneNumber is mandatory";
+		throw response;
+	}
+	booking.telephoneNumber = input.telephoneNumber;
 
-		//check minimum booking duration
-		const startTimeInMinutes = startTime.getMinutes() + startTime.getHours() * 60;
-		const endTimeInMinutes = endTime.getMinutes() + endTime.getHours() * 60;
-		const durationInMinutes = endTimeInMinutes - startTimeInMinutes;
-		if(durationInMinutes < MINIMUM_BOOKING_DURATION_MINUTES){
-			reject({
-				status : 400,
-				message : "booking duration cannot be less then "+ MINIMUM_BOOKING_DURATION_MINUTES +" minutes"
-			});
-		}
+	//validate email address
+	//TODO validate email format
+	if(input.emailAddress!=null){
+		booking.emailAddress = input.emailAddress;
+	}
 
-		//check maximum booking duration
-		if(process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == 1){
-			if(durationInMinutes > MAXIMUM_BOOKING_DURATION_MINUTES){
-				reject({
-					status : 400,
-					message : "booking duration cannot be more then "+ MAXIMUM_BOOKING_DURATION_MINUTES +" minutes"
-				});	
-			}
-		}
-
-		var booking = new Object();
-		booking.startTime = startTime;
-		booking.endTime = endTime;
-
-		resolve(booking);
-	})
-	.then(booking => {
-		
-		/********************************************
-		validate and set contact infomation
-		********************************************/
-
-		//validate contact name
-		if(input.contactName == null){
-			throw{
-				status : 400,
-				message : "contactName is mandatory"
-			}
-		}
-		booking.contactName = input.contactName;
-
-		//validate telephone number
-		if(input.telephoneNumber == null){
-			throw{
-				status : 400,
-				message : "telephoneNumber is mandatory"
-			}
-		}
-		booking.telephoneNumber = input.telephoneNumber;
-
-		//validate email address
-		//TODO validate email format
-		if(input.emailAddress!=null){
-			booking.emailAddress = input.emailAddress;
-		}
-
-		return booking;
-	})
-	.then(async booking => {
-		/*****************************************************
-		Check if there is conflict witht the time slot.
-		*****************************************************/
-		const url = OCCUPANCY_DOMAIN + AVAILABILITY_SUBDOMAIN;
-		const headers = {
-			"content-Type": "application/json",
-		}
-		const data = {
-			"startTime": helper.dateToStandardString(booking.startTime),
-			"endTime": helper.dateToStandardString(booking.endTime)
-		}
-
-		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-		.then((res) => {
-			/**********************************************************************
-			throw 500 error, external occupancyService/availability service not available
-			***********************************************************************/
-			if (res.status >= 200 && res.status < 300) {
-				return res.json();
-			}else{
-				logger.error(res.statusText);
-				throw {
-					status : 500,
-					message : "Booking Service not available"
-				}
-			}
-		})
-		.then((result) => {
-			/*******************************
-			throw 400 error if not available
-			********************************/
-			if(result.isAvailable==false){
-				throw {
-					status : 400,
-					message : "Asset not available during this time range"
-				}
-			}
-		});
-
-		return booking;
-	})
-	.then(async booking => {
-		/************************************************************
-		setup and save newBooking record
-		************************************************************/
-		booking.creationTime = new Date();
-		booking.status = "AWAITING_PAYMENT";
-
-		booking = await bookingModel.addNewBooking(booking);
-
-		return booking;
-	})
-	.then(booking => {
-		/***************************************************************
-		call external occupancy API to save occupancy record
-		***************************************************************/
-		const url = OCCUPANCY_DOMAIN + OCCUPANCY_SUBDOMAIN;
-		const headers = {
-			"content-Type": "application/json",
-		}
-		const data = {
-			"occupancyType" : "OPEN_BOOKING",
-			"associatedId" : booking._id,
-			"startTime": helper.dateToStandardString(booking.startTime),
-			"endTime": helper.dateToStandardString(booking.endTime)
-		}
-
-		fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-		.then((res) => {
-			/**********************************************************************
-			-throw 500 error, external occupancyService/occupancy service not available
-			-reverse the booking record
-			***********************************************************************/
-			if (res.status >= 200 && res.status < 300) {
-				//success - do nothing!
-			}else{
-				//TODO - Reverse booking sisnce external occupancy service not available
-				logger.error(res.statusText);
-				throw {
-					status : 500,
-					message : "Booking Service not available"
-				}
-			}
-		});
-
-		return booking;
-	})
-	.then(booking => {
-		booking.startTime = helper.dateToStandardString(booking.startTime);
-		booking.endTime = helper.dateToStandardString(booking.endTime);
-		return booking;
+	//call external occupancy API to save occupancy record
+	await callOccupancyAPI(booking.startTime, booking.endTime)
+	.then(newOccupancy => {
+		logger.info("Saved new occupancy.id : " + newOccupancy._id);
+		booking.occupancyId = newOccupancy._id;
 	})
 	.catch(err => {
-		if(err.status!=null){
-			logger.warn(err.message);
-			throw err
+		response.status = 500;
+		response.message = err.message;
+		throw response;
+	});
+
+	//setup and save newBooking record
+	booking.creationTime = new Date();
+	booking.status = "AWAITING_PAYMENT";
+	await bookingModel.addNewBooking(booking)
+	.then(newBooking => {
+		logger.info("Successfully saved new booking");
+		booking = newBooking;
+	})
+	.catch(err => {
+		logger.error("bookingModel.addNewBooking() error : " + err);
+		response.status = 500;
+		response.message = "Add new booking function not available";
+		throw response;
+	});
+
+	booking.startTime = helper.dateToStandardString(booking.startTime);
+	booking.endTime = helper.dateToStandardString(booking.endTime);
+	
+	return booking;
+}
+
+async function callOccupancyAPI(startTime, endTime){
+	const url = OCCUPANCY_DOMAIN + OCCUPANCY_SUBDOMAIN;
+	const headers = {
+		"content-Type": "application/json",
+	}
+	const data = {
+		"occupancyType" : "OPEN_BOOKING",
+		"startTime": helper.dateToStandardString(startTime),
+		"endTime": helper.dateToStandardString(endTime)
+	}
+
+	var occupancy;
+	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
+	.then((res) => {
+		if (res.status >= 200 && res.status < 300) {
+			logger.info("Occupancy record successfuly saved via Occupancy API");
+			occupancy = res.json();
 		}else{
-			logger.error("Error while running booking.service.addNewBooking() : ", err);
-			throw{
-				message: "Booking service not available",
-				status: 500
-			}
+			logger.error("Extrenal Occupancy API failed : " + res.statusText);
+			var response = new Object();
+			response.status = res.status;
+			response.message = res.statusText;
+			throw response;
 		}
 	});
+	
+	return occupancy;
+}
+
+async function callAvailabilityAPI(startTime, endTime){
+	const url = OCCUPANCY_DOMAIN + AVAILABILITY_SUBDOMAIN;
+	const headers = {
+		"content-Type": "application/json",
+	}
+	const data = {
+		"startTime": helper.dateToStandardString(startTime),
+		"endTime": helper.dateToStandardString(endTime)
+	}
+
+	var isAvailable;
+	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
+	.then(res => {
+		if (res.status >= 200 && res.status < 300) {
+			isAvailable = res.json();
+		}else{
+			logger.error("External Availability API failed : " + res.statusText);
+			var response = new Object();
+			response.status = res.status;
+			response.message = res.statusText;
+			throw response;
+		}
+	});
+
+	return isAvailable;
+}
+
+async function callReleaseOccupancyAPI(occupancyId){
+	const url = OCCUPANCY_DOMAIN + RELEASE_OCCUPANCY_SUBDOMAIN + "/" + occupancyId;
+	const headers = {
+		"content-Type": "application/json",
+	}
+
+	var isAvailable;
+	await fetch(url, { method: 'DELETE', headers: headers})
+	.then(res => {
+		if (res.status >= 200 && res.status < 300) {
+			isAvailable = res.json();
+		}else{
+			logger.error("External Release Occupancy API failed : " + res.statusText);
+			var response = new Object();
+			response.status = res.status;
+			response.message = res.statusText;
+			throw response;
+		}
+	});
+
+	return isAvailable;
 }
 
 /************************************************************************
@@ -224,56 +222,71 @@ By : Ken Lai
 delete booking from database, delete the corrisponding occupancy record
 by calling occupancy service.
 ************************************************************************/
-function cancelBooking(bookingId){
-	return new Promise((resolve, reject) => {
-		//validate bookingId
-		if(bookingId==null){
-			reject({
-				status : 400,
-				message : "bookingId is mandatory"
-			});
-		}
+async function cancelBooking(bookingId){
+	var response = new Object;
 
-		resolve();
-	})
-	.then(async () =>  {
+	//validate bookingId
+	if(bookingId==null){
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw(response);
+	}
 
-		//validate bookingId
-		const targetBooking = await bookingModel.findBookingById(bookingId);
-
-		if(targetBooking == null){
-			throw {
-				status : 400,
-				message : "Invalid bookingId"
-			};
-		}
-
-		return targetBooking;
-	})
-	.then(targetBooking => {
-		//delete booking record from db
-		bookingModel.deleteBooking(targetBooking._id);
-
-		//add new booking history
-		targetBooking.status = CANCELLED_STATUS;
-		bookingHistoryModel.addNewBookingHistory(targetBooking);
-
-		//release occupancy
-		occupancyService.releaseOccupancy(targetBooking._id);
-
+	var targetBooking;
+	await bookingModel.findBookingById(bookingId)
+	.then(booking => {
+		targetBooking = booking;
 	})
 	.catch(err => {
-		if(err.status!=null){
-			logger.warn(err.message);
-			throw err
-		}else{
-			logger.error("Error while running booking.service.cancelBooking() : ", err);
-			throw{
-				message: "Booking service not available",
-				status: 500
-			}
-		}
+		logger.error("bookingModel.findBookingById() error : " + err);
+		response.status = 500;
+		response.message = "Cancel Booking Service not available";
+		throw response;
 	});
+
+	if(targetBooking == null){
+		response.status = 400;
+		response.message = "Invalid booking ID";
+		throw response;
+	}
+
+	//release occupancy
+	await callReleaseOccupancyAPI(targetBooking.occupancyId)
+	.then(() => {
+		logger.info("Successfully called Release Occupancy API to deleted occupancy.id " + targetBooking.occupancyId);
+	})
+	.catch(err => {
+		response.status = 500;
+		response.message = err.message;
+		throw response;
+	});
+
+	//delete booking record from db
+	await bookingModel.deleteBooking(booking._id)
+	.then(() => {
+		logger.info("Deleted booking.id : " + bookingId);
+	})
+	.catch(err => {
+		logger.error("bookingModel.deleteBooking() error : " + err);
+		response.status = 500;
+		response.message = "Cancel Booking Service not available";
+		throw response;
+	});
+
+	//add new booking history
+	targetBooking.status = CANCELLED_STATUS;
+	await bookingHistoryModel.addNewBookingHistory(targetBooking)
+	.then(bookingHistory => {
+		logger.info("Saved new bookingHistory.id : " + bookingHistory._id);
+	})
+	.catch(err => {
+		logger.error("bookingHistoryModel.addNewBookingHistory() error : " + err);
+		response.status = 500;
+		response.message = "Cancel Booking Service not available";
+		throw response;
+	});
+
+	return "SUCCESS";
 }
 
 /*************************************************************
@@ -284,43 +297,52 @@ By : Ken Lai
  to start of today and end of x date later. 
  x = DEFAULT_BOOKING_SEARCH_DAYS_RANGE
 *************************************************************/
-function viewBookings(input){
-	return new Promise(async (resolve, reject) => {
-		
-		//initate startTime
-		var startTime = new Date();
-		startTime.setHours(0,0,0,0);
+async function viewBookings(input){
+	var response = new Object;
 
-		//if input contains startTime, use it
-		if(input.startTime != null){
-			startTime = helper.standardStringToDate(input.startTime);
-		}
+	if(input.startTime == null){
+		response.status = 400;
+		response.message = "startTime is mandatory";
+		throw response;	
+	}
 
-		//initiage end Time
-		var endTime = new Date(startTime);
-		endTime.setHours(0,0,0,0);
+	if(input.endTime == null){
+		response.status = 400;
+		response.message = "endTime is mandatory";
+		throw response;	
+	}
 
-		//if input contains endTime, use it.
-		//if not use 
-		if(input.endTime !=  null){
-			endTime = helper.standardStringToDate(input.endTime);
-		}else{
-			endTime.setDate(endTime.getDate() + DEFAULT_BOOKING_SEARCH_DAYS_RANGE);
-		}
+	var startTime;
+	var endTime;
+	try{
+		startTime = helper.standardStringToDate(input.startTime);
+		endTime = helper.standardStringToDate(input.endTime);
+	}catch(err){
+		//invalid input date string format
+		response.status = 400;
+		response.message = err.message;
+		throw response;
+	}
 
-		console.log(startTime);
-		console.log(endTime);
-		const bookings = await bookingModel.searchBookingsByDatetime(startTime, endTime);
+	if(startTime > endTime){
+		response.status = 400;
+		response.message = "Invalid endTime";
+		throw response;
+	}
 
-		if(bookings == null){
-			reject({
-				status : 404,
-				message : "No bookings available"
-			});
-		}
-
-		resolve(bookings);
+	var bookings = [];
+	await bookingModel.searchBookingsByDatetime(startTime, endTime)
+	.then(result => {
+		bookings = result;
+	})
+	.catch(err => {
+		logger.error("bookingHistoryModel.addNewBookingHistory() error : " + err);
+		response.status = 500;
+		response.message = "Cancel Booking Service not available";
+		throw response;
 	});
+
+	return bookings;
 }
 
 module.exports = {

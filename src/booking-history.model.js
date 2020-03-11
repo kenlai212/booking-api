@@ -6,27 +6,30 @@ const logger = require("./logger");
 const BOOKING_HISTORY_COLLECTION = "booking_histories";
 const {MissingMandateError, DBError} = require("./error");
 
-function addNewBookingHistory(bookingHistory){
-	return new Promise(async (resolve, reject) => {
+async function addNewBookingHistory(bookingHistory){
+	if(bookingHistory.startTime == null){
+		throw new MissingMandateError("startTime");
+	}
 
-		if(bookingHistory.startTime == null){
-			reject(new MissingMandateError("startTime"));
-		}
+	if(bookingHistory.endTime == null){
+		throw new MissingMandateError("endTime");
+	}
 
-		if(bookingHistory.endTime == null){
-			reject(new MissingMandateError("endTime"));
-		}
+	if(bookingHistory.telephoneNumber == null){
+		throw new MissingMandateError("telephoneNumber");
+	}
 
-		if(bookingHistory.telephoneNumber == null){
-			reject(new MissingMandateError("telephoneNumber"));
-		}
-
-		try{
-			resolve(await db.insertOne(BOOKING_HISTORY_COLLECTION, bookingHistory));
-		}catch(err){
-			reject(err);
-		}
+	var bookingHistory;
+	await db.insertOne(BOOKING_HISTORY_COLLECTION, bookingHistory)
+	.then(result => {
+		bookingHistory = result;
+	})
+	.catch(dbErr => {
+		logger.error("db.insertOne() error : " + dbErr);
+		throw dbErr;
 	});
+
+	return bookingHistory;
 }
 
 module.exports = {
