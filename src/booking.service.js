@@ -14,7 +14,7 @@ const MAXIMUM_BOOKING_DURATION_MINUTES =  process.env.MAXIMUM_BOOKING_DURATION_M
 const OCCUPANCY_DOMAIN = process.env.OCCUPANCY_DOMAIN;
 const OCCUPANCY_SUBDOMAIN = process.env.OCCUPANCY_SUBDOMAIN;
 const AVAILABILITY_SUBDOMAIN = process.env.AVAILABILITY_SUBDOMAIN;
-const RELEASE_OCCUPANCY_SUBDOMAIN = process.env.RELEASE_OCCUPANCY_SUBDOMIAN;
+const RELEASE_OCCUPANCY_SUBDOMAIN = process.env.RELEASE_OCCUPANCY_SUBDOMAIN;
 
 /***********************************************************************
 By : Ken Lai
@@ -262,9 +262,9 @@ async function cancelBooking(bookingId){
 	});
 
 	//delete booking record from db
-	await bookingModel.deleteBooking(booking._id)
+	await bookingModel.deleteBooking(targetBooking._id)
 	.then(() => {
-		logger.info("Deleted booking.id : " + bookingId);
+		logger.info("Deleted booking.id : " + targetBooking._id);
 	})
 	.catch(err => {
 		logger.error("bookingModel.deleteBooking() error : " + err);
@@ -340,6 +340,11 @@ async function viewBookings(input){
 		response.status = 500;
 		response.message = "Cancel Booking Service not available";
 		throw response;
+	});
+
+	bookings.forEach((item, index) => {
+		item.startTime = helper.dateToStandardString(item.startTime);
+		item.endTime = helper.dateToStandardString(item.endTime);
 	});
 
 	return bookings;

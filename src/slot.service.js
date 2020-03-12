@@ -32,7 +32,7 @@ async function getSlots(input){
 	const targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));;
 
 	//generate slots from 5am to 7pm
-	const slots = generateSlots(targetDate, DAY_START, DAY_END);
+	var slots = generateSlots(targetDate, DAY_START, DAY_END);
 
 	//Set the unit price of each slot
 	slots = setUnitPrices(slots);
@@ -80,7 +80,7 @@ async function getAvailableEndSlots(input){
 	const targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
 	
 	//generate slots from 5am to 7pm
-	var slots = generateSlots(criteria.targetDate, DAY_START, DAY_END);
+	var slots = generateSlots(targetDate, DAY_START, DAY_END);
 	
 	//set availbility for all slots
 	await setAvailbilities(slots)
@@ -101,18 +101,18 @@ async function getAvailableEndSlots(input){
 	for (var i = startSlot.index; i < slots.length; i++) {
 		if(slots[i].available == true){
 			availableEndSlots.push(slots[i]);
-	}else{
+		}else{
 			break;
 		}
 	}
 
 	//Set the unit price of each slot
-	slots = setUnitPrices(slots);
+	availableEndSlots = setUnitPrices(availableEndSlots);
 
 	//change startTime and endTime into standard string
-	slots = setResponseFormatting(slots);
+	availableEndSlots = setResponseFormatting(availableEndSlots);
 
-	return slots;
+	return availableEndSlots;
 
 }
 
@@ -161,28 +161,17 @@ async function setAvailbilities(slots){
 	const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
 
 	//call external occupancy API to save occupancy record
-	const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SUBDOMAIN;
-	const headers = {
-		"content-Type": "application/json",
-	}
-	const data = {
-		"startTime": helper.dateToStandardString(dayBegin),
-		"endTime": helper.dateToStandardString(dayEnd)
-	}
-
-	var occupancies = new Array();
-	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-	.then((res) => {
-		if (res.status >= 200 && res.status < 300) {
-			occupancies = res.json();
-		}else{
-			logger.error("External Occupancies API error : " + res.statusText);
-			response.status = 500;
-			response.message = "Booking Service not available";
-			throw response;
-		}
+	var occupancies;
+	await callOccupanciesAPI(dayBegin, dayEnd)
+	.then(result => {
+		occupancies = result;
+	})
+	.catch(err => {
+		response.status = 500;
+		response.message = err.message;
+		throw response;
 	});
-
+	
 	for (var i = 0; i < slots.length; i++) {
 		var slotStartTime = slots[i].startTime;
 		var slotEndTime = slots[i].endTime;
@@ -201,6 +190,32 @@ async function setAvailbilities(slots){
 	}
 
 	return slots;
+}
+
+async function callOccupanciesAPI(startTime, endTime){
+	const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SUBDOMAIN;
+	const headers = {
+		"content-Type": "application/json",
+	}
+	const data = {
+		"startTime": helper.dateToStandardString(startTime),
+		"endTime": helper.dateToStandardString(endTime)
+	}
+
+	var occupancies = new Array();
+	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
+	.then((res) => {
+		if (res.status >= 200 && res.status < 300) {
+			occupancies = res.json();
+		}else{
+			logger.error("External Occupancies API error : " + res.statusText);
+			response.status = res.status;
+			response.message = res.statusText;
+			throw response;
+		}
+	});
+
+	return occupancies;
 }
 
 /****************************************************************
