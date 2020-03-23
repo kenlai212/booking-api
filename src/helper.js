@@ -1,10 +1,14 @@
 const logger = require('./logger');
+const fetch = require("node-fetch");
 const nodemailer = require("nodemailer");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 
 const {MissingMandateError, DBError, InvalidDataError} = require("./error");
 require('dotenv').config();
+
+const OCCUPANCY_DOMAIN = process.env.OCCUPANCY_DOMAIN;
+const LOGIN_SUBDOMAIN = process.env.LOGIN_SUBDOMAIN;
 
 function logIncommingRequest(req){
 	logger.info(req.method + ":" + req.originalUrl + " from " + req.connection.remoteAddress);
@@ -81,11 +85,43 @@ function dateToStandardString(date){
 	return standardStr;
 }
 
+/********************************************************
+By : Ken Lai
+Date : Mar 23 2020
+
+call occupancy/login api
+********************************************************/
+async function callOccupancyLoginAPI(){
+	const url = OCCUPANCY_DOMAIN + LOGIN_SUBDOMAIN;
+	const headers = {
+		"content-Type": "application/json",
+	}
+	const data = {
+		"userName": "bookingAPISysUser"
+	}
+
+	var response;
+	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
+	.then((res) => {
+		if (res.status >= 200 && res.status < 300) {
+			response = res.json();
+		}else{
+			logger.error("External Occupancies API error : " + res.statusText);
+			response.status = res.status;
+			response.message = res.statusText;
+			throw response;
+		}
+	});
+
+	return response;
+}
+
 module.exports = {
 	logIncommingRequest,
 	logOutgoingResponse,
 	expandStartSearchRange,
 	expandEndSearchRange,
 	standardStringToDate,
-	dateToStandardString
+	dateToStandardString,
+	callOccupancyLoginAPI
 }

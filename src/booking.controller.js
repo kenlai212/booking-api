@@ -15,10 +15,10 @@ module.exports = function(app){
 
 		try{
 			const newBooking = await bookingService.addNewBooking(req.body);
+			logger.info("Response body : " + JSON.stringify(newBookine));
 			res.json(newBooking);
 			res.status(200);
 		}catch(err){
-			logger.error("Error while calling bookingService.addNewBooking() : ", err);
 			res.status(err.status);
 			res.statusMessage = err.message;
 		}
@@ -36,10 +36,10 @@ module.exports = function(app){
 
 		try{
 			await bookingService.cancelBooking(req.params.bookingId);
+			logger.info("Response body : SUCCESS");
 			res.json("SUCCESS");
 			res.status(200);
 		}catch(err){
-			logger.error("Error while calling bookingService.cancelBooking() : ", err);
 			res.status(err.status);
 			res.statusMessage = err.message;
 		}
@@ -57,10 +57,10 @@ module.exports = function(app){
 
 		try{
 			const bookings = await bookingService.viewBookings(req.body);
+			logger.info("Response body : " + JSON.stringify(bookings));
 			res.json(bookings);
 			res.status(200);
 		}catch(err){
-			logger.error("Error while calling bookingService.viewBookings() : ", err);
 			res.status(err.status);
 			res.statusMessage = err.message;
 		}
@@ -78,10 +78,10 @@ module.exports = function(app){
 
 		try{
 			const slots = await slotService.getSlots(req.body);
+			logger.info("Response body : " + JSON.stringify(slots));
 			res.json(slots);
 			res.status(200);
 		}catch(err){
-			logger.error("Error while calling slotService.getSlots() : ", err);
 			res.status(err.status);
 			res.statusMessage = err.message;
 		}
@@ -99,10 +99,10 @@ module.exports = function(app){
 
 		try{
 			const endSlots = await slotService.getAvailableEndSlots(req.body);
+			logger.info("Response body : " + JSON.stringify(endSlots));
 			res.json(endSlots);
 			res.status(200);
 		}catch(err){
-			logger.error("Error while calling slotService.getAvailableEndSlots() : ", err);
 			res.status(err.status);
 			res.statusMessage = err.message;
 		}

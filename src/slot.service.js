@@ -159,7 +159,7 @@ async function setAvailbilities(slots){
 	const targetDate = new Date(slots[0].startTime);
 	const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
 	const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
-
+	
 	//call external occupancy API to save occupancy record
 	var occupancies;
 	await callOccupanciesAPI(dayBegin, dayEnd)
@@ -193,9 +193,20 @@ async function setAvailbilities(slots){
 }
 
 async function callOccupanciesAPI(startTime, endTime){
+	//call occupancyLogin API to obtain accessToken
+	var accessToken;
+	await helper.callOccupancyLoginAPI()
+	.then(response => {
+		accessToken = response.accessToken;
+	})
+	.catch(err => {
+		logger.error("Failed to obtain Occupany API accessToken : " + err);
+	});
+
 	const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SUBDOMAIN;
 	const headers = {
-		"content-Type": "application/json",
+		"Authorization": "Token " + accessToken,
+		"content-Type": "application/json"
 	}
 	const data = {
 		"startTime": helper.dateToStandardString(startTime),
