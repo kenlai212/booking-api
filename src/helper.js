@@ -7,15 +7,14 @@ const jwt = require("jsonwebtoken");
 const {MissingMandateError, DBError, InvalidDataError} = require("./error");
 require('dotenv').config();
 
-const OCCUPANCY_DOMAIN = process.env.OCCUPANCY_DOMAIN;
-const LOGIN_SUBDOMAIN = process.env.LOGIN_SUBDOMAIN;
-
 function logIncommingRequest(req){
 	logger.info(req.method + ":" + req.originalUrl + " from " + req.connection.remoteAddress);
+	logger.info("request user : " + req.user._id);
+	logger.info("request body : " + JSON.stringify(req.body));
 }
 
 function logOutgoingResponse(res){
-	logger.info(`${res.statusCode} ${res.statusMessage}; ${res.get('Content-Length') || 0}b sent`);
+	logger.info(`${res.statusCode} ${res.statusMessage}`);
 }
 
 /********************************************************
@@ -87,33 +86,83 @@ function dateToStandardString(date){
 
 /********************************************************
 By : Ken Lai
-Date : Mar 23 2020
+Date : Apr 06 2020
 
-call occupancy/login api
+call login api to obtain accessToken and refreshToken
 ********************************************************/
-async function callOccupancyLoginAPI(){
-	const url = OCCUPANCY_DOMAIN + LOGIN_SUBDOMAIN;
+async function callLoginAPI() {
+	const url = process.env.AUTHENTICATION_DOMAIN + process.env.LOGIN_SUBDOMAIN;
 	const headers = {
 		"content-Type": "application/json",
 	}
 	const data = {
-		"userName": "bookingAPISysUser"
+		"loginId": process.env.AUTHENTICATION_API_LOGIN,
+		"password": process.env.AUTHENTICATION_API_PASSWORD
 	}
 
 	var response;
-	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-	.then((res) => {
-		if (res.status >= 200 && res.status < 300) {
-			response = res.json();
-		}else{
-			logger.error("External Occupancies API error : " + res.statusText);
-			response.status = res.status;
-			response.message = res.statusText;
-			throw response;
-		}
-	});
+	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
+		.then((res) => {
+			if (res.status >= 200 && res.status < 300) {
+				response = res.json();
+			} else {
+				logger.error("External Authentication Login API error : " + res.statusText);
+				response.status = res.status;
+				response.message = res.statusText;
+				throw response;
+			}
+		});
 
 	return response;
+}
+
+/********************************************************
+By : Ken Lai
+Date : Apr 06 2020
+
+call token api to obtain new accessToken from refreshToken
+********************************************************/
+async function callTokenAPI() {
+	
+	const url = process.env.AUTHENTICATION_DOMAIN + process.env.TOKEN_SUBDOMAIN;
+	const headers = {
+		"content-Type": "application/json",
+	}
+	const data = {
+		"refreshToken": refreshToken
+	}
+
+	var response;
+	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
+		.then((res) => {
+			if (res.status >= 200 && res.status < 300) {
+				response = res.json();
+			} else {
+				logger.error("External Authentication Token API error : " + res.statusText);
+				response.status = res.status;
+				response.message = res.statusText;
+				throw response;
+			}
+		});
+
+	return response;
+}
+
+/********************************************************
+By : Ken Lai
+Date : Apr 06 2020
+
+find if any entries in userGroups matches allowGroups
+returns true/false
+********************************************************/
+function userAuthorization(userGroups, allowGroups) {
+	const targetGroup = userGroups.filter(value => allowGroups.includes(value));
+
+	if (targetGroup.length == 0) {
+		return false;
+	} else {
+		return true;
+	}
 }
 
 module.exports = {
@@ -123,5 +172,7 @@ module.exports = {
 	expandEndSearchRange,
 	standardStringToDate,
 	dateToStandardString,
-	callOccupancyLoginAPI
+	callLoginAPI,
+	callTokenAPI,
+	userAuthorization
 }

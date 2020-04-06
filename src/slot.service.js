@@ -12,12 +12,25 @@ const DAY_END = 14;
 
 /**********************************************************
 By : Ken Lai
+Date : Mar 13 2020
 
 Returns hourly slots of target date.
 Will include unitPrice and availability in each slot
 **********************************************************/
-async function getSlots(input){
+async function getSlots(input, user){
 	var response = new Object;
+
+	//validate user group rights
+	const rightsGroup = [
+		"BOOKING_ADMIN_GROUP",
+		"BOOKING_USER_GROUP"
+	]
+
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
 
 	//validate target date
 	if(input.targetDate == null){
@@ -61,8 +74,20 @@ By : Ken Lai
 
 Returns all immediate available end slots after the target start slot
 **********************************************************************/
-async function getAvailableEndSlots(input){
+async function getAvailableEndSlots(input, user){
 	var response = new Object;
+
+	//validate user group rights
+	const rightsGroup = [
+		"BOOKING_ADMIN_GROUP",
+		"BOOKING_USER_GROUP"
+	]
+
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
 
 	//validate target date
 	if(input.startTime == null){
@@ -163,14 +188,15 @@ async function setAvailbilities(slots){
 	//call external occupancy API to save occupancy record
 	var occupancies;
 	await callOccupanciesAPI(dayBegin, dayEnd)
-	.then(result => {
-		occupancies = result;
-	})
-	.catch(err => {
-		response.status = 500;
-		response.message = err.message;
-		throw response;
-	});
+		.then(result => {
+			occupancies = result;
+		})
+		.catch(err => {
+			console.log(err);
+			response.status = 500;
+			response.message = err.message;
+			throw response;
+		});
 	
 	for (var i = 0; i < slots.length; i++) {
 		var slotStartTime = slots[i].startTime;
@@ -193,15 +219,6 @@ async function setAvailbilities(slots){
 }
 
 async function callOccupanciesAPI(startTime, endTime){
-	//call occupancyLogin API to obtain accessToken
-	var accessToken;
-	await helper.callOccupancyLoginAPI()
-	.then(response => {
-		accessToken = response.accessToken;
-	})
-	.catch(err => {
-		logger.error("Failed to obtain Occupany API accessToken : " + err);
-	});
 
 	const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SUBDOMAIN;
 	const headers = {
@@ -214,17 +231,44 @@ async function callOccupanciesAPI(startTime, endTime){
 	}
 
 	var occupancies = new Array();
-	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-	.then((res) => {
-		if (res.status >= 200 && res.status < 300) {
-			occupancies = res.json();
-		}else{
-			logger.error("External Occupancies API error : " + res.statusText);
-			response.status = res.status;
-			response.message = res.statusText;
-			throw response;
+	var tokenResponse = null;
+	var breakFlag = false;
+	for (var i = 0; i < 1; i++) {
+
+		if (breakFlag == true) {
+			break;
 		}
-	});
+
+		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
+			.then(async res => {
+				if (res.status >= 200 && res.status < 300) {
+					occupancies = res.json();
+					breakFlag = true;
+				} else if (res.status == 403) {
+					
+					await helper.callTokenAPI()
+						.then(response => {
+							tokenResponse = response;
+						})
+						.catch(err => {
+							response.status = 500;
+							response.message = "helper.callLoginAPI() not available";
+							throw response;
+						});
+
+				} else {
+					logger.error("External Occupancies API error : " + res.statusText);
+					response.status = res.status;
+					response.message = res.statusText;
+					throw response;
+				}
+			});
+
+		if (tokenResponse != null) {
+			global.accessToken = tokenResponse.accessToken;
+			logger.info("Obtained accessToken : " + global.accessToken);
+		}
+	}
 
 	return occupancies;
 }

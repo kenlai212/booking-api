@@ -20,5 +20,20 @@ initDb(function(err){
 
 		logger.info("Booking Services started up. Listening to port " + process.env.PORT);
 
+		var loginResponse;
+		await helper.callLoginAPI()
+			.then(response => {
+				loginResponse = response;
+			})
+			.catch(err => {
+				throw err;
+			});
+
+		global.accessToken = loginResponse.accessToken;
+		logger.info("Obtained accessToken : " + global.accessToken);
+
+		global.refreshToken = loginResponse.refreshToken;
+		logger.info("Obtained refreshToken : " + global.refreshToken);
+
 	});
 });

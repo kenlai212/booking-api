@@ -22,13 +22,22 @@ By : Ken Lai
 Add new booking record to database, then add a corrisponding 
 new occupancy record by calling occupancy service
 ************************************************************************/
-async function addNewBooking(input){
+async function addNewBooking(input, user){
 	var response = new Object;
-	var booking = new Object();
+	const rightsGroup = [
+		"BOOKING_ADMIN_GROUP",
+		"BOOKING_USER_GROUP"
+	]
 
-	/******************************************
-	validate and set startTime & endTime
-	******************************************/
+	//validate user group
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+
+	}
+
+	//validate startTime
 	if(input.startTime == null){
 		response.status = 400;
 		response.message = "startTime is mandatory";
@@ -41,6 +50,8 @@ async function addNewBooking(input){
 		response.message = "endTime is mandatory";
 		throw response;
 	}
+
+	var booking = new Object();
 
 	var startTime;
 	var endTime;
@@ -121,7 +132,7 @@ async function addNewBooking(input){
 	booking.status = "AWAITING_PAYMENT";
 	await bookingModel.addNewBooking(booking)
 	.then(newBooking => {
-		logger.info("Successfully saved new booking");
+		logger.info("Successfully saved new booking : " + newBooking._id);
 		booking = newBooking;
 	})
 	.catch(err => {
@@ -133,13 +144,14 @@ async function addNewBooking(input){
 
 	booking.startTime = helper.dateToStandardString(booking.startTime);
 	booking.endTime = helper.dateToStandardString(booking.endTime);
-	
+		
 	return booking;
 }
 
 async function callOccupancyAPI(startTime, endTime){
 	const url = OCCUPANCY_DOMAIN + OCCUPANCY_SUBDOMAIN;
 	const headers = {
+		"Authorization": "Token " + accessToken,
 		"content-Type": "application/json",
 	}
 	const data = {
@@ -149,23 +161,50 @@ async function callOccupancyAPI(startTime, endTime){
 	}
 
 	var occupancy;
-	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-	.then((res) => {
-		if (res.status >= 200 && res.status < 300) {
-			logger.info("Occupancy record successfuly saved via Occupancy API");
-			occupancy = res.json();
-		}else{
-			logger.error("Extrenal Occupancy API failed : " + res.statusText);
-			var response = new Object();
-			response.status = res.status;
-			response.message = res.statusText;
-			throw response;
+	var tokenResponse = null;
+	var breakFlag = false;
+
+	for (var i = 0; i < 1; i++) {
+
+		if (breakFlag == true) {
+			break;
 		}
-	});
+
+		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
+			.then(async res => {
+				if (res.status >= 200 && res.status < 300) {
+					logger.info("Occupancy record successfuly saved via Occupancy API");
+					occupancy = res.json();
+					breakFlag = true;
+				} else if (res.status == 403) {
+					await helper.callTokenAPI()
+						.then(response => {
+							tokenResponse = response;
+						})
+						.catch(err => {
+							response.status = 500;
+							response.message = "helper.callLoginAPI() not available";
+							throw response;
+						});
+				} else {
+					logger.error("Extrenal Occupancy API failed : " + res.statusText);
+					var response = new Object();
+					response.status = res.status;
+					response.message = res.statusText;
+					throw response;
+				}
+			});
+
+		if (tokenResponse != null) {
+			global.accessToken = tokenResponse.accessToken;
+			logger.info("Obtained accessToken : " + global.accessToken);
+		}
+	}
 	
 	return occupancy;
 }
 
+/*
 async function callAvailabilityAPI(startTime, endTime){
 	const url = OCCUPANCY_DOMAIN + AVAILABILITY_SUBDOMAIN;
 	const headers = {
@@ -192,28 +231,54 @@ async function callAvailabilityAPI(startTime, endTime){
 
 	return isAvailable;
 }
+*/
 
 async function callReleaseOccupancyAPI(occupancyId){
 	const url = OCCUPANCY_DOMAIN + RELEASE_OCCUPANCY_SUBDOMAIN + "/" + occupancyId;
 	const headers = {
+		"Authorization": "Token " + accessToken,
 		"content-Type": "application/json",
 	}
 
-	var isAvailable;
-	await fetch(url, { method: 'DELETE', headers: headers})
-	.then(res => {
-		if (res.status >= 200 && res.status < 300) {
-			isAvailable = res.json();
-		}else{
-			logger.error("External Release Occupancy API failed : " + res.statusText);
-			var response = new Object();
-			response.status = res.status;
-			response.message = res.statusText;
-			throw response;
-		}
-	});
+	var tokenResponse = null;
+	var breakFlag = false;
 
-	return isAvailable;
+	for (var i = 0; i < 1; i++) {
+
+		if (breakFlag == true) {
+			break;
+		}
+
+		await fetch(url, { method: 'DELETE', headers: headers })
+			.then(async res => {
+				if (res.status >= 200 && res.status < 300) {
+					logger.info("Sucessfully called Release Occupancy API on occupancyID : " + occupancyId);
+				} else if (res.status == 403) {
+					await helper.callTokenAPI()
+						.then(response => {
+							tokenResponse = response;
+						})
+						.catch(err => {
+							response.status = 500;
+							response.message = "helper.callLoginAPI() not available";
+							throw response;
+						});
+				} else {
+					logger.error("External Release Occupancy API failed : " + res.statusText);
+					var response = new Object();
+					response.status = res.status;
+					response.message = res.statusText;
+					throw response;
+				}
+			});
+
+		if (tokenResponse != null) {
+			global.accessToken = tokenResponse.accessToken;
+			logger.info("Obtained accessToken : " + global.accessToken);
+		}
+	}
+
+	return;
 }
 
 /************************************************************************
@@ -222,8 +287,21 @@ By : Ken Lai
 delete booking from database, delete the corrisponding occupancy record
 by calling occupancy service.
 ************************************************************************/
-async function cancelBooking(bookingId){
+async function cancelBooking(bookingId, user){
 	var response = new Object;
+
+	const rightsGroup = [
+		"BOOKING_ADMIN_GROUP",
+		"BOOKING_USER_GROUP"
+	]
+
+	//validate user group
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+
+	}
 
 	//validate bookingId
 	if(bookingId==null){
@@ -291,15 +369,25 @@ async function cancelBooking(bookingId){
 
 /*************************************************************
 By : Ken Lai
+Date : Mar 01 2020
 
 -Returns all bookings withint a datetime range
--If no startTime or endTime from input, then its default
- to start of today and end of x date later. 
- x = DEFAULT_BOOKING_SEARCH_DAYS_RANGE
 *************************************************************/
-async function viewBookings(input){
+async function viewBookings(input, user){
 	var response = new Object;
+	const rightsGroup = [
+		"BOOKING_ADMIN_GROUP",
+		"BOOKING_USER_GROUP"
+	]
 
+	//validate user group
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	//validate start and end time
 	if(input.startTime == null){
 		response.status = 400;
 		response.message = "startTime is mandatory";
