@@ -8,6 +8,7 @@ const bookingHistoryModel = require("./booking-history.model");
 
 require('dotenv').config();
 
+const newBookingNotificationAdminTel = ["85293139332", "85261893898"];
 const CANCELLED_STATUS = "CANCELLED";
 
 /***********************************************************************
@@ -150,11 +151,24 @@ async function addNewBooking(input, user){
 	booking.startTime = helper.dateToStandardString(booking.startTime);
 	booking.endTime = helper.dateToStandardString(booking.endTime);
 
-	//send notification
-	if (process.env.SEND_NEW_BOOKING_NOTIFICATION == true) {
+	//send notification to admin
+	if (process.env.SEND_NEW_BOOKING_NOTIFICATION_SMS == true) {
 		const content = "New booking request from "
 			+ booking.contactName + " (" + booking.telephoneNumber + "). Time - "
 			+ booking.startTime + " to " + booking.endTime;
+
+		newBookingNotificationAdminTel.forEach(async number => {
+			await callSendSMSAPI(number, content)
+				.catch(err => {
+					logger.error("callSendSMSAPI error : " + err);
+				});
+		});
+	}
+
+	//send confirmation to contact
+	//TODO add chinese language confirmation
+	if (process.env.SEND_NEW_BOOKING_CONFIRMATION_SMS == true) {
+		const content = "Thank you for your booking (" + booking.startTime + " - " + booking.endTime + ")";
 
 		await callSendSMSAPI(booking.telephoneNumber, content)
 			.catch(err => {
@@ -274,35 +288,6 @@ async function callOccupancyAPI(startTime, endTime){
 	
 	return occupancy;
 }
-
-/*
-async function callAvailabilityAPI(startTime, endTime){
-	const url = OCCUPANCY_DOMAIN + AVAILABILITY_SUBDOMAIN;
-	const headers = {
-		"content-Type": "application/json",
-	}
-	const data = {
-		"startTime": helper.dateToStandardString(startTime),
-		"endTime": helper.dateToStandardString(endTime)
-	}
-
-	var isAvailable;
-	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data)})
-	.then(res => {
-		if (res.status >= 200 && res.status < 300) {
-			isAvailable = res.json();
-		}else{
-			logger.error("External Availability API failed : " + res.statusText);
-			var response = new Object();
-			response.status = res.status;
-			response.message = res.statusText;
-			throw response;
-		}
-	});
-
-	return isAvailable;
-}
-*/
 
 async function callReleaseOccupancyAPI(occupancyId){
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN + "/" + occupancyId;
