@@ -247,10 +247,12 @@ async function callOccupanciesAPI(startTime, endTime){
 				} else if (res.status == 403) {
 					
 					await helper.callTokenAPI()
-						.then(response => {
-							tokenResponse = response;
+						.then(result => {
+							tokenResponse = result;
 						})
 						.catch(err => {
+							logger.error("error while calling helper.callTokenAPI() : " + err);
+							var response;
 							response.status = 500;
 							response.message = "helper.callLoginAPI() not available";
 							throw response;
@@ -258,6 +260,7 @@ async function callOccupanciesAPI(startTime, endTime){
 
 				} else {
 					logger.error("External Occupancies API error : " + res.statusText);
+					var response;
 					response.status = res.status;
 					response.message = res.statusText;
 					throw response;

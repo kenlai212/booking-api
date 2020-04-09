@@ -211,13 +211,15 @@ async function callSendSMSAPI(telephoneNumber, content) {
 							tokenResponse = response;
 						})
 						.catch(err => {
+							logger.error("error while calling helper.callTokenAPI()");
+							var response;
 							response.status = 500;
 							response.message = "helper.callLoginAPI() not available";
 							throw response;
 						});
 				} else {
 					logger.error("Extrenal Send SMS API failed : " + res.statusText);
-					var response = new Object();
+					var response;
 					response.status = res.status;
 					response.message = res.statusText;
 					throw response;
@@ -248,7 +250,7 @@ async function callOccupancyAPI(startTime, endTime){
 	var occupancy;
 	var tokenResponse = null;
 	var breakFlag = false;
-
+	
 	for (var i = 0; i < 1; i++) {
 
 		if (breakFlag == true) {
@@ -267,13 +269,15 @@ async function callOccupancyAPI(startTime, endTime){
 							tokenResponse = response;
 						})
 						.catch(err => {
+							logger.error("Error while calling helper.callTokenAPI() : " + err);
+							var response;
 							response.status = 500;
 							response.message = "helper.callLoginAPI() not available";
 							throw response;
 						});
 				} else {
 					logger.error("Extrenal Occupancy API failed : " + res.statusText);
-					var response = new Object();
+					var response;
 					response.status = res.status;
 					response.message = res.statusText;
 					throw response;
@@ -315,13 +319,15 @@ async function callReleaseOccupancyAPI(occupancyId){
 							tokenResponse = response;
 						})
 						.catch(err => {
+							logger.error("Error while calling helper.callTokenAPI() : " + err);
+							var response;
 							response.status = 500;
 							response.message = "helper.callLoginAPI() not available";
 							throw response;
 						});
 				} else {
 					logger.error("External Release Occupancy API failed : " + res.statusText);
-					var response = new Object();
+					var response;
 					response.status = res.status;
 					response.message = res.statusText;
 					throw response;
