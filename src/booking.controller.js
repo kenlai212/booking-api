@@ -15,7 +15,6 @@ module.exports = function(app){
 
 		await bookingService.addNewBooking(req.body, req.user)
 			.then(newBooking => {
-				logger.info("Response body : " + JSON.toString(newBooking));
 				res.json(newBooking);
 				res.status(200);
 			})

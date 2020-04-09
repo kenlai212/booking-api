@@ -9,12 +9,6 @@ const bookingHistoryModel = require("./booking-history.model");
 require('dotenv').config();
 
 const CANCELLED_STATUS = "CANCELLED";
-const MINIMUM_BOOKING_DURATION_MINUTES =  process.env.MINIMUM_BOOKING_DURATION_MINUTES;
-const MAXIMUM_BOOKING_DURATION_MINUTES =  process.env.MAXIMUM_BOOKING_DURATION_MINUTES;
-const OCCUPANCY_DOMAIN = process.env.OCCUPANCY_DOMAIN;
-const OCCUPANCY_SUBDOMAIN = process.env.OCCUPANCY_SUBDOMAIN;
-const AVAILABILITY_SUBDOMAIN = process.env.AVAILABILITY_SUBDOMAIN;
-const RELEASE_OCCUPANCY_SUBDOMAIN = process.env.RELEASE_OCCUPANCY_SUBDOMAIN;
 
 /***********************************************************************
 By : Ken Lai
@@ -38,14 +32,14 @@ async function addNewBooking(input, user){
 	}
 
 	//validate startTime
-	if(input.startTime == null){
+	if(input.startTime == null || input.startTime.length < 1){
 		response.status = 400;
 		response.message = "startTime is mandatory";
 		throw response;
 	}
 
 	//validate end time
-	if(input.endTime == null){
+	if(input.endTime == null || input.endTime.length < 1){
 		response.status = 400;
 		response.message = "endTime is mandatory";
 		throw response;
@@ -64,7 +58,8 @@ async function addNewBooking(input, user){
 		response.message = err.message;
 		throw response;
 	}
-		
+
+	//check if endTime is earlier then startTime
 	if(startTime > endTime){
 		response.status = 400;
 		response.message = "Invalid endTime";
@@ -78,15 +73,15 @@ async function addNewBooking(input, user){
 	const startTimeInMinutes = startTime.getMinutes() + startTime.getHours() * 60;
 	const endTimeInMinutes = endTime.getMinutes() + endTime.getHours() * 60;
 	const durationInMinutes = endTimeInMinutes - startTimeInMinutes;
-	if(durationInMinutes < MINIMUM_BOOKING_DURATION_MINUTES){
+	if (durationInMinutes < process.env.MINIMUM_BOOKING_DURATION_MINUTES){
 		response.status = 400;
 		response.message = "booking duration cannot be less then "+ MINIMUM_BOOKING_DURATION_MINUTES +" minutes";
 		throw response;
 	}
 
 	//check maximum booking duration
-	if(process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == 1){
-		if(durationInMinutes > MAXIMUM_BOOKING_DURATION_MINUTES){
+	if(process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true){
+		if (durationInMinutes > process.env.MAXIMUM_BOOKING_DURATION_MINUTES){
 			response.status = 400;
 			response.message = "booking duration cannot be more then "+ MAXIMUM_BOOKING_DURATION_MINUTES +" minutes";
 			throw response;
@@ -94,12 +89,21 @@ async function addNewBooking(input, user){
 	}
 
 	//validate contact name
-	if(input.contactName == null){
+	if (input.contactName == null || input.contactName.length < 1){
 		response.status = 400;
 		response.message = "contactName is mandatory";
 		throw response;
 	}
 	booking.contactName = input.contactName;
+
+	//validate country code
+	if (input.telephoneCountryCode == null || input.telephoneCountryCode.length < 1) {
+		response.status = 400;
+		response.message = "telephoneCountryCode is mandatory";
+		throw response;
+	}
+
+	//TODO restrict only HK and China country code???
 
 	//validate telephone number
 	if(input.telephoneNumber == null){
@@ -107,7 +111,7 @@ async function addNewBooking(input, user){
 		response.message = "telephoneNumber is mandatory";
 		throw response;
 	}
-	booking.telephoneNumber = input.telephoneNumber;
+	booking.telephoneNumber = input.telephoneCountryCode + input.telephoneNumber;
 
 	//validate email address
 	//TODO validate email format
@@ -122,7 +126,7 @@ async function addNewBooking(input, user){
 		booking.occupancyId = newOccupancy._id;
 	})
 	.catch(err => {
-		response.status = 500;
+		response.status = err.status;
 		response.message = err.message;
 		throw response;
 	});
@@ -142,14 +146,81 @@ async function addNewBooking(input, user){
 		throw response;
 	});
 
+	//change date object to display friendly string
 	booking.startTime = helper.dateToStandardString(booking.startTime);
 	booking.endTime = helper.dateToStandardString(booking.endTime);
-		
+
+	//send notification
+	if (process.env.SEND_NEW_BOOKING_NOTIFICATION == true) {
+		const content = "New booking request from "
+			+ booking.contactName + " (" + booking.telephoneNumber + "). Time - "
+			+ booking.startTime + " to " + booking.endTime;
+
+		await callSendSMSAPI(booking.telephoneNumber, content)
+			.catch(err => {
+				logger.error("callSendSMSAPI error : " + err);
+			});
+	}
+
 	return booking;
 }
 
+async function callSendSMSAPI(telephoneNumber, content) {
+	const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_SMS_SUBDOMAIN;
+	const headers = {
+		"Authorization": "Token " + accessToken,
+		"content-Type": "application/json",
+	}
+	const data = {
+		"message": content,
+		"number": telephoneNumber,
+		"subject": "test subject"
+	}
+
+	var tokenResponse = null;
+	var breakFlag = false;
+
+	for (var i = 0; i < 1; i++) {
+
+		if (breakFlag == true) {
+			break;
+		}
+
+		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
+			.then(async res => {
+				if (res.status >= 200 && res.status < 300) {
+					logger.info("Successfully called sendSMS API");
+					breakFlag = true;
+				} else if (res.status == 403) {
+					await helper.callTokenAPI()
+						.then(response => {
+							tokenResponse = response;
+						})
+						.catch(err => {
+							response.status = 500;
+							response.message = "helper.callLoginAPI() not available";
+							throw response;
+						});
+				} else {
+					logger.error("Extrenal Send SMS API failed : " + res.statusText);
+					var response = new Object();
+					response.status = res.status;
+					response.message = res.statusText;
+					throw response;
+				}
+			});
+
+		if (tokenResponse != null) {
+			global.accessToken = tokenResponse.accessToken;
+			logger.info("Obtained accessToken : " + global.accessToken);
+		}
+	}
+	
+	return;
+}
+
 async function callOccupancyAPI(startTime, endTime){
-	const url = OCCUPANCY_DOMAIN + OCCUPANCY_SUBDOMAIN;
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
 	const headers = {
 		"Authorization": "Token " + accessToken,
 		"content-Type": "application/json",
@@ -234,7 +305,7 @@ async function callAvailabilityAPI(startTime, endTime){
 */
 
 async function callReleaseOccupancyAPI(occupancyId){
-	const url = OCCUPANCY_DOMAIN + RELEASE_OCCUPANCY_SUBDOMAIN + "/" + occupancyId;
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN + "/" + occupancyId;
 	const headers = {
 		"Authorization": "Token " + accessToken,
 		"content-Type": "application/json",
