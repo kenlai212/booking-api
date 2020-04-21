@@ -74,11 +74,33 @@ module.exports = function(app){
 		res.send();
 	});
 
-	//get slots
-	app.post("/slots", authenticateToken, async (req, res) => {
+	//find booking by id
+	app.get("/booking/:id", authenticateToken, async (req, res) => {
 		helper.logIncommingRequest(req);
 
-		await slotService.getSlots(req.body, req.user)
+		await bookingService.findBookingById(req.params.id, req.user)
+			.then(bookings => {
+				logger.info("Response body : " + JSON.stringify(bookings));
+				res.json(bookings);
+				res.status(200);
+			})
+			.catch(err => {
+				res.status(err.status);
+				res.statusMessage = err.message;
+			});
+
+		res.on("finish", function () {
+			helper.logOutgoingResponse(res);
+		});
+
+		res.send();
+	});
+
+	//get slots
+	app.get("/slots/:targetDate", authenticateToken, async (req, res) => {
+		helper.logIncommingRequest(req);
+
+		await slotService.getSlots(req.params.targetDate, req.user)
 			.then(slots => {
 				logger.info("Response body : " + JSON.stringify(slots));
 				res.json(slots);
@@ -97,10 +119,10 @@ module.exports = function(app){
 	});
 
 	//get end slots
-	app.post("/end-slots", authenticateToken, async (req, res) => {
+	app.get("/end-slots/:targetDate/:startTime", authenticateToken, async (req, res) => {
 		helper.logIncommingRequest(req);
 
-		await slotService.getAvailableEndSlots(req.body, req.user)
+		await slotService.getAvailableEndSlots(req.params.targetDate, req.params.startTime, req.user)
 			.then(endSlots => {
 				logger.info("Response body : " + JSON.stringify(endSlots));
 				res.json(endSlots);

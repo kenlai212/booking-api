@@ -8,15 +8,18 @@ const bookingHistoryModel = require("./booking-history.model");
 
 require('dotenv').config();
 
-const newBookingNotificationAdminTel = ["85293139332", "85261893898"];
 const CANCELLED_STATUS = "CANCELLED";
 
-/***********************************************************************
-By : Ken Lai
-
-Add new booking record to database, then add a corrisponding 
-new occupancy record by calling occupancy service
-************************************************************************/
+/**
+ * By : Ken Lai
+ * Date : Mar 25, 2020
+ * 
+ * @param {any} input
+ * @param {any} user
+ * 
+ * Add new booking record to database, then add a corrisponding
+ * new occupancy record by calling occupancy service
+ */
 async function addNewBooking(input, user){
 	var response = new Object;
 	const rightsGroup = [
@@ -104,7 +107,13 @@ async function addNewBooking(input, user){
 		throw response;
 	}
 
-	//TODO restrict only HK and China country code???
+	const acceptedCountryCode = ["852", "853", "86"];
+	if (acceptedCountryCode.includes(input.telephoneCountryCode) == false) {
+		response.status = 400;
+		response.message = "invalid telephoneCountryCode";
+		throw response;
+	}
+	booking.telephoneCountryCode = input.telephoneCountryCode;
 
 	//validate telephone number
 	if(input.telephoneNumber == null){
@@ -112,7 +121,7 @@ async function addNewBooking(input, user){
 		response.message = "telephoneNumber is mandatory";
 		throw response;
 	}
-	booking.telephoneNumber = input.telephoneCountryCode + input.telephoneNumber;
+	booking.telephoneNumber = input.telephoneNumber;
 
 	//validate email address
 	//TODO validate email format
@@ -121,16 +130,25 @@ async function addNewBooking(input, user){
 	}
 
 	//call external occupancy API to save occupancy record
-	await callOccupancyAPI(booking.startTime, booking.endTime)
-	.then(newOccupancy => {
-		logger.info("Saved new occupancy.id : " + newOccupancy._id);
-		booking.occupancyId = newOccupancy._id;
-	})
-	.catch(err => {
-		response.status = err.status;
-		response.message = err.message;
-		throw response;
-	});
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
+	const data = {
+		"occupancyType": "OPEN_BOOKING",
+		"startTime": helper.dateToStandardString(booking.startTime),
+		"endTime": helper.dateToStandardString(booking.endTime)
+	}
+	const requestAttr = {
+		method: "POST",
+		body: JSON.stringify(data)
+	}
+
+	await helper.callAPI(url, requestAttr)
+		.then(result => {
+			booking.occupancyId = result._id;
+			logger.info("Successfully call occupancy api, and saved occupancy record : " + result._id);
+		})
+		.catch(err => {
+			throw err;
+		});
 
 	//setup and save newBooking record
 	booking.creationTime = new Date();
@@ -152,209 +170,73 @@ async function addNewBooking(input, user){
 	booking.endTime = helper.dateToStandardString(booking.endTime);
 
 	//send notification to admin
-	if (process.env.SEND_NEW_BOOKING_NOTIFICATION_SMS == true) {
-		const content = "New booking request from "
+	if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
+		const url = process.env.NOTIFICATION_DOMAIN + "/emailsss";
+
+		const bodyHTML = "New booking request from "
 			+ booking.contactName + " (" + booking.telephoneNumber + "). Time - "
 			+ booking.startTime + " to " + booking.endTime;
 
-		newBookingNotificationAdminTel.forEach(async number => {
-			await callSendSMSAPI(number, content)
-				.catch(err => {
-					logger.error("callSendSMSAPI error : " + err);
-				});
-		});
+		const data = {
+			"sender": "booking@hebewake.com",
+			"recipient": "gogowakehk@gmail.com",
+			"emailBody": bodyHTML
+		}
+
+		const requestAttr = {
+			method: "POST",
+			body: JSON.stringify(data)
+		}
+
+		await helper.callAPI(url, requestAttr)
+			.then(result => {
+				logger.info("Successfully sent notification email to admin, messageId : " + result.messageId);
+			})
+			.catch(err => {
+				logger.error("Failed to send new booking notification email to admin : " + JSON.stringify(err));
+			});
 	}
 
 	//send confirmation to contact
 	//TODO add chinese language confirmation
-	if (process.env.SEND_NEW_BOOKING_CONFIRMATION_SMS == true) {
-		const content = "Thank you for your booking (" + booking.startTime + " - " + booking.endTime + ")";
+	if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_SMS == true) {
+		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_SMS_SUBDOMAIN + "sss";
+		const data = {
+			"message": "Thank you for your booking (" + booking.startTime + " - " + booking.endTime + ")",
+			"number": booking.telephoneNumber,
+			"subject": "test subject"
+		}
+		const requestAttr = {
+			method: "POST",
+			body: JSON.stringify(data)
+		}
 
-		await callSendSMSAPI(booking.telephoneNumber, content)
+		await helper.callAPI(url, requestAttr)
+			.then(result => {
+				logger.info("Sucessfully sent new booking notification SMS to customer, messageId : " + result.messageId);
+			})
 			.catch(err => {
-				logger.error("callSendSMSAPI error : " + err);
+				logger.error("Failed to send new booking notification SMS to customer : " + JSON.stringify(err));
 			});
 	}
 
 	return booking;
 }
 
-async function callSendSMSAPI(telephoneNumber, content) {
-	const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_SMS_SUBDOMAIN;
-	const headers = {
-		"Authorization": "Token " + accessToken,
-		"content-Type": "application/json",
-	}
-	const data = {
-		"message": content,
-		"number": telephoneNumber,
-		"subject": "test subject"
-	}
-
-	var tokenResponse = null;
-	var breakFlag = false;
-
-	for (var i = 0; i < 1; i++) {
-
-		if (breakFlag == true) {
-			break;
-		}
-
-		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
-			.then(async res => {
-				if (res.status >= 200 && res.status < 300) {
-					logger.info("Successfully called sendSMS API");
-					breakFlag = true;
-				} else if (res.status == 403) {
-					await helper.callTokenAPI()
-						.then(response => {
-							tokenResponse = response;
-						})
-						.catch(err => {
-							logger.error("error while calling helper.callTokenAPI()");
-							var response;
-							response.status = 500;
-							response.message = "helper.callLoginAPI() not available";
-							throw response;
-						});
-				} else {
-					logger.error("Extrenal Send SMS API failed : " + res.statusText);
-					var response;
-					response.status = res.status;
-					response.message = res.statusText;
-					throw response;
-				}
-			});
-
-		if (tokenResponse != null) {
-			global.accessToken = tokenResponse.accessToken;
-			logger.info("Obtained accessToken : " + global.accessToken);
-		}
-	}
-	
-	return;
-}
-
-async function callOccupancyAPI(startTime, endTime){
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
-	const headers = {
-		"Authorization": "Token " + accessToken,
-		"content-Type": "application/json",
-	}
-	const data = {
-		"occupancyType" : "OPEN_BOOKING",
-		"startTime": helper.dateToStandardString(startTime),
-		"endTime": helper.dateToStandardString(endTime)
-	}
-
-	var occupancy;
-	var tokenResponse = null;
-	var breakFlag = false;
-	
-	for (var i = 0; i < 1; i++) {
-
-		if (breakFlag == true) {
-			break;
-		}
-
-		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
-			.then(async res => {
-				if (res.status >= 200 && res.status < 300) {
-					logger.info("Occupancy record successfuly saved via Occupancy API");
-					occupancy = res.json();
-					breakFlag = true;
-				} else if (res.status == 403) {
-					await helper.callTokenAPI()
-						.then(response => {
-							tokenResponse = response;
-						})
-						.catch(err => {
-							logger.error("Error while calling helper.callTokenAPI() : " + err);
-							var response;
-							response.status = 500;
-							response.message = "helper.callLoginAPI() not available";
-							throw response;
-						});
-				} else {
-					logger.error("Extrenal Occupancy API failed : " + res.statusText);
-					var response;
-					response.status = res.status;
-					response.message = res.statusText;
-					throw response;
-				}
-			});
-
-		if (tokenResponse != null) {
-			global.accessToken = tokenResponse.accessToken;
-			logger.info("Obtained accessToken : " + global.accessToken);
-		}
-	}
-	
-	return occupancy;
-}
-
-async function callReleaseOccupancyAPI(occupancyId){
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN + "/" + occupancyId;
-	const headers = {
-		"Authorization": "Token " + accessToken,
-		"content-Type": "application/json",
-	}
-
-	var tokenResponse = null;
-	var breakFlag = false;
-
-	for (var i = 0; i < 1; i++) {
-
-		if (breakFlag == true) {
-			break;
-		}
-
-		await fetch(url, { method: 'DELETE', headers: headers })
-			.then(async res => {
-				if (res.status >= 200 && res.status < 300) {
-					logger.info("Sucessfully called Release Occupancy API on occupancyID : " + occupancyId);
-				} else if (res.status == 403) {
-					await helper.callTokenAPI()
-						.then(response => {
-							tokenResponse = response;
-						})
-						.catch(err => {
-							logger.error("Error while calling helper.callTokenAPI() : " + err);
-							var response;
-							response.status = 500;
-							response.message = "helper.callLoginAPI() not available";
-							throw response;
-						});
-				} else {
-					logger.error("External Release Occupancy API failed : " + res.statusText);
-					var response;
-					response.status = res.status;
-					response.message = res.statusText;
-					throw response;
-				}
-			});
-
-		if (tokenResponse != null) {
-			global.accessToken = tokenResponse.accessToken;
-			logger.info("Obtained accessToken : " + global.accessToken);
-		}
-	}
-
-	return;
-}
-
-/************************************************************************
-By : Ken Lai
-
-delete booking from database, delete the corrisponding occupancy record
-by calling occupancy service.
-************************************************************************/
+/**
+ * By : Ken Lai
+ * Date : Mar 12, 2020
+ * 
+ * @param {any} bookingId
+ * @param {any} user
+ * 
+ * delete booking from database, delete the corrisponding occupancy record by calling occupancy service.
+ */
 async function cancelBooking(bookingId, user){
 	var response = new Object;
 
 	const rightsGroup = [
-		"BOOKING_ADMIN_GROUP",
-		"BOOKING_USER_GROUP"
+		"BOOKING_ADMIN_GROUP"
 	]
 
 	//validate user group
@@ -391,15 +273,15 @@ async function cancelBooking(bookingId, user){
 	}
 
 	//release occupancy
-	await callReleaseOccupancyAPI(targetBooking.occupancyId)
-	.then(() => {
-		logger.info("Successfully called Release Occupancy API to deleted occupancy.id " + targetBooking.occupancyId);
-	})
-	.catch(err => {
-		response.status = 500;
-		response.message = err.message;
-		throw response;
-	});
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN + "/" + occupancyId;
+	const requestAttr = {
+		method: "DELETE",
+	}
+
+	await helper.callAPI(url, requestAttr)
+		.catch(err => {
+			throw err;
+		});
 
 	//delete booking record from db
 	await bookingModel.deleteBooking(targetBooking._id)
@@ -429,17 +311,19 @@ async function cancelBooking(bookingId, user){
 	return "SUCCESS";
 }
 
-/*************************************************************
-By : Ken Lai
-Date : Mar 01 2020
-
--Returns all bookings withint a datetime range
-*************************************************************/
+/**
+ * By : Ken Lai
+ * Date : Mar 01, 2020
+ * 
+ * @param {any} input
+ * @param {any} user
+ * 
+ * Returns all bookings withint a datetime range
+ */
 async function viewBookings(input, user){
 	var response = new Object;
 	const rightsGroup = [
 		"BOOKING_ADMIN_GROUP",
-		"BOOKING_USER_GROUP"
 	]
 
 	//validate user group
@@ -480,7 +364,7 @@ async function viewBookings(input, user){
 		throw response;
 	}
 
-	var bookings = [];
+	var bookings;
 	await bookingModel.searchBookingsByDatetime(startTime, endTime)
 	.then(result => {
 		bookings = result;
@@ -500,8 +384,44 @@ async function viewBookings(input, user){
 	return bookings;
 }
 
+async function findBookingById(id, user) {
+	var response = new Object;
+	const rightsGroup = [
+		"BOOKING_ADMIN_GROUP",
+		"BOOKING_USER_GROUP"
+	]
+
+	//validate user group
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	if (id.length == null || id.length < 1) {
+		response.status = 403;
+		response.message = "id is mandatory";
+		throw response;
+	}
+
+	var booking;
+	await bookingModel.findBookingById(id)
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("bookingHistoryModel.findBookingById() error : " + err);
+			response.status = 500;
+			response.message = "Cancel Booking Service not available";
+			throw response;
+		});
+
+	return booking;
+}
+
 module.exports = {
 	addNewBooking,
 	cancelBooking,
-	viewBookings
+	viewBookings,
+	findBookingById
 }

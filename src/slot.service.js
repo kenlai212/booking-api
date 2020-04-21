@@ -4,8 +4,6 @@ const logger = require("./logger");
 const helper = require("./helper");
 const bookingService = require("./booking.service");
 
-const OCCUPANCY_DOMAIN = process.env.OCCUPANCY_DOMAIN;
-const OCCUPANCIES_SUBDOMAIN = process.env.OCCUPANCIES_SUBDOMAIN;
 const UNIT_PRICE = process.env.UNIT_PRICE;
 const DAY_START = 5;
 const DAY_END = 14;
@@ -17,7 +15,7 @@ Date : Mar 13 2020
 Returns hourly slots of target date.
 Will include unitPrice and availability in each slot
 **********************************************************/
-async function getSlots(input, user){
+async function getSlots(targetDate, user){
 	var response = new Object;
 
 	//validate user group rights
@@ -33,16 +31,18 @@ async function getSlots(input, user){
 	}
 
 	//validate target date
-	if(input.targetDate == null){
+	if (targetDate == null || targetDate.length < 1) {
 		response.status = 400;
 		response.message = "targetDate is mandatory";
 		throw response;
 	}
 
-	const year = input.targetDate.substring(0,4);
-	const month = input.targetDate.substring(5,7);
-	const date = input.targetDate.substring(8,10);
-	const targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));;
+	//TODO validate target date format
+
+	const year = targetDate.substring(0,4);
+	const month = targetDate.substring(5,7);
+	const date = targetDate.substring(8,10);
+	targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));;
 
 	//generate slots from 5am to 7pm
 	var slots = generateSlots(targetDate, DAY_START, DAY_END);
@@ -74,7 +74,7 @@ By : Ken Lai
 
 Returns all immediate available end slots after the target start slot
 **********************************************************************/
-async function getAvailableEndSlots(input, user){
+async function getAvailableEndSlots(targetDateStr, startTimeStr, user){
 	var response = new Object;
 
 	//validate user group rights
@@ -90,18 +90,29 @@ async function getAvailableEndSlots(input, user){
 	}
 
 	//validate target date
-	if(input.startTime == null){
+	if (targetDateStr == null || targetDateStr.length < 1) {
+		response.status = 400;
+		response.message = "targetDate is mandatory";
+		throw response;
+	}
+
+	//TODO validate target date format
+
+	//validate start time
+	if (startTimeStr == null || startTimeStr.length < 1) {
 		response.status = 400;
 		response.message = "startTime is mandatory";
 		throw response;
 	}
 
+	//TODO validate startTime format
+
 	//init and startTime and targetDate
-	const startTime = helper.standardStringToDate(input.startTime);
+	const startTime = helper.standardStringToDate(targetDateStr + " " + startTimeStr);
 		
-	const year = input.startTime.substring(0,4);
-	const month = input.startTime.substring(5,7);
-	const date = input.startTime.substring(8,10);
+	const year = targetDateStr.substring(0,4);
+	const month = targetDateStr.substring(5,7);
+	const date = targetDateStr.substring(8,10);
 	const targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
 	
 	//generate slots from 5am to 7pm
@@ -185,17 +196,24 @@ async function setAvailbilities(slots){
 	const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
 	const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
 	
-	//call external occupancy API to save occupancy record
-	var occupancies;
-	await callOccupanciesAPI(dayBegin, dayEnd)
+	//call external occupancy API to get all occupancies between startTime and endTime
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCIES_SUBDOMAIN;
+	const data = {
+		"startTime": helper.dateToStandardString(dayBegin),
+		"endTime": helper.dateToStandardString(dayEnd)
+	}
+	const requestAttr = {
+		method: "POST",
+		body: JSON.stringify(data)
+	}
+
+	var occupancies
+	await helper.callAPI(url, requestAttr)
 		.then(result => {
 			occupancies = result;
 		})
 		.catch(err => {
-			console.log(err);
-			response.status = 500;
-			response.message = err.message;
-			throw response;
+			throw err;
 		});
 	
 	for (var i = 0; i < slots.length; i++) {
@@ -216,64 +234,6 @@ async function setAvailbilities(slots){
 	}
 
 	return slots;
-}
-
-async function callOccupanciesAPI(startTime, endTime){
-
-	const url = OCCUPANCY_DOMAIN + OCCUPANCIES_SUBDOMAIN;
-	const headers = {
-		"Authorization": "Token " + accessToken,
-		"content-Type": "application/json"
-	}
-	const data = {
-		"startTime": helper.dateToStandardString(startTime),
-		"endTime": helper.dateToStandardString(endTime)
-	}
-
-	var occupancies = new Array();
-	var tokenResponse = null;
-	var breakFlag = false;
-	for (var i = 0; i < 1; i++) {
-
-		if (breakFlag == true) {
-			break;
-		}
-
-		await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
-			.then(async res => {
-				if (res.status >= 200 && res.status < 300) {
-					occupancies = res.json();
-					breakFlag = true;
-				} else if (res.status == 403) {
-					
-					await helper.callTokenAPI()
-						.then(result => {
-							tokenResponse = result;
-						})
-						.catch(err => {
-							logger.error("error while calling helper.callTokenAPI() : " + err);
-							var response;
-							response.status = 500;
-							response.message = "helper.callLoginAPI() not available";
-							throw response;
-						});
-
-				} else {
-					logger.error("External Occupancies API error : " + res.statusText);
-					var response;
-					response.status = res.status;
-					response.message = res.statusText;
-					throw response;
-				}
-			});
-
-		if (tokenResponse != null) {
-			global.accessToken = tokenResponse.accessToken;
-			logger.info("Obtained accessToken : " + global.accessToken);
-		}
-	}
-
-	return occupancies;
 }
 
 /****************************************************************

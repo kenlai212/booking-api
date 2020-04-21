@@ -131,7 +131,7 @@ async function callTokenAPI() {
 	const data = {
 		"refreshToken": refreshToken
 	}
-
+	
 	var response;
 	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
 		.then((res) => {
@@ -165,6 +165,77 @@ function userAuthorization(userGroups, allowGroups) {
 	}
 }
 
+/**
+ * By : Ken Lai
+ * Date : Apr 21, 2020
+ * 
+ * @param {any} url
+ * @param {any} requestAttr
+ * 
+ * private function, call external api. Will retry once if failed. 
+ * 
+ * In the retry, if first external response code is 403-Forbidden,
+ * that means the access token had expired.
+ * 
+ * It will then call helper.callTokenAPI and use refresh token in
+ * memory to get a new access token.
+ * 
+ * Then it will retry to call external api again
+ */
+async function callAPI(url, requestAttr) {
+
+	logger.info("Calling External API : " + url);
+
+	requestAttr.headers = {
+		"Authorization": "Token " + accessToken,
+		"content-Type": "application/json"
+	}
+
+	var apiResult;
+	var tokenResponse = null;
+	var breakFlag = false;
+	var errorResponse = new Object();
+
+	for (var i = 0; i < 1; i++) {
+
+		if (breakFlag == true) {
+			break;
+		}
+
+		await fetch(url, requestAttr)
+			.then(async res => {
+				if (res.status >= 200 && res.status < 300) {
+					apiResult = res.json();
+					breakFlag = true;
+				} else if (res.status == 403) {
+
+					await helper.callTokenAPI()
+						.then(response => {
+							tokenResponse = response;
+						})
+						.catch(err => {
+							errorResponse.status = 500;
+							errorResponse.message = "helper.callLoginAPI() not available";
+							throw errorResponse;
+						});
+
+				} else {
+					logger.error("External API error : " + res.statusText);
+					errorResponse.status = res.status;
+					errorResponse.message = res.statusText;
+					throw errorResponse;
+				}
+			});
+
+		if (tokenResponse != null) {
+			global.accessToken = tokenResponse.accessToken;
+			logger.info("Obtained accessToken : " + global.accessToken);
+		}
+	}
+
+	return apiResult;
+}
+
 module.exports = {
 	logIncommingRequest,
 	logOutgoingResponse,
@@ -174,5 +245,6 @@ module.exports = {
 	dateToStandardString,
 	callLoginAPI,
 	callTokenAPI,
-	userAuthorization
+	userAuthorization,
+	callAPI
 }
