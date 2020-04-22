@@ -58,7 +58,7 @@ async function getSlots(targetDate, user){
 	.catch(err => {
 		logger.error("setAvailbilities() error : " + err);
 		response.status = 500;
-		response.message = "setAvailbility function not available";
+		response.message = "setAvailbilities function not available";
 		throw response;
 	});
 
@@ -124,7 +124,7 @@ async function getAvailableEndSlots(startTimeStr, user){
 	.catch(err => {
 		logger.error("setAvailbilities() error : " + err);
 		response.status = 500;
-		response.message = "setAvailbility function not available";
+		response.message = "setAvailbilities function not available";
 		throw response;
 	});
 
@@ -211,6 +211,7 @@ async function setAvailbilities(slots){
 			occupancies = result;
 		})
 		.catch(err => {
+			//console.log(err);
 			throw err;
 		});
 	

@@ -132,11 +132,11 @@ async function callTokenAPI() {
 		"refreshToken": refreshToken
 	}
 	
-	var response;
+	var accessToken;
 	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
 		.then((res) => {
 			if (res.status >= 200 && res.status < 300) {
-				response = res.json();
+				accessToken = res.json();
 			} else {
 				logger.error("External Authentication Token API error : " + res.statusText);
 				response.status = res.status;
@@ -145,7 +145,7 @@ async function callTokenAPI() {
 			}
 		});
 
-	return response;
+	return accessToken;
 }
 
 /********************************************************
@@ -196,7 +196,7 @@ async function callAPI(url, requestAttr) {
 	var breakFlag = false;
 	var errorResponse = new Object();
 
-	for (var i = 0; i < 1; i++) {
+	for (var i = 0; i <= 1; i++) {
 
 		if (breakFlag == true) {
 			break;
@@ -204,21 +204,26 @@ async function callAPI(url, requestAttr) {
 
 		await fetch(url, requestAttr)
 			.then(async res => {
+				//logger.info("fetched api results");
+
 				if (res.status >= 200 && res.status < 300) {
+					//logger.info("Successful API result");
 					apiResult = res.json();
 					breakFlag = true;
 				} else if (res.status == 403) {
+					logger.warn("Access Token had expired.... obtaining a new one");
 
-					await helper.callTokenAPI()
+					await callTokenAPI()
 						.then(response => {
+							logger.info("Successfully obtained a new access token");
 							tokenResponse = response;
 						})
 						.catch(err => {
+							logger.error("Error while running helper.callLoginAPI() : " + err);
 							errorResponse.status = 500;
 							errorResponse.message = "helper.callLoginAPI() not available";
 							throw errorResponse;
 						});
-
 				} else {
 					logger.error("External API error : " + res.statusText);
 					errorResponse.status = res.status;
@@ -228,8 +233,11 @@ async function callAPI(url, requestAttr) {
 			});
 
 		if (tokenResponse != null) {
+			logger.info("Assigning new accessToken to global memory");
 			global.accessToken = tokenResponse.accessToken;
-			logger.info("Obtained accessToken : " + global.accessToken);
+			requestAttr.headers.Authorization = "Token " + global.accessToken;
+			tokenResponse = null;
+			continue;
 		}
 	}
 
