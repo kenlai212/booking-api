@@ -74,7 +74,7 @@ By : Ken Lai
 
 Returns all immediate available end slots after the target start slot
 **********************************************************************/
-async function getAvailableEndSlots(targetDateStr, startTimeStr, user){
+async function getAvailableEndSlots(startTimeStr, user){
 	var response = new Object;
 
 	//validate user group rights
@@ -88,16 +88,6 @@ async function getAvailableEndSlots(targetDateStr, startTimeStr, user){
 		response.message = "Insufficient Rights";
 		throw response;
 	}
-
-	//validate target date
-	if (targetDateStr == null || targetDateStr.length < 1) {
-		response.status = 400;
-		response.message = "targetDate is mandatory";
-		throw response;
-	}
-
-	//TODO validate target date format
-
 	//validate start time
 	if (startTimeStr == null || startTimeStr.length < 1) {
 		response.status = 400;
@@ -108,11 +98,19 @@ async function getAvailableEndSlots(targetDateStr, startTimeStr, user){
 	//TODO validate startTime format
 
 	//init and startTime and targetDate
-	const startTime = helper.standardStringToDate(targetDateStr + " " + startTimeStr);
+	var startTime;
+	try {
+		startTime = helper.standardStringToDate(startTimeStr);
+	} catch (err) {
+		response.status = 400;
+		response.message = "invalid startTime format";
+		throw response;
+	}
+	
 		
-	const year = targetDateStr.substring(0,4);
-	const month = targetDateStr.substring(5,7);
-	const date = targetDateStr.substring(8,10);
+	const year = startTimeStr.substring(0,4);
+	const month = startTimeStr.substring(5,7);
+	const date = startTimeStr.substring(8,10);
 	const targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
 	
 	//generate slots from 5am to 7pm

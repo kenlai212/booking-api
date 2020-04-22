@@ -119,16 +119,17 @@ module.exports = function(app){
 	});
 
 	//get end slots
-	app.get("/end-slots/:targetDate/:startTime", authenticateToken, async (req, res) => {
+	app.get("/end-slots/:startTime", authenticateToken, async (req, res) => {
 		helper.logIncommingRequest(req);
 
-		await slotService.getAvailableEndSlots(req.params.targetDate, req.params.startTime, req.user)
+		await slotService.getAvailableEndSlots(req.params.startTime, req.user)
 			.then(endSlots => {
 				logger.info("Response body : " + JSON.stringify(endSlots));
 				res.json(endSlots);
 				res.status(200);
 			})
 			.catch(err => {
+				console.log(err);
 				res.status(err.status);
 				res.statusMessage = err.message;
 			});
