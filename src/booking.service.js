@@ -137,8 +137,6 @@ async function addNewBooking(input, user){
 	}
 	booking.emailAddress = input.emailAddress;
 
-	return booking;
-
 	//call external occupancy API to save occupancy record
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
 	const data = {
