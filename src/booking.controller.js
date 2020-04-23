@@ -5,6 +5,8 @@ const helper = require("./helper");
 const logger = require("./logger");
 const bookingService = require("./booking.service");
 const slotService = require("./slot.service");
+const pricingService = require("./pricing.service");
+
 require('dotenv').config();
 
 module.exports = function(app){
@@ -19,6 +21,7 @@ module.exports = function(app){
 				res.status(200);
 			})
 			.catch(err => {
+				console.log(err);
 				res.status(err.status);
 				res.statusMessage = err.message;
 			});
@@ -135,6 +138,28 @@ module.exports = function(app){
 			});
 
 		res.on("finish", function(){
+			helper.logOutgoingResponse(res);
+		});
+
+		res.send();
+	});
+
+	//calculate total amount
+	app.get("/total-amount/:startTime/:endTime", authenticateToken, (req, res) => {
+		helper.logIncommingRequest(req);
+
+		var totalAmountObj;
+		try {
+			totalAmountObj = pricingService.calculateTotalAmount(req.params.startTime, req.params.endTime, req.user);
+			logger.info("Response body : " + JSON.stringify(totalAmountObj));
+			res.json(totalAmountObj);
+			res.status(200);
+		} catch (err) {
+			res.status(err.status);
+			res.statusMessage = err.message;
+		}
+
+		res.on("finish", function () {
 			helper.logOutgoingResponse(res);
 		});
 

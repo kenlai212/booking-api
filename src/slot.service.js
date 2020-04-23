@@ -1,10 +1,8 @@
 "use strict";
-const fetch = require("node-fetch");
 const logger = require("./logger");
 const helper = require("./helper");
 const bookingService = require("./booking.service");
 
-const UNIT_PRICE = process.env.UNIT_PRICE;
 const DAY_START = 5;
 const DAY_END = 14;
 
@@ -46,9 +44,6 @@ async function getSlots(targetDate, user){
 
 	//generate slots from 5am to 7pm
 	var slots = generateSlots(targetDate, DAY_START, DAY_END);
-
-	//Set the unit price of each slot
-	slots = setUnitPrices(slots);
 
 	//set availbility for all slots
 	await setAvailbilities(slots)
@@ -96,6 +91,7 @@ async function getAvailableEndSlots(startTimeStr, user){
 	}
 
 	//TODO validate startTime format
+	//TODO validate startTime cannot be before DAY_START or after DAY_END
 
 	//init and startTime and targetDate
 	var startTime;
@@ -140,9 +136,6 @@ async function getAvailableEndSlots(startTimeStr, user){
 		}
 	}
 
-	//Set the unit price of each slot
-	availableEndSlots = setUnitPrices(availableEndSlots);
-
 	//change startTime and endTime into standard string
 	availableEndSlots = setResponseFormatting(availableEndSlots);
 
@@ -160,21 +153,6 @@ function setResponseFormatting(slots){
 	for (var i = 0; i < slots.length; i++) {
 		slots[i].startTime = helper.dateToStandardString(slots[i].startTime);
 		slots[i].endTime = helper.dateToStandardString(slots[i].endTime);
-	}
-
-	return slots;
-}
-
-/****************************************************************
-By : Ken Lai
-
-private function - set unit of each slot
-//TODO - will fetch from external pricing API
-*****************************************************************/
-function setUnitPrices(slots){
-	for (var i = 0; i < slots.length; i++) {
-		//TODO - change this to fetch from external pricing API
-		slots[i].unitPrice = parseInt(UNIT_PRICE);
 	}
 
 	return slots;
@@ -211,7 +189,6 @@ async function setAvailbilities(slots){
 			occupancies = result;
 		})
 		.catch(err => {
-			//console.log(err);
 			throw err;
 		});
 	

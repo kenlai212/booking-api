@@ -1,10 +1,9 @@
 "use strict";
-const fetch = require("node-fetch");
-const uuid = require("uuid");
 const logger = require("./logger");
 const helper = require("./helper");
 const bookingModel = require("./booking.model");
 const bookingHistoryModel = require("./booking-history.model");
+const pricingService = require("./pricing.service");
 
 require('dotenv').config();
 
@@ -74,12 +73,11 @@ async function addNewBooking(input, user){
 	booking.endTime = endTime;
 
 	//check minimum booking duration
-	const startTimeInMinutes = startTime.getMinutes() + startTime.getHours() * 60;
-	const endTimeInMinutes = endTime.getMinutes() + endTime.getHours() * 60;
-	const durationInMinutes = endTimeInMinutes - startTimeInMinutes;
+	const diffTime = Math.abs(endTime - startTime);
+	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
 	if (durationInMinutes < process.env.MINIMUM_BOOKING_DURATION_MINUTES){
 		response.status = 400;
-		response.message = "booking duration cannot be less then "+ MINIMUM_BOOKING_DURATION_MINUTES +" minutes";
+		response.message = "booking duration cannot be less then " + process.env.MINIMUM_BOOKING_DURATION_MINUTES +" minutes";
 		throw response;
 	}
 
@@ -87,10 +85,18 @@ async function addNewBooking(input, user){
 	if(process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true){
 		if (durationInMinutes > process.env.MAXIMUM_BOOKING_DURATION_MINUTES){
 			response.status = 400;
-			response.message = "booking duration cannot be more then "+ MAXIMUM_BOOKING_DURATION_MINUTES +" minutes";
+			response.message = "booking duration cannot be more then " + process.env.MAXIMUM_BOOKING_DURATION_MINUTES +" minutes";
 			throw response;
 		}
 	}
+
+	//calculate duration in hours
+	booking.durationInHours = Math.round(durationInMinutes / 60);
+
+	//calculate pricing & currency
+	const totalAmountObj = pricingService.calculateTotalAmount(input.startTime, input.endTime, user);
+	booking.totalAmount = totalAmountObj.totalAmount
+	booking.currency = totalAmountObj.currency;
 
 	//validate contact name
 	if (input.contactName == null || input.contactName.length < 1){
@@ -124,10 +130,14 @@ async function addNewBooking(input, user){
 	booking.telephoneNumber = input.telephoneNumber;
 
 	//validate email address
-	//TODO validate email format
-	if(input.emailAddress!=null){
-		booking.emailAddress = input.emailAddress;
+	if(input.emailAddress == null){
+		response.status = 400;
+		response.message = "emailAddress is mandatory";
+		throw response;
 	}
+	booking.emailAddress = input.emailAddress;
+
+	return booking;
 
 	//call external occupancy API to save occupancy record
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
