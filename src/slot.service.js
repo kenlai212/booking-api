@@ -3,8 +3,9 @@ const logger = require("./logger");
 const helper = require("./helper");
 const bookingService = require("./booking.service");
 
-const DAY_START = 5;
-const DAY_END = 14;
+const DAY_START_HOUR = 5;
+const DAY_END_HOUR = 14;
+const DEFAULT_ASSET_ID = "MC_NXT20";
 
 /**********************************************************
 By : Ken Lai
@@ -43,7 +44,7 @@ async function getSlots(targetDate, user){
 	targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));;
 
 	//generate slots from 5am to 7pm
-	var slots = generateSlots(targetDate, DAY_START, DAY_END);
+	var slots = generateSlots(targetDate, DAY_START_HOUR, DAY_END_HOUR);
 
 	//set availbility for all slots
 	await setAvailbilities(slots)
@@ -110,7 +111,7 @@ async function getAvailableEndSlots(startTimeStr, user){
 	const targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
 	
 	//generate slots from 5am to 7pm
-	var slots = generateSlots(targetDate, DAY_START, DAY_END);
+	var slots = generateSlots(targetDate, DAY_START_HOUR, DAY_END_HOUR);
 	
 	//set availbility for all slots
 	await setAvailbilities(slots)
@@ -173,14 +174,11 @@ async function setAvailbilities(slots){
 	const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
 	
 	//call external occupancy API to get all occupancies between startTime and endTime
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCIES_SUBDOMAIN;
-	const data = {
-		"startTime": helper.dateToStandardString(dayBegin),
-		"endTime": helper.dateToStandardString(dayEnd)
-	}
+	const startTimeStr = helper.dateToStandardString(dayBegin);
+	const endTimeStr = helper.dateToStandardString(dayEnd);
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCIES_SUBDOMAIN + "?startTime=" + startTimeStr + "&endTime=" + endTimeStr + "&assetId=" + DEFAULT_ASSET_ID;
 	const requestAttr = {
-		method: "POST",
-		body: JSON.stringify(data)
+		method: "GET"
 	}
 
 	var occupancies

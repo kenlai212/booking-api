@@ -7,7 +7,7 @@ const pricingService = require("./pricing.service");
 
 require('dotenv').config();
 
-const CANCELLED_STATUS = "CANCELLED";
+const DEFAULT_ASSET_ID = "MC_NXT20";
 
 /**
  * By : Ken Lai
@@ -113,8 +113,8 @@ async function addNewBooking(input, user){
 		throw response;
 	}
 
-	const acceptedCountryCode = ["852", "853", "86"];
-	if (acceptedCountryCode.includes(input.telephoneCountryCode) == false) {
+	const acceptedTelephoneCountryCodes = ["852", "853", "86"];
+	if (acceptedTelephoneCountryCodes.includes(input.telephoneCountryCode) == false) {
 		response.status = 400;
 		response.message = "invalid telephoneCountryCode";
 		throw response;
@@ -142,7 +142,8 @@ async function addNewBooking(input, user){
 	const data = {
 		"occupancyType": "OPEN_BOOKING",
 		"startTime": helper.dateToStandardString(booking.startTime),
-		"endTime": helper.dateToStandardString(booking.endTime)
+		"endTime": helper.dateToStandardString(booking.endTime),
+		"assetId": DEFAULT_ASSET_ID
 	}
 	const requestAttr = {
 		method: "POST",
@@ -179,11 +180,16 @@ async function addNewBooking(input, user){
 
 	//send notification to admin
 	if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
-		const url = process.env.NOTIFICATION_DOMAIN + "/emailsss";
+		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_EMAIL_SUBDOMAIN;
 
-		const bodyHTML = "New booking request from "
-			+ booking.contactName + " (" + booking.telephoneNumber + "). Time - "
-			+ booking.startTime + " to " + booking.endTime;
+		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking._id;
+		var bodyHTML = "<html>";
+		bodyHTML += "<body>";
+		bodyHTML += "<div>New Booking recieved form " + booking.contactName + "</div>";
+		bodyHTML += "<div>" + booking.startTime + "&nbsp;to&nbsp;" + booking.endTime + "</div>";
+		bodyHTML += "<div>Go to details <a href=" + linkToThankyouPage +">here</a></div>";
+		bodyHTML += "</body>";
+		bodyHTML += "</html>";
 
 		const data = {
 			"sender": "booking@hebewake.com",
@@ -207,12 +213,23 @@ async function addNewBooking(input, user){
 
 	//send confirmation to contact
 	//TODO add chinese language confirmation
-	if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_SMS == true) {
-		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_SMS_SUBDOMAIN + "sss";
+	if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_EMAIL == true) {
+		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_EMAIL_SUBDOMAIN;
+
+		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking._id;
+		var bodyHTML = "<html>";
+		bodyHTML += "<head>";
+		bodyHTML += "</head>";
+		bodyHTML += "<body>";
+		bodyHTML += "<div>Thank you for booking with us.</div>";
+		bodyHTML += "<div>You can view your booking details <a href=" + linkToThankyouPage +">here</a></div>";
+		bodyHTML += "</body>";
+		bodyHTML += "</html>";
+
 		const data = {
-			"message": "Thank you for your booking (" + booking.startTime + " - " + booking.endTime + ")",
-			"number": booking.telephoneNumber,
-			"subject": "test subject"
+			"sender": "booking@hebewake.com",
+			"recipient": booking.emailAddress,
+			"emailBody": bodyHTML
 		}
 		const requestAttr = {
 			method: "POST",
@@ -221,10 +238,10 @@ async function addNewBooking(input, user){
 
 		await helper.callAPI(url, requestAttr)
 			.then(result => {
-				logger.info("Sucessfully sent new booking notification SMS to customer, messageId : " + result.messageId);
+				logger.info("Sucessfully sent new booking notification email to customer, messageId : " + result.messageId);
 			})
 			.catch(err => {
-				logger.error("Failed to send new booking notification SMS to customer : " + JSON.stringify(err));
+				logger.error("Failed to send new booking notification email to customer : " + JSON.stringify(err));
 			});
 	}
 
@@ -281,7 +298,7 @@ async function cancelBooking(bookingId, user){
 	}
 
 	//release occupancy
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN + "/" + occupancyId;
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN + "/" + targetBooking.occupancyId;
 	const requestAttr = {
 		method: "DELETE",
 	}
@@ -304,7 +321,7 @@ async function cancelBooking(bookingId, user){
 	});
 
 	//add new booking history
-	targetBooking.status = CANCELLED_STATUS;
+	targetBooking.status = "CANCELLED";
 	await bookingHistoryModel.addNewBookingHistory(targetBooking)
 	.then(bookingHistory => {
 		logger.info("Saved new bookingHistory.id : " + bookingHistory._id);
@@ -342,13 +359,13 @@ async function viewBookings(input, user){
 	}
 
 	//validate start and end time
-	if(input.startTime == null){
+	if (input.startTime == null || input.startTime.length < 1) {
 		response.status = 400;
 		response.message = "startTime is mandatory";
 		throw response;	
 	}
 
-	if(input.endTime == null){
+	if (input.endTime == null || input.endTime.length < 1) {
 		response.status = 400;
 		response.message = "endTime is mandatory";
 		throw response;	

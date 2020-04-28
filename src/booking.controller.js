@@ -1,6 +1,6 @@
 "use strict";
 const jwt = require("jsonwebtoken");
-
+const url = require("url");
 const helper = require("./helper");
 const logger = require("./logger");
 const bookingService = require("./booking.service");
@@ -21,7 +21,6 @@ module.exports = function(app){
 				res.status(200);
 			})
 			.catch(err => {
-				console.log(err);
 				res.status(err.status);
 				res.statusMessage = err.message;
 			});
@@ -56,10 +55,12 @@ module.exports = function(app){
 	});
 
 	//view all bookings
-	app.post("/bookings", authenticateToken, async (req, res) => {
+	app.get("/bookings", authenticateToken, async (req, res) => {
 		helper.logIncommingRequest(req);
 
-		await bookingService.viewBookings(req.body, req.user)
+		const queryObject = url.parse(req.url, true).query;
+
+		await bookingService.viewBookings(queryObject, req.user)
 			.then(bookings => {
 				logger.info("Response body : " + JSON.stringify(bookings));
 				res.json(bookings);
