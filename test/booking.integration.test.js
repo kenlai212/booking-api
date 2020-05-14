@@ -500,6 +500,8 @@ describe('Booking Endpoints', () => {
         dayAfterTomorrowEnd.setUTCMinutes(59);
         dayAfterTomorrowEnd.setUTCSeconds(59);
 
+        var booking4;
+
         before(async () => {
             //delete all occupancies of today
             var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
@@ -579,7 +581,8 @@ describe('Booking Endpoints', () => {
                     "telephoneCountryCode": "852",
                     "telephoneNumber": "12345678",
                     "emailAddress": "test@test.com"
-                });
+                })
+                .then(response => { booking4 = response.body });
         });
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
@@ -650,6 +653,20 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.length, 1);
+                    const booking = response.body[0];
+                    assert.equal(booking.id, booking4.id);
+                    assert.equal(booking.occupancyId, booking4.occupancyId);
+                    assert(booking.creationTime, booking4.creationTime);
+                    assert(booking.createdBy, booking4.createdBy);
+                    assert.equal(booking.status, "AWAITING_PAYMENT");
+                    assert.equal(booking.startTime, booking4.startTime);
+                    assert.equal(booking.endTime, booking4.endTime);
+                    assert.equal(booking.totalAmount, 3600);
+                    assert.equal(booking.currency, "HKD");
+                    assert.equal(booking.contactName, "tester");
+                    assert.equal(booking.telephoneCountryCode, "852");
+                    assert.equal(booking.telephoneNumber, "12345678");
+                    assert.equal(booking.emailAddress, "test@test.com");
                 });
         });
     });

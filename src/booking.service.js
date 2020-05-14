@@ -485,12 +485,13 @@ async function viewBookings(input, user){
 			throw response;
 		});
 
-	bookings.forEach((item, index) => {
-		item.startTime = helper.dateToStandardString(item.startTime);
-		item.endTime = helper.dateToStandardString(item.endTime);
+	var outputObjs = [];
+	bookings.forEach((booking, index) => {
+		const outputObj = bookingToOutuptObj(booking);
+		outputObjs.push(outputObj);
 	});
 
-	return bookings;
+	return outputObjs;
 }
 
 async function findBookingById(input, user) {
