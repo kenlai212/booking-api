@@ -1,8 +1,9 @@
 "use strict";
 const logger = require("./logger");
 const helper = require("./helper");
-const bookingModel = require("./booking.model");
-const bookingHistoryModel = require("./booking-history.model");
+const Booking = require("./booking.model").Booking;
+const BookingHistory = require("./booking-history.model").BookingHistory;
+
 const pricingService = require("./pricing.service");
 
 require('dotenv').config();
@@ -19,7 +20,7 @@ const DEFAULT_ASSET_ID = "MC_NXT20";
  * Add new booking record to database, then add a corrisponding
  * new occupancy record by calling occupancy service
  */
-async function addNewBooking(input, user){
+async function addNewBooking(input, user) {
 	var response = new Object;
 	const rightsGroup = [
 		"BOOKING_ADMIN_GROUP",
@@ -35,71 +36,131 @@ async function addNewBooking(input, user){
 	}
 
 	//validate startTime
-	if(input.startTime == null || input.startTime.length < 1){
+	if (input.startTime == null || input.startTime.length < 1) {
 		response.status = 400;
 		response.message = "startTime is mandatory";
 		throw response;
 	}
 
+	var startTime;
+	try {
+		startTime = helper.standardStringToDate(input.startTime);
+	} catch (err) {
+		response.status = 400;
+		response.message = "Invalid startTime format";
+		throw response;
+	}
+
 	//validate end time
-	if(input.endTime == null || input.endTime.length < 1){
+	if (input.endTime == null || input.endTime.length < 1) {
 		response.status = 400;
 		response.message = "endTime is mandatory";
 		throw response;
 	}
 
-	var booking = new Object();
-
-	var startTime;
 	var endTime;
-	try{
-		startTime = helper.standardStringToDate(input.startTime);
+	try {
 		endTime = helper.standardStringToDate(input.endTime);
-	}catch(err){
-		//invalid input date string format
+	} catch (err) {
 		response.status = 400;
-		response.message = err.message;
+		response.message = "Invalid startTime format";
 		throw response;
 	}
 
 	//check if endTime is earlier then startTime
-	if(startTime > endTime){
+	if (startTime > endTime) {
 		response.status = 400;
 		response.message = "Invalid endTime";
 		throw response;
 	}
 
-	booking.startTime = startTime;
-	booking.endTime = endTime;
-
 	//check minimum booking duration
-	const diffTime = Math.abs(endTime - startTime);
-	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
-	if (durationInMinutes < process.env.MINIMUM_BOOKING_DURATION_MINUTES){
+	const diffMs = (endTime - startTime);
+	const minMs = process.env.MINIMUM_BOOKING_TIME;
+	if (diffMs < minMs) {
+
+		var minutes = Math.floor(minMs / 60000);
+		var seconds = ((minMs % 60000) / 1000).toFixed(0);
+
 		response.status = 400;
-		response.message = "booking duration cannot be less then " + process.env.MINIMUM_BOOKING_DURATION_MINUTES +" minutes";
+		response.message = "Booking cannot be less then " + minutes + " mins " + seconds + " secs";
 		throw response;
 	}
 
 	//check maximum booking duration
-	if(process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true){
-		if (durationInMinutes > process.env.MAXIMUM_BOOKING_DURATION_MINUTES){
+	const maxMs = process.env.MAXIMUM_BOOKING_TIME
+	if (process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true) {
+		if (diffMs > maxMs) {
+
+			var minutes = Math.floor(maxMs / 60000);
+			var seconds = ((maxMs % 60000) / 1000).toFixed(0);
+
 			response.status = 400;
-			response.message = "booking duration cannot be more then " + process.env.MAXIMUM_BOOKING_DURATION_MINUTES +" minutes";
+			response.message = "Booking cannot be more then " + minutes + " mins " + seconds + " secs";
 			throw response;
 		}
 	}
 
-	//calculate duration in hours
-	booking.durationInHours = Math.round(durationInMinutes / 60);
+	//check for earliest startTime
+	var earliestStartTime = new Date(startTime);
+	earliestStartTime.setUTCHours(process.env.EARLIEST_BOOKING_HOUR);
+	earliestStartTime.setUTCMinutes(0);
 
+	if (startTime < earliestStartTime) {
+		response.status = 400;
+		response.message = "Booking cannot be earlier then 0" + process.env.EARLIEST_BOOKING_HOUR + ":00";
+		throw response;
+	}
+
+	//check for latest endTime
+	var latestEndTime = new Date(endTime);
+	latestEndTime.setUTCHours(process.env.LATEST_BOOKING_HOUR);
+	latestEndTime.setUTCMinutes(0);
+
+	if (endTime > latestEndTime) {
+		response.status = 400;
+		response.message = "Booking cannot be later then " + process.env.LATEST_BOOKING_HOUR + ":00";
+		throw response;
+	}
+
+	//check for retro booking (booing before current time)
+	var now = new Date();
+	now.setHours(now.getHours() + 8);
+	if (endTime < now) {
+		response.status = 400;
+		response.message = "Booking cannot be in the past";
+		throw response;
+	}
+
+	/*
+	//check for minimum booking notice
+	var latestAdvanceBooking = new Date(startTime);
+	latestAdvanceBooking.setUTCHours(latestAdvanceBooking.getHours() - 12);
+	latestAdvanceBooking.setUTCMinutes(0);
+	var now = new Date();
+	now.setHours(now.getHours() + 8);
+	if (now > latestAdvanceBooking) {
+		response.status = 400;
+		response.message = "Must book 12 hours in advanced";
+		throw response;
+	}
+	*/
+
+	var booking = new Booking();
+	booking.startTime = startTime;
+	booking.endTime = endTime;
+	
 	//calculate pricing & currency
-	const totalAmountObj = pricingService.calculateTotalAmount(input.startTime, input.endTime, user);
-	booking.totalAmount = totalAmountObj.totalAmount
+	const pricingTotalAmountInput = {
+		"startTime": input.startTime,
+		"endTime": input.endTime
+	}
+	const totalAmountObj = pricingService.calculateTotalAmount(pricingTotalAmountInput, user);
+	booking.totalAmount = totalAmountObj.totalAmount;
 	booking.currency = totalAmountObj.currency;
 
 	//validate contact name
-	if (input.contactName == null || input.contactName.length < 1){
+	if (input.contactName == null || input.contactName.length < 1) {
 		response.status = 400;
 		response.message = "contactName is mandatory";
 		throw response;
@@ -116,13 +177,13 @@ async function addNewBooking(input, user){
 	const acceptedTelephoneCountryCodes = ["852", "853", "86"];
 	if (acceptedTelephoneCountryCodes.includes(input.telephoneCountryCode) == false) {
 		response.status = 400;
-		response.message = "invalid telephoneCountryCode";
+		response.message = "Invalid telephoneCountryCode";
 		throw response;
 	}
 	booking.telephoneCountryCode = input.telephoneCountryCode;
 
 	//validate telephone number
-	if(input.telephoneNumber == null){
+	if (input.telephoneNumber == null || input.telephoneNumber.length < 1) {
 		response.status = 400;
 		response.message = "telephoneNumber is mandatory";
 		throw response;
@@ -152,31 +213,31 @@ async function addNewBooking(input, user){
 
 	await helper.callAPI(url, requestAttr)
 		.then(result => {
-			booking.occupancyId = result._id;
-			logger.info("Successfully call occupancy api, and saved occupancy record : " + result._id);
+			booking.occupancyId = result.id;
+			logger.info("Successfully call occupancy api, and saved occupancy record : " + result.id);
 		})
 		.catch(err => {
-			throw err;
+			response.status = 400;
+			response.message = "timeslot not available";
+			throw response;
 		});
 
-	//setup and save newBooking record
 	booking.creationTime = new Date();
+	booking.createdBy = user.id;
 	booking.status = "AWAITING_PAYMENT";
-	await bookingModel.addNewBooking(booking)
-	.then(newBooking => {
-		logger.info("Successfully saved new booking : " + newBooking._id);
-		booking = newBooking;
-	})
-	.catch(err => {
-		logger.error("bookingModel.addNewBooking() error : " + err);
-		response.status = 500;
-		response.message = "Add new booking function not available";
-		throw response;
-	});
 
-	//change date object to display friendly string
-	booking.startTime = helper.dateToStandardString(booking.startTime);
-	booking.endTime = helper.dateToStandardString(booking.endTime);
+	//save newBooking record
+	await booking.save()
+		.then(result => {
+			booking = result;
+			logger.info("Successfully saved new booking : " + booking._id);
+		})
+		.catch(err => {
+			logger.error("booking.save() error : " + err);
+			response.status = 500;
+			response.message = "Add new booking function not available";
+			throw response;
+		});
 
 	//send notification to admin
 	if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
@@ -245,7 +306,9 @@ async function addNewBooking(input, user){
 			});
 	}
 
-	return booking;
+	var outputObj = bookingToOutuptObj(booking);
+
+	return outputObj;
 }
 
 /**
@@ -257,7 +320,7 @@ async function addNewBooking(input, user){
  * 
  * delete booking from database, delete the corrisponding occupancy record by calling occupancy service.
  */
-async function cancelBooking(bookingId, user){
+async function cancelBooking(input, user){
 	var response = new Object;
 
 	const rightsGroup = [
@@ -273,19 +336,19 @@ async function cancelBooking(bookingId, user){
 	}
 
 	//validate bookingId
-	if(bookingId==null){
+	if (input.bookingId == null || input.bookingId.length < 1) {
 		response.status = 400;
 		response.message = "bookingId is mandatory";
 		throw(response);
 	}
 
 	var targetBooking;
-	await bookingModel.findBookingById(bookingId)
-	.then(booking => {
-		targetBooking = booking;
+	await Booking.findById(bookingId)
+	.then(result => {
+		targetBooking = result;
 	})
 	.catch(err => {
-		logger.error("bookingModel.findBookingById() error : " + err);
+		logger.error("Error while finding target booking, runnint Booking.findById() error : " + err);
 		response.status = 500;
 		response.message = "Cancel Booking Service not available";
 		throw response;
@@ -309,29 +372,37 @@ async function cancelBooking(bookingId, user){
 		});
 
 	//delete booking record from db
-	await bookingModel.deleteBooking(targetBooking._id)
+	await Booking.findByIdAndDelete(targetBooking._id)
 	.then(() => {
 		logger.info("Deleted booking.id : " + targetBooking._id);
 	})
 	.catch(err => {
-		logger.error("bookingModel.deleteBooking() error : " + err);
+		logger.error("Error while deleting booking, running Booking.findByIdAndDelete() error : " + err);
 		response.status = 500;
 		response.message = "Cancel Booking Service not available";
 		throw response;
 	});
 
 	//add new booking history
-	targetBooking.status = "CANCELLED";
-	await bookingHistoryModel.addNewBookingHistory(targetBooking)
-	.then(bookingHistory => {
-		logger.info("Saved new bookingHistory.id : " + bookingHistory._id);
-	})
-	.catch(err => {
-		logger.error("bookingHistoryModel.addNewBookingHistory() error : " + err);
-		response.status = 500;
-		response.message = "Cancel Booking Service not available";
-		throw response;
-	});
+	const bookingHistory = new BookingHistory();
+	bookingHistory.startTime = targetBooking.startTime;
+	bookingHistory.endTime = targetBooking.endTime;
+	bookingHistory.contactName = targetBooking.contactName;
+	bookingHistory.telephoneCountryCode = targetBooking.telephoneCountryCode;
+	bookingHistory.telephoneNumber = targetBooking.telephoneNumber;
+	bookingHistory.emailAddress = targetBooking.emailAddress;
+	bookingHistory.status = "CANCELLED";
+	
+	await bookingHistory.save()
+		.then(bookingHistory => {
+			logger.info("Saved new bookingHistory.id : " + bookingHistory._id);
+		})
+		.catch(err => {
+			logger.error("bookingHistoryModel.addNewBookingHistory() error : " + err);
+			response.status = 500;
+			response.message = "Cancel Booking Service not available";
+			throw response;
+		});
 
 	return "SUCCESS";
 }
@@ -365,22 +436,28 @@ async function viewBookings(input, user){
 		throw response;	
 	}
 
+	var startTime;
+	try {
+		startTime = helper.standardStringToDate(input.startTime);
+	} catch (err) {
+		response.status = 400;
+		response.message = "Invalid startTime format";
+		throw response;	
+	}
+
 	if (input.endTime == null || input.endTime.length < 1) {
 		response.status = 400;
 		response.message = "endTime is mandatory";
 		throw response;	
 	}
 
-	var startTime;
 	var endTime;
 	try{
-		startTime = helper.standardStringToDate(input.startTime);
 		endTime = helper.standardStringToDate(input.endTime);
 	}catch(err){
-		//invalid input date string format
 		response.status = 400;
-		response.message = err.message;
-		throw response;
+		response.message = "Invalid endTime format";
+		throw response;	
 	}
 
 	if(startTime > endTime){
@@ -390,16 +467,19 @@ async function viewBookings(input, user){
 	}
 
 	var bookings;
-	await bookingModel.searchBookingsByDatetime(startTime, endTime)
-	.then(result => {
-		bookings = result;
+	await Booking.find({
+		startTime: { $gte: startTime },
+		endTime: { $lt: endTime }
 	})
-	.catch(err => {
-		logger.error("bookingHistoryModel.addNewBookingHistory() error : " + err);
-		response.status = 500;
-		response.message = "Cancel Booking Service not available";
-		throw response;
-	});
+		.then(result => {
+			bookings = result;
+		})
+		.catch(err => {
+			logger.error("bookingHistoryModel.addNewBookingHistory() error : " + err);
+			response.status = 500;
+			response.message = "Cancel Booking Service not available";
+			throw response;
+		});
 
 	bookings.forEach((item, index) => {
 		item.startTime = helper.dateToStandardString(item.startTime);
@@ -409,7 +489,7 @@ async function viewBookings(input, user){
 	return bookings;
 }
 
-async function findBookingById(id, user) {
+async function findBookingById(input, user) {
 	var response = new Object;
 	const rightsGroup = [
 		"BOOKING_ADMIN_GROUP",
@@ -423,14 +503,14 @@ async function findBookingById(id, user) {
 		throw response;
 	}
 
-	if (id.length == null || id.length < 1) {
-		response.status = 403;
+	if (input.id == null || input.id.length < 1) {
+		response.status = 400;
 		response.message = "id is mandatory";
 		throw response;
 	}
 
 	var booking;
-	await bookingModel.findBookingById(id)
+	await Booking.findById(input.id)
 		.then(result => {
 			booking = result;
 		})
@@ -441,9 +521,30 @@ async function findBookingById(id, user) {
 			throw response;
 		});
 
-	return booking;
+	const outputObj = bookingToOutuptObj(booking);
+
+	return outputObj;
 }
 
+function bookingToOutuptObj(booking) {
+	var outputObj = new Object();
+	outputObj.id = booking._id;
+	outputObj.creationTime = booking.creationTime;
+	outputObj.createdBy = booking.createdBy;
+	outputObj.occupancyId = booking.occupancyId;
+	outputObj.startTime = helper.dateToStandardString(booking.startTime);
+	outputObj.endTime = helper.dateToStandardString(booking.endTime);
+	outputObj.totalAmount = booking.totalAmount;
+	outputObj.currency = booking.currency;
+	outputObj.contactName = booking.contactName;
+	outputObj.telephoneCountryCode = booking.telephoneCountryCode;
+	outputObj.telephoneNumber = booking.telephoneNumber;
+	outputObj.emailAddress = booking.emailAddress;
+	outputObj.status = booking.status;
+	outputObj.durationInHours = Math.round((booking.endTime - booking.startTime) / 1000 / 60 / 60);
+
+	return outputObj;
+}
 module.exports = {
 	addNewBooking,
 	cancelBooking,

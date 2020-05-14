@@ -32,11 +32,13 @@ describe('Booking Endpoints', () => {
 
         before(async () => {
             var todayStart = new Date();
+            todayStart.setHours(todayStart.getHours() + 8);
             todayStart.setUTCHours(0);
             todayStart.setUTCMinutes(0);
             todayStart.setUTCSeconds(0);
-            
+
             var todayEnd = new Date();
+            todayEnd.setHours(todayEnd.getHours() + 8);
             todayEnd.setUTCHours(23);
             todayEnd.setUTCMinutes(59);
             todayEnd.setUTCSeconds(59);
@@ -284,6 +286,9 @@ describe('Booking Endpoints', () => {
                     const booking = response.body;
                     assert(booking.id);
                     assert(booking.occupancyId);
+                    assert(booking.creationTime);
+                    assert(booking.createdBy);
+                    assert.equal(booking.status,"AWAITING_PAYMENT");
                     assert.equal(booking.startTime, startTimeStr);
                     assert.equal(booking.endTime, endTimeStr);
                     assert.equal(booking.totalAmount, 3600);
@@ -310,6 +315,326 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 400);
                     assert.equal(response.body.error, "timeslot not available");
+                });
+        });
+    });
+
+    describe("testing find Booking", function () {
+
+        var booking1;
+        var booking2;
+        var booking3;
+
+        var startTime = new Date();
+        startTime.setHours(startTime.getHours() + 10);
+        startTime.setMinutes(0);
+        startTime.setSeconds(0);
+
+        var endTime = new Date();
+        endTime.setHours(endTime.getHours() + 11);
+        endTime.setMinutes(59);
+        endTime.setSeconds(59);
+
+        before(async () => {
+            var todayStart = new Date();
+            todayStart.setHours(todayStart.getHours() + 8);
+            todayStart.setUTCHours(0);
+            todayStart.setUTCMinutes(0);
+            todayStart.setUTCSeconds(0);
+            
+            var todayEnd = new Date();
+            todayEnd.setHours(todayEnd.getHours() + 8);
+            todayEnd.setUTCHours(23);
+            todayEnd.setUTCMinutes(59);
+            todayEnd.setUTCSeconds(59);
+            
+            //delete all occupancies of today
+            var occupancies = await getOccupancies(helper.dateToStandardString(todayStart), helper.dateToStandardString(todayEnd), "MC_NXT20");
+            await deleteOccupancies(occupancies);
+
+            //delete all bookings
+            await Booking.deleteMany().exec();
+
+            //setup booking1
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    booking1 = response.body;
+                });
+
+            //add 2 hours, setup booking 2
+            startTime.setHours(startTime.getHours() + 2);
+            endTime.setHours(endTime.getHours() + 2);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    booking2 = response.body;
+                });
+
+            //add 2 hours, setup booking3
+            startTime.setHours(startTime.getHours() + 2);
+            endTime.setHours(endTime.getHours() + 2);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    booking3 = response.body;
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .get("/booking")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing id, should return 400 status", async () => {
+            await chai.request(server)
+                .get("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "id is mandatory");
+                });
+        });
+
+        it("found booking1, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?id=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    var booking = response.body;
+                    assert.equal(booking.id, booking1.id);
+                    assert.equal(booking.occupancyId, booking1.occupancyId);
+                    assert(booking.creationTime, booking1.creationTime);
+                    assert(booking.createdBy, booking1.createdBy);
+                    assert.equal(booking.status, "AWAITING_PAYMENT");
+                    assert.equal(booking.startTime, booking1.startTime);
+                    assert.equal(booking.endTime, booking1.endTime);
+                    assert.equal(booking.totalAmount, 3600);
+                    assert.equal(booking.currency, "HKD");
+                    assert.equal(booking.contactName, "tester");
+                    assert.equal(booking.telephoneCountryCode, "852");
+                    assert.equal(booking.telephoneNumber, "12345678");
+                    assert.equal(booking.emailAddress, "test@test.com");
+                });
+        });
+
+        it("found booking2, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?id=" + booking2.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    var booking = response.body;
+                    assert.equal(booking.id, booking2.id);
+                    assert.equal(booking.occupancyId, booking2.occupancyId);
+                    assert(booking.creationTime, booking2.creationTime);
+                    assert(booking.createdBy, booking2.createdBy);
+                    assert.equal(booking.status, "AWAITING_PAYMENT");
+                    assert.equal(booking.startTime, booking2.startTime);
+                    assert.equal(booking.endTime, booking2.endTime);
+                    assert.equal(booking.totalAmount, 3600);
+                    assert.equal(booking.currency, "HKD");
+                    assert.equal(booking.contactName, "tester");
+                    assert.equal(booking.telephoneCountryCode, "852");
+                    assert.equal(booking.telephoneNumber, "12345678");
+                    assert.equal(booking.emailAddress, "test@test.com");
+                });
+        });
+    });
+
+    describe("testing search booking", function () {
+
+        var tomorrowStart = new Date();
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+        tomorrowStart.setUTCHours(0);
+        tomorrowStart.setUTCMinutes(0);
+        tomorrowStart.setUTCSeconds(0);
+
+        var tomorrowEnd = new Date();
+        tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+        tomorrowEnd.setUTCHours(23);
+        tomorrowEnd.setUTCMinutes(59);
+        tomorrowEnd.setUTCSeconds(59);
+
+        before(async () => {
+            //delete all occupancies of today
+            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
+            await deleteOccupancies(occupancies);
+
+            //delete all bookings
+            await Booking.deleteMany().exec();
+
+            var startTime = new Date();
+            startTime.setDate(startTime.getDate() + 1);
+            startTime.setUTCHours(8);
+            startTime.setMinutes(0);
+            startTime.setSeconds(0);
+            
+            var endTime = new Date();
+            endTime.setDate(endTime.getDate() + 1);
+            endTime.setUTCHours(9);
+            endTime.setUTCMinutes(59);
+            endTime.setUTCSeconds(59);
+            
+            //setup booking1
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                });
+
+            //add 2 hours, setup booking 2
+            startTime.setHours(startTime.getHours() + 2);
+            endTime.setHours(endTime.getHours() + 2);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                });
+
+            //add 2 hours, setup booking3
+            startTime.setHours(startTime.getHours() + 2);
+            endTime.setHours(endTime.getHours() + 2);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                });
+
+            //add 1 day, setup booking4
+            startTime.setDate(startTime.getDate() + 1);
+            endTime.setDate(endTime.getDate() + 1);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .get("/bookings")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing startTime, should return 400 status", async () => {
+            await chai.request(server)
+                .get("/bookings")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "startTime is mandatory");
+                });
+        });
+
+        it("invalid startTime, should return 400 status", async () => {
+            await chai.request(server)
+                .get("/bookings?startTime=abc")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid startTime format");
+                });
+        });
+
+        it("missing endTime, should return 400 status", async () => {
+            await chai.request(server)
+                .get("/bookings?startTime=" + helper.dateToStandardString(tomorrowStart))
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "endTime is mandatory");
+                });
+        });
+
+        it("invalid endTime, should return 400 status", async () => {
+            await chai.request(server)
+                .get("/bookings?startTime=" + helper.dateToStandardString(tomorrowStart) + "&endTime=abc")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid endTime format");
+                });
+        });
+
+        it("found 3 for tomorrow, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/bookings?startTime=" + helper.dateToStandardString(tomorrowStart) + "&endTime=" + helper.dateToStandardString(tomorrowEnd))
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.length, 3);
+                });
+        });
+
+        it("found 1 for day after tomorrow, should return 200 status", async () => {
+            tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+            tomorrowEnd.setDate(tomorrowStart.getDate() + 1);
+            await chai.request(server)
+                .get("/bookings?startTime=" + helper.dateToStandardString(tomorrowStart) + "&endTime=" + helper.dateToStandardString(tomorrowEnd))
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.length, 1);
                 });
         });
     });

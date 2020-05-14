@@ -14,7 +14,7 @@ Date : Mar 13 2020
 Returns hourly slots of target date.
 Will include unitPrice and availability in each slot
 **********************************************************/
-async function getSlots(targetDate, user){
+async function getSlots(input, user){
 	var response = new Object;
 
 	//validate user group rights
@@ -30,19 +30,21 @@ async function getSlots(targetDate, user){
 	}
 
 	//validate target date
-	if (targetDate == null || targetDate.length < 1) {
+	if (input.targetDate == null || input.targetDate.length < 1) {
 		response.status = 400;
 		response.message = "targetDate is mandatory";
 		throw response;
 	}
 
-	//TODO validate target date format
-
-	const year = targetDate.substring(0,4);
-	const month = targetDate.substring(5,7);
-	const date = targetDate.substring(8,10);
-	targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));;
-
+	var targetDate;
+	try {
+		targetDate = helper.standardStringToDate(input.targetDate + "T00:00:00");
+	} catch (err) {
+		response.status = 400;
+		response.message = "Invalid targetDate format";
+		throw response;
+	}
+	
 	//generate slots from 5am to 7pm
 	var slots = generateSlots(targetDate, DAY_START_HOUR, DAY_END_HOUR);
 
@@ -58,9 +60,6 @@ async function getSlots(targetDate, user){
 		throw response;
 	});
 
-	//change startTime and endTime into standard string
-	slots = setResponseFormatting(slots);
-
 	return slots;
 
 }
@@ -70,7 +69,7 @@ By : Ken Lai
 
 Returns all immediate available end slots after the target start slot
 **********************************************************************/
-async function getAvailableEndSlots(startTimeStr, user){
+async function getAvailableEndSlots(input, user){
 	var response = new Object;
 
 	//validate user group rights
@@ -85,33 +84,25 @@ async function getAvailableEndSlots(startTimeStr, user){
 		throw response;
 	}
 	//validate start time
-	if (startTimeStr == null || startTimeStr.length < 1) {
+	if (input.startTime == null || input.startTime.length < 1) {
 		response.status = 400;
 		response.message = "startTime is mandatory";
 		throw response;
 	}
 
-	//TODO validate startTime format
-	//TODO validate startTime cannot be before DAY_START or after DAY_END
-
-	//init and startTime and targetDate
 	var startTime;
 	try {
-		startTime = helper.standardStringToDate(startTimeStr);
+		startTime = helper.standardStringToDate(input.startTime);
 	} catch (err) {
 		response.status = 400;
-		response.message = "invalid startTime format";
+		response.message = "Invalid startTime format";
 		throw response;
 	}
 	
-		
-	const year = startTimeStr.substring(0,4);
-	const month = startTimeStr.substring(5,7);
-	const date = startTimeStr.substring(8,10);
-	const targetDate = new Date(Date.UTC(year, month - 1, date, 0, 0, 0, 0));
+	//TODO validate startTime cannot be before DAY_START or after DAY_END
 	
 	//generate slots from 5am to 7pm
-	var slots = generateSlots(targetDate, DAY_START_HOUR, DAY_END_HOUR);
+	var slots = generateSlots(startTime, DAY_START_HOUR, DAY_END_HOUR);
 	
 	//set availbility for all slots
 	await setAvailbilities(slots)
@@ -124,10 +115,10 @@ async function getAvailableEndSlots(startTimeStr, user){
 		response.message = "setAvailbilities function not available";
 		throw response;
 	});
-
+	
 	//Get all the available end slots after a start slot
 	const startSlot = getSlotByStartTime(startTime, slots);
-		
+	
 	var availableEndSlots = new Array();	
 	for (var i = startSlot.index; i < slots.length; i++) {
 		if(slots[i].available == true){
@@ -137,26 +128,8 @@ async function getAvailableEndSlots(startTimeStr, user){
 		}
 	}
 
-	//change startTime and endTime into standard string
-	availableEndSlots = setResponseFormatting(availableEndSlots);
-
 	return availableEndSlots;
 
-}
-
-/****************************************************************
-By : Ken Lai
-
-private function - set the response JSON formatting of each slot
-Chage startTime and endTime to standardDateStr format
-*****************************************************************/
-function setResponseFormatting(slots){
-	for (var i = 0; i < slots.length; i++) {
-		slots[i].startTime = helper.dateToStandardString(slots[i].startTime);
-		slots[i].endTime = helper.dateToStandardString(slots[i].endTime);
-	}
-
-	return slots;
 }
 
 /****************************************************************
@@ -166,16 +139,17 @@ private function - set availbility of each slot by calling
 external occupancy api
 *****************************************************************/
 async function setAvailbilities(slots){
-	
-	var response = new Object;
 
-	const targetDate = new Date(slots[0].startTime);
-	const dayBegin = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0));
-	const dayEnd = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59));
-	
+	const targetDate = helper.standardStringToDate(slots[0].startTime);
+	const dayBegin = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 0, 0, 0);
+	dayBegin.setHours(dayBegin.getHours() + 8);
+	const dayEnd = new Date(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), 23, 59, 59);
+	dayEnd.setHours(dayEnd.getHours() + 8);
+
 	//call external occupancy API to get all occupancies between startTime and endTime
 	const startTimeStr = helper.dateToStandardString(dayBegin);
 	const endTimeStr = helper.dateToStandardString(dayEnd);
+	
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCIES_SUBDOMAIN + "?startTime=" + startTimeStr + "&endTime=" + endTimeStr + "&assetId=" + DEFAULT_ASSET_ID;
 	const requestAttr = {
 		method: "GET"
@@ -191,11 +165,11 @@ async function setAvailbilities(slots){
 		});
 	
 	for (var i = 0; i < slots.length; i++) {
-		var slotStartTime = slots[i].startTime;
-		var slotEndTime = slots[i].endTime;
+		var slotStartTime = helper.standardStringToDate(slots[i].startTime);
+		var slotEndTime = helper.standardStringToDate(slots[i].endTime);
 
 		for(var j = 0; j < occupancies.length; j++){
-			
+
 			const occupancyStartTime = helper.standardStringToDate(occupancies[j].startTime);
 			const occupancyEndTime = helper.standardStringToDate(occupancies[j].endTime);
 
@@ -215,8 +189,8 @@ By : Ken Lai
 
 private function - generate all slots of target day
 ****************************************************************/
-function generateSlots(targetDate, dayStart, dayEnd){
-
+function generateSlots(targetDate, dayStart, dayEnd) {
+	
 	var hour = dayStart;
 	var slots = new Array();
 
@@ -225,10 +199,15 @@ function generateSlots(targetDate, dayStart, dayEnd){
 		var slot = new Object();
 		slot.index = i;
 		hour = hour + 1;
+		
+		const startTime = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 0, 0));
+		slot.startTime = helper.dateToStandardString(startTime);
+		
+		const endTime = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 59, 59));
+		slot.endTime = helper.dateToStandardString(endTime);
 
-		slot.startTime = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 0 ,0));
-		slot.endTime = new Date(Date.UTC(targetDate.getFullYear(), targetDate.getMonth(), targetDate.getDate(), hour, 59, 59));
 		slot.available = true;
+
 		slots.push(slot); 
 	}
 
@@ -240,9 +219,13 @@ By : Ken Lai
 
 private function - return a specific slot by its startTime
 ****************************************************************/
-function getSlotByStartTime(startTime, slots){
+function getSlotByStartTime(startTime, slots) {
+	
 	for (var i = 0; i < slots.length; i++) {
-		if((startTime >= slots[i].startTime && startTime <= slots[i].startTime)){
+
+		var slotStartTime = helper.standardStringToDate(slots[i].startTime);
+		
+		if (startTime >= slotStartTime && startTime <= slotStartTime){
 			return slots[i];
 		}
 	}

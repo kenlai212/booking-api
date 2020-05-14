@@ -4,7 +4,7 @@ const helper = require("./helper");
 
 require('dotenv').config();
 
-function calculateTotalAmount(startTimeStr, endTimeStr, user) {
+function calculateTotalAmount(input, user) {
 	var response = new Object;
 	const rightsGroup = [
 		"BOOKING_ADMIN_GROUP",
@@ -20,28 +20,34 @@ function calculateTotalAmount(startTimeStr, endTimeStr, user) {
 	}
 
 	//validate startTime
-	if (startTimeStr == null || startTimeStr.length < 1) {
+	if (input.startTime == null || input.startTime.length < 1) {
 		response.status = 400;
 		response.message = "startTime is mandatory";
 		throw response;
 	}
 
+	var startTime;
+	try {
+		startTime = helper.standardStringToDate(input.startTime);
+	} catch (err) {
+		response.status = 400;
+		response.message = "Invalid startTime format";
+		throw response;
+	}
+
 	//validate end time
-	if (endTimeStr == null || endTimeStr.length < 1) {
+	if (input.endTime == null || input.endTime.length < 1) {
 		response.status = 400;
 		response.message = "endTime is mandatory";
 		throw response;
 	}
 
-	var startTime;
 	var endTime;
 	try {
-		startTime = helper.standardStringToDate(startTimeStr);
-		endTime = helper.standardStringToDate(endTimeStr);
+		endTime = helper.standardStringToDate(input.endTime);
 	} catch (err) {
-		//invalid input date string format
 		response.status = 400;
-		response.message = err.message;
+		response.message = "Invalid endTime format";
 		throw response;
 	}
 
