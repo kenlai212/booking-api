@@ -230,7 +230,7 @@ async function addNewBooking(input, user) {
 	await booking.save()
 		.then(result => {
 			booking = result;
-			logger.info("Successfully saved new booking : " + booking._id);
+			logger.info("Successfully saved new booking : " + booking.id);
 		})
 		.catch(err => {
 			logger.error("booking.save() error : " + err);
@@ -243,7 +243,7 @@ async function addNewBooking(input, user) {
 	if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
 		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_EMAIL_SUBDOMAIN;
 
-		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking._id;
+		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
 		var bodyHTML = "<html>";
 		bodyHTML += "<body>";
 		bodyHTML += "<div>New Booking recieved form " + booking.contactName + "</div>";
@@ -277,7 +277,7 @@ async function addNewBooking(input, user) {
 	if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_EMAIL == true) {
 		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_EMAIL_SUBDOMAIN;
 
-		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking._id;
+		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
 		var bodyHTML = "<html>";
 		bodyHTML += "<head>";
 		bodyHTML += "</head>";
@@ -343,12 +343,12 @@ async function cancelBooking(input, user){
 	}
 
 	var targetBooking;
-	await Booking.findById(bookingId)
+	await Booking.findById(input.bookingId)
 	.then(result => {
 		targetBooking = result;
 	})
 	.catch(err => {
-		logger.error("Error while finding target booking, runnint Booking.findById() error : " + err);
+		logger.error("Error while finding target booking, running Booking.findById() error : " + err);
 		response.status = 500;
 		response.message = "Cancel Booking Service not available";
 		throw response;
@@ -361,9 +361,13 @@ async function cancelBooking(input, user){
 	}
 
 	//release occupancy
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN + "/" + targetBooking.occupancyId;
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN;
+	const data = {
+		"occupancyId": targetBooking.occupancyId
+	}
 	const requestAttr = {
 		method: "DELETE",
+		body: JSON.stringify(data)
 	}
 
 	await helper.callAPI(url, requestAttr)
@@ -372,9 +376,9 @@ async function cancelBooking(input, user){
 		});
 
 	//delete booking record from db
-	await Booking.findByIdAndDelete(targetBooking._id)
+	await Booking.findByIdAndDelete(targetBooking.id)
 	.then(() => {
-		logger.info("Deleted booking.id : " + targetBooking._id);
+		logger.info("Deleted booking.id : " + targetBooking.id);
 	})
 	.catch(err => {
 		logger.error("Error while deleting booking, running Booking.findByIdAndDelete() error : " + err);
@@ -508,16 +512,16 @@ async function findBookingById(input, user) {
 		response.message = "id is mandatory";
 		throw response;
 	}
-
+	
 	var booking;
 	await Booking.findById(input.id)
 		.then(result => {
 			booking = result;
 		})
 		.catch(err => {
-			logger.error("bookingHistoryModel.findBookingById() error : " + err);
+			logger.error("booking.findById error : " + err);
 			response.status = 500;
-			response.message = "Cancel Booking Service not available";
+			response.message = "Find Bookings Service not available";
 			throw response;
 		});
 

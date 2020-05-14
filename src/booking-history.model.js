@@ -7,7 +7,6 @@ require('dotenv').config();
 
 const bookingHistorySchema = new mongoose.Schema({
 	status: String,
-
 	startTime: Date,
 	endTime: Date,
 	contactName: String,

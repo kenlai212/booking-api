@@ -31,19 +31,19 @@ describe('Booking Endpoints', () => {
     describe("testing newBooking", function () {
 
         before(async () => {
-            var todayStart = new Date();
-            todayStart.setHours(todayStart.getHours() + 8);
-            todayStart.setUTCHours(0);
-            todayStart.setUTCMinutes(0);
-            todayStart.setUTCSeconds(0);
+            var tomorrowStart = new Date();
+            tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+            tomorrowStart.setUTCHours(0);
+            tomorrowStart.setUTCMinutes(0);
+            tomorrowStart.setUTCSeconds(0);
 
-            var todayEnd = new Date();
-            todayEnd.setHours(todayEnd.getHours() + 8);
-            todayEnd.setUTCHours(23);
-            todayEnd.setUTCMinutes(59);
-            todayEnd.setUTCSeconds(59);
+            var tomorrowEnd = new Date();
+            tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+            tomorrowEnd.setUTCHours(23);
+            tomorrowEnd.setUTCMinutes(59);
+            tomorrowEnd.setUTCSeconds(59);
 
-            var occupancies = await getOccupancies(helper.dateToStandardString(todayStart), helper.dateToStandardString(todayEnd), "MC_NXT20");
+            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
             await deleteOccupancies(occupancies);
 
             Booking.deleteMany().exec();
@@ -180,15 +180,17 @@ describe('Booking Endpoints', () => {
         });
 
         var startTime = new Date();
-        startTime.setHours(startTime.getHours() + 10);
-        startTime.setMinutes(0);
-        startTime.setSeconds(0);
+        startTime.setDate(startTime.getDate() + 1);
+        startTime.setUTCHours(8);
+        startTime.setUTCMinutes(0);
+        startTime.setUTCSeconds(0);
         const startTimeStr = helper.dateToStandardString(startTime);
 
         var endTime = new Date();
-        endTime.setHours(endTime.getHours() + 12);
-        endTime.setMinutes(0);
-        endTime.setSeconds(0);
+        endTime.setDate(endTime.getDate() + 1);
+        endTime.setUTCHours(9);
+        endTime.setUTCMinutes(59);
+        endTime.setUTCSeconds(59);
         const endTimeStr = helper.dateToStandardString(endTime);
 
         it("missing contactName, should return 400 status", async () => {
@@ -323,33 +325,34 @@ describe('Booking Endpoints', () => {
 
         var booking1;
         var booking2;
-        var booking3;
 
         var startTime = new Date();
-        startTime.setHours(startTime.getHours() + 10);
-        startTime.setMinutes(0);
-        startTime.setSeconds(0);
+        startTime.setDate(startTime.getDate() + 1);
+        startTime.setUTCHours(8);
+        startTime.setUTCMinutes(0);
+        startTime.setUTCSeconds(0);
 
         var endTime = new Date();
-        endTime.setHours(endTime.getHours() + 11);
-        endTime.setMinutes(59);
-        endTime.setSeconds(59);
+        endTime.setDate(endTime.getDate() + 1);
+        endTime.setUTCHours(9);
+        endTime.setUTCMinutes(59);
+        endTime.setUTCSeconds(59);
 
         before(async () => {
-            var todayStart = new Date();
-            todayStart.setHours(todayStart.getHours() + 8);
-            todayStart.setUTCHours(0);
-            todayStart.setUTCMinutes(0);
-            todayStart.setUTCSeconds(0);
-            
-            var todayEnd = new Date();
-            todayEnd.setHours(todayEnd.getHours() + 8);
-            todayEnd.setUTCHours(23);
-            todayEnd.setUTCMinutes(59);
-            todayEnd.setUTCSeconds(59);
+            var tomorrowStart = new Date();
+            tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+            tomorrowStart.setUTCHours(0);
+            tomorrowStart.setUTCMinutes(0);
+            tomorrowStart.setUTCSeconds(0);
+
+            var tomorrowEnd = new Date();
+            tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+            tomorrowEnd.setUTCHours(23);
+            tomorrowEnd.setUTCMinutes(59);
+            tomorrowEnd.setUTCSeconds(59);
             
             //delete all occupancies of today
-            var occupancies = await getOccupancies(helper.dateToStandardString(todayStart), helper.dateToStandardString(todayEnd), "MC_NXT20");
+            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
             await deleteOccupancies(occupancies);
 
             //delete all bookings
@@ -402,9 +405,6 @@ describe('Booking Endpoints', () => {
                     "telephoneCountryCode": "852",
                     "telephoneNumber": "12345678",
                     "emailAddress": "test@test.com"
-                })
-                .then(response => {
-                    booking3 = response.body;
                 });
         });
 
@@ -426,7 +426,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.body.error, "id is mandatory");
                 });
         });
-
+        
         it("found booking1, should return 200 status", async () => {
             await chai.request(server)
                 .get("/booking?id=" + booking1.id)
@@ -488,9 +488,24 @@ describe('Booking Endpoints', () => {
         tomorrowEnd.setUTCMinutes(59);
         tomorrowEnd.setUTCSeconds(59);
 
+        var dayAfterTomorrowStart = new Date();
+        dayAfterTomorrowStart.setDate(dayAfterTomorrowStart.getDate() + 2);
+        dayAfterTomorrowStart.setUTCHours(0);
+        dayAfterTomorrowStart.setUTCMinutes(0);
+        dayAfterTomorrowStart.setUTCSeconds(0);
+
+        var dayAfterTomorrowEnd = new Date();
+        dayAfterTomorrowEnd.setDate(dayAfterTomorrowEnd.getDate() + 2);
+        dayAfterTomorrowEnd.setUTCHours(23);
+        dayAfterTomorrowEnd.setUTCMinutes(59);
+        dayAfterTomorrowEnd.setUTCSeconds(59);
+
         before(async () => {
             //delete all occupancies of today
             var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
+            await deleteOccupancies(occupancies);
+            //delet all occupancies of tomorrow
+            occupancies = await getOccupancies(helper.dateToStandardString(dayAfterTomorrowStart), helper.dateToStandardString(dayAfterTomorrowEnd), "MC_NXT20");
             await deleteOccupancies(occupancies);
 
             //delete all bookings
@@ -630,7 +645,7 @@ describe('Booking Endpoints', () => {
             tomorrowStart.setDate(tomorrowStart.getDate() + 1);
             tomorrowEnd.setDate(tomorrowStart.getDate() + 1);
             await chai.request(server)
-                .get("/bookings?startTime=" + helper.dateToStandardString(tomorrowStart) + "&endTime=" + helper.dateToStandardString(tomorrowEnd))
+                .get("/bookings?startTime=" + helper.dateToStandardString(dayAfterTomorrowStart) + "&endTime=" + helper.dateToStandardString(dayAfterTomorrowEnd))
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
@@ -638,6 +653,136 @@ describe('Booking Endpoints', () => {
                 });
         });
     });
+    
+    describe("testing cancel booking", function () {
+        var tomorrowStart = new Date();
+        tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+        tomorrowStart.setUTCHours(0);
+        tomorrowStart.setUTCMinutes(0);
+        tomorrowStart.setUTCSeconds(0);
+
+        var tomorrowEnd = new Date();
+        tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+        tomorrowEnd.setUTCHours(23);
+        tomorrowEnd.setUTCMinutes(59);
+        tomorrowEnd.setUTCSeconds(59);
+
+        var booking2;
+
+        before(async () => {
+            //delete all occupancies of today
+            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
+            await deleteOccupancies(occupancies);
+
+            //delete all bookings
+            await Booking.deleteMany().exec();
+
+            var startTime = new Date();
+            startTime.setDate(startTime.getDate() + 1);
+            startTime.setUTCHours(8);
+            startTime.setMinutes(0);
+            startTime.setSeconds(0);
+
+            var endTime = new Date();
+            endTime.setDate(endTime.getDate() + 1);
+            endTime.setUTCHours(9);
+            endTime.setUTCMinutes(59);
+            endTime.setUTCSeconds(59);
+
+            //setup booking1
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                });
+
+            //add 2 hours, setup booking 2
+            startTime.setHours(startTime.getHours() + 2);
+            endTime.setHours(endTime.getHours() + 2);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => { booking2 = response.body });
+
+            //add 2 hours, setup booking3
+            startTime.setHours(startTime.getHours() + 2);
+            endTime.setHours(endTime.getHours() + 2);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .delete("/booking")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .delete("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "bookingId is mandatory");
+                });
+        });
+
+        it("found 3 for tomorrow, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/bookings?startTime=" + helper.dateToStandardString(tomorrowStart) + "&endTime=" + helper.dateToStandardString(tomorrowEnd))
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.length, 3);
+                });
+        });
+
+        it("success cancel booking, should return 200 status", async () => {
+            await chai.request(server)
+                .delete("/booking?bookingId=" + booking2.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                });
+        });
+
+        it("found 2 for tomorrow, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/bookings?startTime=" + helper.dateToStandardString(tomorrowStart) + "&endTime=" + helper.dateToStandardString(tomorrowEnd))
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.length, 2);
+                });
+        });
+    });
+    
 });
 
 async function deleteOccupancies(occupancies) {
@@ -697,7 +842,7 @@ async function callLoginAPI() {
         "loginId": AUTHENTICATION_API_LOGIN,
         "password": AUTHENTICATION_API_PASSWORD
     }
-
+    
     var response;
     await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
         .then((res) => {
