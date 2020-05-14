@@ -2,7 +2,7 @@
 const jwt = require("jsonwebtoken");
 const express = require("express");
 const pricingController = require("./pricing.controller");
-
+const logger = require("./logger");
 const router = express.Router();
 
 router.get("/total-amount", authenticateToken, pricingController.totalAmount);

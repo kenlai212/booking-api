@@ -2,6 +2,7 @@
 const jwt = require("jsonwebtoken");
 const express = require("express");
 const bookingController = require("./booking.controller");
+const logger = require("./logger");
 
 const router = express.Router();
 router.post("/booking", authenticateToken, bookingController.newBooking);

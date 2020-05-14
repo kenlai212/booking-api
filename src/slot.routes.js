@@ -2,7 +2,7 @@
 const jwt = require("jsonwebtoken");
 const express = require("express");
 const slotController = require("./slot.controller");
-
+const logger = require("./logger");
 const router = express.Router();
 
 router.get("/slots", authenticateToken, slotController.slots);
