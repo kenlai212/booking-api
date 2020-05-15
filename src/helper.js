@@ -4,12 +4,15 @@ require('dotenv').config();
 
 function logIncommingRequest(req){
 	logger.info(req.method + ":" + req.originalUrl + " from " + req.connection.remoteAddress);
-	logger.info("request user : " + req.user.id);
-	logger.info("request body : " + JSON.stringify(req.body));
+	logger.info("Request user : " + req.user.id);
+
+	if (req.body != null) {
+		logger.info("Request body : " + JSON.stringify(req.body));
+	}
 }
 
 function logOutgoingResponse(res){
-	logger.info(`${res.statusCode} ${res.statusMessage}`);
+	logger.info("Response : " + res.statusCode + " " + res.statusMessage);
 }
 
 /*********************************************************

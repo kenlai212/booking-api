@@ -14,7 +14,7 @@ const LOGIN_SUBDOMAIN = "/login";
 const AUTHENTICATION_API_LOGIN = "ken";
 const AUTHENTICATION_API_PASSWORD = "Maxsteel1596";
 var accessToken;
-/*
+
 describe('Pricing Endpoints', () => {
 
     //call login api to get accessToken
@@ -88,44 +88,46 @@ describe('Pricing Endpoints', () => {
                 });
         });
 
-        it("multi-day booking, should return 400 status", async () => {
+        it("weekend, less than 1 hour, but still counts as 1 hour, should return 200 status", async () => {
             await chai.request(server)
-                .get("/total-amount?startTime=2020-05-10T08:00:00&endTime=2020-05-11T08:59:59")
+                .get("/total-amount?startTime=2020-05-10T08:00:00&endTime=2020-05-10T08:00:01")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
-                    assert.equal(response.body.error, "Multi-day booking not allow");
-                    assert.equal(response.status, 400);
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.totalAmount, 1200);
+                    assert.equal(response.body.currency, "HKD");
                 });
         });
 
-        it("less then 59:59, should return 400 status", async () => {
-            await chai.request(server)
-                .get("/total-amount?startTime=2020-05-10T08:00:00&endTime=2020-05-10T08:57:59")
-                .set("Authorization", "Token " + accessToken)
-                .then(response => {
-                    assert.equal(response.body.error, "booking duration cannot be less then 59 minutes");
-                    assert.equal(response.status, 400);
-                });
-        });
-
-        it("success getTotalAmount 1 hour, should return 200 status", async () => {
+        it("weekend, success getTotalAmount 1 hour, should return 200 status", async () => {
             await chai.request(server)
                 .get("/total-amount?startTime=2020-05-10T08:00:00&endTime=2020-05-10T08:59:59")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.totalAmount, 1800);
+                    assert.equal(response.body.totalAmount, 1200);
                     assert.equal(response.body.currency, "HKD");
                 });
         });
 
-        it("success getTotalAmount 2 hours, should return 200 status", async () => {
+        it("weekend, success getTotalAmount 2 hours, should return 200 status", async () => {
             await chai.request(server)
                 .get("/total-amount?startTime=2020-05-10T08:00:00&endTime=2020-05-10T09:59:59")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.totalAmount, 3600);
+                    assert.equal(response.body.totalAmount, 2400);
+                    assert.equal(response.body.currency, "HKD");
+                });
+        });
+
+        it("weekday, success getTotalAmount 3 hours, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/total-amount?startTime=2020-05-11T08:00:00&endTime=2020-05-11T10:59:59")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.totalAmount, 3000);
                     assert.equal(response.body.currency, "HKD");
                 });
         });
@@ -155,4 +157,3 @@ async function callLoginAPI() {
 
     return response;
 }
-*/

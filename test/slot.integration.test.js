@@ -28,11 +28,11 @@ describe('Slot Endpoints', () => {
 
     describe("testing getSlots", function () {
 
-        before(async () => {
-            var occupancies = await getOccupancies("2020-05-10T00:00:00","2020-05-10T23:59:59","MC_NXT20");
-            await deleteOccupancies(occupancies);
-            await occupyAsset("2020-05-10T11:00:00", "2020-05-10T11:59:59", "MC_NXT20");
-            await occupyAsset("2020-05-10T15:00:00", "2020-05-10T15:59:59", "MC_NXT20");
+        before(() => {
+            var occupancies = getOccupancies("2020-05-10T00:00:00","2020-05-10T23:59:59","MC_NXT20");
+            deleteOccupancies(occupancies);
+            occupyAsset("2020-05-10T11:00:00", "2020-05-10T11:59:59", "MC_NXT20");
+            occupyAsset("2020-05-10T15:00:00", "2020-05-10T15:59:59", "MC_NXT20");
             
         });
 
@@ -82,14 +82,13 @@ describe('Slot Endpoints', () => {
         });
     });
 
-    describe("testing getSlots", function () {
+    describe("testing getEndSlots", function () {
 
-        before(async () => {
-            var occupancies = await getOccupancies("2020-05-10T00:00:00", "2020-05-10T23:59:59", "MC_NXT20");
-            await deleteOccupancies(occupancies);
-            await occupyAsset("2020-05-10T11:00:00", "2020-05-10T11:59:59", "MC_NXT20");
-            await occupyAsset("2020-05-10T15:00:00", "2020-05-10T15:59:59", "MC_NXT20");
-
+        before(() => {
+            var occupancies = getOccupancies("2020-05-10T00:00:00", "2020-05-10T23:59:59", "MC_NXT20");
+            deleteOccupancies(occupancies);
+            occupyAsset("2020-05-10T11:00:00", "2020-05-10T11:59:59", "MC_NXT20");
+            occupyAsset("2020-05-10T15:00:00", "2020-05-10T15:59:59", "MC_NXT20");
         });
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
@@ -131,15 +130,18 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        it("successfully get end-slots, should return 200 status", async () => {
+        it("successfully get end-slots starting form 08:00:00, should return 3 end-slots, should return 200 status", async () => {
             await chai.request(server)
                 .get("/end-slots?startTime=2020-05-10T08:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
+                    console.log(response.body);
                     assert.equal(response.status, 200);
                     assert.equal(response.body.length,3);
                 });
+        });
 
+        it("successfully get end-slots starting form 11:00:00, should return 0 end-slots, should return 200 status", async () => {
             await chai.request(server)
                 .get("/end-slots?startTime=2020-05-10T11:00:00")
                 .set("Authorization", "Token " + accessToken)
@@ -147,7 +149,9 @@ describe('Slot Endpoints', () => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.length, 0);
                 });
+        });
 
+        it("successfully get end-slots starting form 12:00:00, should return 3 end-slots, should return 200 status", async () => {
             await chai.request(server)
                 .get("/end-slots?startTime=2020-05-10T12:00:00")
                 .set("Authorization", "Token " + accessToken)
@@ -159,7 +163,7 @@ describe('Slot Endpoints', () => {
     });
 });
 
-async function occupyAsset(startTime, endTime, assetId) {
+function occupyAsset(startTime, endTime, assetId) {
     const url = "http://api.occupancy.hebewake.com/occupancy";
     const headers = {
         "Authorization": "Token " + accessToken,
@@ -171,11 +175,11 @@ async function occupyAsset(startTime, endTime, assetId) {
         "assetId": assetId,
         "occupancyType": "OPEN_BOOKING"
     }
-    await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
+    fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
         .catch(err => { console.log(err); });
 }
 
-async function deleteOccupancies(occupancies) {
+function deleteOccupancies(occupancies) {
 
     var deleteResults = [];
 
@@ -187,26 +191,23 @@ async function deleteOccupancies(occupancies) {
             "content-Type": "application/json",
         }
 
-        occupancies.forEach(async occupancy => {
+        occupancies.forEach(occupancy => {
             var data = {
                 "occupancyId": occupancy.id
             }
 
-            var deleteResult;
-            await fetch(url, { method: 'DELETE', headers: headers, body: JSON.stringify(data) })
+            fetch(url, { method: 'DELETE', headers: headers, body: JSON.stringify(data) })
                 .then(res => {
-                    deleteResult => res.json();
+                    deleteResults.push(res.json());
                 })
                 .catch(err => { console.log(err); });
-
-            deleteResults.push(deleteResult);
         });
     }
 
     return deleteResults;
 }
 
-async function getOccupancies(startTime, endTime, assetId) {
+function getOccupancies(startTime, endTime, assetId) {
     const url = "http://api.occupancy.hebewake.com/occupancies?startTime="+ startTime +"&endTime=" + endTime + "&assetId=" + assetId;
     const headers = {
         "Authorization": "Token " + accessToken,
@@ -214,7 +215,7 @@ async function getOccupancies(startTime, endTime, assetId) {
     }
 
     var response = new Object();
-    await fetch(url, { method: 'GET', headers: headers })
+    fetch(url, { method: 'GET', headers: headers })
         .then(res => {
             response = res.json();
         })

@@ -293,7 +293,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.status,"AWAITING_PAYMENT");
                     assert.equal(booking.startTime, startTimeStr);
                     assert.equal(booking.endTime, endTimeStr);
-                    assert.equal(booking.totalAmount, 3600);
+                    assert(booking.totalAmount);
                     assert.equal(booking.currency, "HKD");
                     assert.equal(booking.contactName, "tester");
                     assert.equal(booking.telephoneCountryCode, "852");
@@ -441,7 +441,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.status, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, booking1.startTime);
                     assert.equal(booking.endTime, booking1.endTime);
-                    assert.equal(booking.totalAmount, 3600);
+                    assert(booking.totalAmount);
                     assert.equal(booking.currency, "HKD");
                     assert.equal(booking.contactName, "tester");
                     assert.equal(booking.telephoneCountryCode, "852");
@@ -464,7 +464,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.status, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, booking2.startTime);
                     assert.equal(booking.endTime, booking2.endTime);
-                    assert.equal(booking.totalAmount, 3600);
+                    assert(booking.totalAmount);
                     assert.equal(booking.currency, "HKD");
                     assert.equal(booking.contactName, "tester");
                     assert.equal(booking.telephoneCountryCode, "852");
@@ -661,7 +661,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.status, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, booking4.startTime);
                     assert.equal(booking.endTime, booking4.endTime);
-                    assert.equal(booking.totalAmount, 3600);
+                    assert(booking.totalAmount);
                     assert.equal(booking.currency, "HKD");
                     assert.equal(booking.contactName, "tester");
                     assert.equal(booking.telephoneCountryCode, "852");

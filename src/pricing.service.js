@@ -61,24 +61,14 @@ function calculateTotalAmount(input, user) {
 	//check minimum booking duration
 	const diffTime = Math.abs(endTime - startTime);
 	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
-	if (durationInMinutes < process.env.MINIMUM_BOOKING_DURATION_MINUTES) {
-		response.status = 400;
-		response.message = "booking duration cannot be less then " + process.env.MINIMUM_BOOKING_DURATION_MINUTES + " minutes";
-		throw response;
+	const durationInHours = Math.ceil(durationInMinutes / 60);
+
+	var totalAmount = durationInHours * process.env.UNIT_PRICE_REGULAR;
+
+	//check weekday or weekend
+	if (startTime.getDay() != 6 && startTime.getDay() != 0) {
+		totalAmount = durationInHours * process.env.UNIT_PRICE_DISCOUNT_WEEKDAY;
 	}
-
-	//check maximum booking duration
-	if (process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true) {
-		if (durationInMinutes > process.env.MAXIMUM_BOOKING_DURATION_MINUTES) {
-			response.status = 400;
-			response.message = "booking duration cannot be more then " + process.env.MAXIMUM_BOOKING_DURATION_MINUTES + " minutes";
-			throw response;
-		}
-	}
-
-    const durationInHours = Math.round(durationInMinutes / 60);
-
-    const totalAmount = durationInHours * process.env.UNIT_PRICE;
 
     return { "totalAmount": totalAmount, "currency": process.env.UNIT_CURRENCY };
 }

@@ -4,7 +4,6 @@ const mongoose = require("mongoose")
 const bookingRoutes = require("./src/booking.routes");
 const pricingRoutes = require("./src/pricing.routes");
 const slotRoutes = require("./src/slot.routes");
-const helper = require("./src/helper");
 
 require('dotenv').config();
 
@@ -13,8 +12,6 @@ app.use(express.json());
 app.use("/", bookingRoutes);
 app.use("/", pricingRoutes);
 app.use("/", slotRoutes);
-
-const PORT = 8084;
 
 mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useNewUrlParser: true })
 	.then(async () => {
