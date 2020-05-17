@@ -86,9 +86,9 @@ async function callLoginAPI() {
 
 	var response;
 	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
-		.then((res) => {
+		.then(async (res) => {
 			if (res.status >= 200 && res.status < 300) {
-				response = res.json();
+				response = await res.json();
 			} else {
 				logger.error("External Authentication Login API error : " + res.statusText);
 				response.status = res.status;
@@ -118,9 +118,9 @@ async function callTokenAPI() {
 	
 	var accessToken;
 	await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
-		.then((res) => {
+		.then(async (res) => {
 			if (res.status >= 200 && res.status < 300) {
-				accessToken = res.json();
+				accessToken = await res.json();
 			} else {
 				logger.error("External Authentication Token API error : " + res.statusText);
 				response.status = res.status;
@@ -151,7 +151,7 @@ function userAuthorization(userGroups, allowGroups) {
 
 /**
  * By : Ken Lai
- * Date : Apr 21, 2020
+ * Date : May 17, 2020
  * 
  * @param {any} url
  * @param {any} requestAttr
@@ -201,6 +201,7 @@ async function callAPI(url, requestAttr) {
 
 	var response = new Object();
 	var forbidden = false;
+	var externalAPIError = false;
 	await fetch(url, requestAttr)
 		.then(async res => {
 			if (res.status >= 200 && res.status < 300) {
@@ -214,6 +215,9 @@ async function callAPI(url, requestAttr) {
 				var responseBody = await res.json()
 				response.message = responseBody.error;
 				throw response;
+			} else {
+				//external api error
+				externalAPIError = true;
 			}
 		});
 
@@ -235,10 +239,13 @@ async function callAPI(url, requestAttr) {
 				if (res.status >= 200 && res.status < 300) {
 					response = await res.json();
 
-				}else if (res.status == 400) {
+				} else if (res.status == 400) {
 					response.status = 400;
 					response.message = await res.json();
 					throw response;
+				} else {
+					//external api error
+					externalAPIError = true;
 				}
 			})
 	}
