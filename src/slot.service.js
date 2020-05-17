@@ -50,15 +50,15 @@ async function getSlots(input, user){
 
 	//set availbility for all slots
 	await setAvailbilities(slots)
-	.then(slotsWithAvailability => {
-		slots = slotsWithAvailability;
-	})
-	.catch(err => {
-		logger.error("setAvailbilities() error : " + err);
-		response.status = 500;
-		response.message = "setAvailbilities function not available";
-		throw response;
-	});
+		.then(slotsWithAvailability => {
+			slots = slotsWithAvailability;
+		})
+		.catch(err => {
+			logger.error("setAvailbilities() error : " + err);
+			response.status = err.status;
+			response.message = err.message;
+			throw response;
+		});
 
 	return slots;
 
@@ -154,7 +154,7 @@ async function setAvailbilities(slots){
 	const requestAttr = {
 		method: "GET"
 	}
-
+	
 	var occupancies
 	await helper.callAPI(url, requestAttr)
 		.then(result => {

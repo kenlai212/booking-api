@@ -199,57 +199,51 @@ async function callAPI(url, requestAttr) {
 		"content-Type": "application/json"
 	}
 
-	var apiResult;
-	var tokenResponse = null;
-	var breakFlag = false;
-	var errorResponse = new Object();
+	var response = new Object();
+	var forbidden = false;
+	await fetch(url, requestAttr)
+		.then(async res => {
+			if (res.status >= 200 && res.status < 300) {
+				response = await res.json();
 
-	for (var i = 0; i <= 1; i++) {
+			} else if (res.status == 403) {
+				forbidden = true;
 
-		if (breakFlag == true) {
-			break;
-		}
+			} else if (res.status == 400) {
+				response.status = 400;
+				var responseBody = await res.json()
+				response.message = responseBody.error;
+				throw response;
+			}
+		});
 
-		await fetch(url, requestAttr)
-			.then(async res => {
-				//logger.info("fetched api results");
-
-				if (res.status >= 200 && res.status < 300) {
-					//logger.info("Successful API result");
-					apiResult = res.json();
-					breakFlag = true;
-				} else if (res.status == 403) {
-					logger.warn("Access Token had expired.... obtaining a new one");
-
-					await callTokenAPI()
-						.then(response => {
-							logger.info("Successfully obtained a new access token");
-							tokenResponse = response;
-						})
-						.catch(err => {
-							logger.error("Error while running helper.callLoginAPI() : " + err);
-							errorResponse.status = 500;
-							errorResponse.message = "helper.callLoginAPI() not available";
-							throw errorResponse;
-						});
-				} else {
-					logger.error("External API error : " + res.statusText);
-					errorResponse.status = res.status;
-					errorResponse.message = res.json();
-					throw errorResponse;
-				}
+	//accessToken expired, callTokenAPI to obtain a new accessToken, then try again
+	if (forbidden == true) {
+		var tokenResponse;
+		await callTokenAPI()
+			.then(response => {
+				tokenResponse = response;
 			});
 
-		if (tokenResponse != null) {
-			logger.info("Assigning new accessToken to global memory");
-			global.accessToken = tokenResponse.accessToken;
-			requestAttr.headers.Authorization = "Token " + global.accessToken;
-			tokenResponse = null;
-			continue;
-		}
+		logger.info("Assigning new accessToken to global memory");
+		global.accessToken = tokenResponse.accessToken;
+
+		//now there is a new accessToken, try again
+		requestAttr.headers.Authorization = "Token " + global.accessToken;
+		await fetch(url, requestAttr)
+			.then(async res => {
+				if (res.status >= 200 && res.status < 300) {
+					response = await res.json();
+
+				}else if (res.status == 400) {
+					response.status = 400;
+					response.message = await res.json();
+					throw response;
+				}
+			})
 	}
 
-	return apiResult;
+	return response;
 }
 
 module.exports = {
