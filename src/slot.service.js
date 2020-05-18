@@ -154,7 +154,7 @@ async function setAvailbilities(slots){
 	const requestAttr = {
 		method: "GET"
 	}
-	
+
 	var occupancies
 	await helper.callAPI(url, requestAttr)
 		.then(result => {

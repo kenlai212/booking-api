@@ -113,7 +113,7 @@ async function callTokenAPI() {
 		"content-Type": "application/json",
 	}
 	const data = {
-		"refreshToken": refreshToken
+		"refreshToken": global.refreshToken
 	}
 	
 	var accessToken;
@@ -221,35 +221,47 @@ async function callAPI(url, requestAttr) {
 			}
 		});
 
-	//accessToken expired, callTokenAPI to obtain a new accessToken, then try again
+	//accessToken expired, callTokenAPI to obtain a new accessToken
 	if (forbidden == true) {
-		var tokenResponse;
-		await callTokenAPI()
-			.then(response => {
-				tokenResponse = response;
-			});
 
+		await callTokenAPI()
+			.then(result => {
+				global.accessToken = result.accessToken;
+			});
 		logger.info("Assigning new accessToken to global memory");
-		global.accessToken = tokenResponse.accessToken;
+		
 
 		//now there is a new accessToken, try again
-		requestAttr.headers.Authorization = "Token " + global.accessToken;
+		logger.info("trying again");
+		requestAttr.headers = {
+			"Authorization": "Token " + global.accessToken,
+			"content-Type": "application/json"
+		}
 		await fetch(url, requestAttr)
 			.then(async res => {
 				if (res.status >= 200 && res.status < 300) {
 					response = await res.json();
 
+				} else if (res.status == 403) {
+					logger.error("accessToken expried again!!!!!");
+
 				} else if (res.status == 400) {
 					response.status = 400;
 					response.message = await res.json();
 					throw response;
+
 				} else {
 					//external api error
 					externalAPIError = true;
 				}
 			})
 	}
+	
+	//got external api error, wait 200ms and try again
+	if (externalAPIError == true) {
 
+	}
+	
 	return response;
 }
 
