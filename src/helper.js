@@ -1,5 +1,6 @@
 const logger = require('./logger');
 const fetch = require("node-fetch");
+const moment = require('moment');
 require('dotenv').config();
 
 function logIncommingRequest(req){
@@ -22,16 +23,14 @@ Turn standard input date string -
 YYYY-MM-DDTHH:mm:ss into a date object
 *********************************************************/
 function standardStringToDate(dateStr) {
-
+	
 	if (dateStr.length != 19) {
-		throw new InvalidDataError(dateStr);
+		throw new Error(dateStr);
 	}
 
-	const tryDateTime = new Date(dateStr);
-	if (isNaN(tryDateTime.getTime())) {
-		throw new InvalidDataError(dateStr);
-	}
+	dateStr = dateStr + "Z";
 
+	/*
 	const year = dateStr.substring(0, 4);
 	const month = dateStr.substring(5, 7);
 	const date = dateStr.substring(8, 10);
@@ -39,11 +38,21 @@ function standardStringToDate(dateStr) {
 	const minute = dateStr.substring(14, 16);
 	const second = dateStr.substring(17, 19);
 	const dateTime = new Date(Date.UTC(year, month - 1, date, hour, minute, second, 0));
+	*/
 
-	if (isNaN(dateTime.getTime())) {
-		throw new InvalidDataError(dateStr);
+	var momentDate;
+	try {
+		momentDate = moment(dateStr);
+	} catch (err) {
+		logger.error(err);
+		throw new Error(dateStr);
 	}
 
+	var dateTime = momentDate.toDate();
+	if (isNaN(dateTime.getTime())) {
+		throw new Error(dateStr);
+	}
+	
 	return dateTime;
 }
 
@@ -54,16 +63,8 @@ Turn date into stardard output date string in localTime-
 YYYY-MM-DDTHH:mm:ss
 **********************************************************/
 function dateToStandardString(date) {
-
-	const year = date.getUTCFullYear();
-	const month = ("0" + (date.getUTCMonth() + 1)).slice(-2);
-	const day = ("0" + date.getUTCDate()).slice(-2);
-	const hours = ("0" + date.getUTCHours()).slice(-2);
-	const minutes = ("0" + date.getUTCMinutes()).slice(-2);
-	const seconds = ("0" + date.getUTCSeconds()).slice(-2);
-
-	const standardStr = year + "-" + month + "-" + day + "T" + hours + ":" + minutes + ":" + seconds;
-
+	var standardStr = date.toISOString();
+	standardStr = standardStr.slice(0, 19)
 	return standardStr;
 }
 

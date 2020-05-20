@@ -798,6 +798,8 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.body.length, 2);
                 });
         });
+
+        //TODO test for occupancy also got deleted also
     });
     
 });

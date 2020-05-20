@@ -31,8 +31,8 @@ describe('Slot Endpoints', () => {
         before(() => {
             var occupancies = getOccupancies("2020-05-10T00:00:00","2020-05-10T23:59:59","MC_NXT20");
             deleteOccupancies(occupancies);
-            occupyAsset("2020-05-10T11:00:00", "2020-05-10T11:59:59", "MC_NXT20");
-            occupyAsset("2020-05-10T15:00:00", "2020-05-10T15:59:59", "MC_NXT20");
+            occupyAsset("2020-05-10T11:00:00", "2020-05-10T12:59:59", "MC_NXT20");
+            occupyAsset("2020-05-10T15:00:00", "2020-05-10T16:59:59", "MC_NXT20");
             
         });
 
@@ -71,13 +71,16 @@ describe('Slot Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 14);
-                    assert.equal(response.body[4].available, true);
-                    assert.equal(response.body[5].available, false);
-                    assert.equal(response.body[6].available, true);
+                    console.log(response.body);
+                    assert.equal(response.body.length, 15);
+                    assert.equal(response.body[5].available, true);
+                    assert.equal(response.body[6].available, false);
+                    assert.equal(response.body[7].available, false);
                     assert.equal(response.body[8].available, true);
-                    assert.equal(response.body[9].available, false);
-                    assert.equal(response.body[10].available, true);
+                    assert.equal(response.body[9].available, true);
+                    assert.equal(response.body[10].available, false);
+                    assert.equal(response.body[11].available, false);
+                    assert.equal(response.body[12].available, true);
                 });
         });
     });
@@ -87,8 +90,8 @@ describe('Slot Endpoints', () => {
         before(() => {
             var occupancies = getOccupancies("2020-05-10T00:00:00", "2020-05-10T23:59:59", "MC_NXT20");
             deleteOccupancies(occupancies);
-            occupyAsset("2020-05-10T11:00:00", "2020-05-10T11:59:59", "MC_NXT20");
-            occupyAsset("2020-05-10T15:00:00", "2020-05-10T15:59:59", "MC_NXT20");
+            occupyAsset("2020-05-10T11:00:00", "2020-05-10T12:59:59", "MC_NXT20");
+            occupyAsset("2020-05-10T15:00:00", "2020-05-10T16:59:59", "MC_NXT20");
         });
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
@@ -135,7 +138,6 @@ describe('Slot Endpoints', () => {
                 .get("/end-slots?startTime=2020-05-10T08:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
-                    console.log(response.body);
                     assert.equal(response.status, 200);
                     assert.equal(response.body.length,3);
                 });
@@ -153,17 +155,17 @@ describe('Slot Endpoints', () => {
 
         it("successfully get end-slots starting form 12:00:00, should return 3 end-slots, should return 200 status", async () => {
             await chai.request(server)
-                .get("/end-slots?startTime=2020-05-10T12:00:00")
+                .get("/end-slots?startTime=2020-05-10T13:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 3);
+                    assert.equal(response.body.length, 2);
                 });
         });
     });
 });
 
-function occupyAsset(startTime, endTime, assetId) {
+async function occupyAsset(startTime, endTime, assetId) {
     const url = "http://api.occupancy.hebewake.com/occupancy";
     const headers = {
         "Authorization": "Token " + accessToken,
@@ -175,7 +177,8 @@ function occupyAsset(startTime, endTime, assetId) {
         "assetId": assetId,
         "occupancyType": "OPEN_BOOKING"
     }
-    fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
+
+    await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
         .catch(err => { console.log(err); });
 }
 
@@ -216,8 +219,8 @@ function getOccupancies(startTime, endTime, assetId) {
 
     var response = new Object();
     fetch(url, { method: 'GET', headers: headers })
-        .then(res => {
-            response = res.json();
+        .then(async res => {
+            response = await res.json();
         })
         .catch(err => { console.log(err) });
 

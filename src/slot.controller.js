@@ -35,11 +35,12 @@ const endSlots = async (req, res) => {
 	const queryObject = url.parse(req.url, true).query;
 
 	try {
-		const response = await slotService.getAvailableEndSlots(queryObject, req.user)
+		const response = await slotService.getEndSlots(queryObject, req.user)
 		logger.info("Response Body : " + JSON.stringify(response));
 		res.json(response);
 		res.status(200);
 	} catch (err) {
+		console.log(err);
 		res.status(err.status);
 		res.json({ "error": err.message });
 	}
