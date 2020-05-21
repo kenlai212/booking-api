@@ -71,7 +71,6 @@ describe('Slot Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    console.log(response.body);
                     assert.equal(response.body.length, 15);
                     assert.equal(response.body[5].available, true);
                     assert.equal(response.body[6].available, false);
@@ -133,13 +132,19 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        it("successfully get end-slots starting form 08:00:00, should return 3 end-slots, should return 200 status", async () => {
+        it("successfully get end-slots starting form 08:00:00, should return 3 end-slots, weekday - unit cost should 1200 HKD, should return 200 status", async () => {
             await chai.request(server)
                 .get("/end-slots?startTime=2020-05-10T08:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length,3);
+                    assert.equal(response.body.length, 3);
+                    assert.equal(response.body[0].totalAmount, 1200);
+                    assert.equal(response.body[0].currency, "HKD");
+                    assert.equal(response.body[1].totalAmount, 2400);
+                    assert.equal(response.body[1].currency, "HKD");
+                    assert.equal(response.body[2].totalAmount, 3600);
+                    assert.equal(response.body[2].currency, "HKD");
                 });
         });
 
@@ -153,13 +158,31 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        it("successfully get end-slots starting form 12:00:00, should return 3 end-slots, should return 200 status", async () => {
+        it("successfully get end-slots starting form 12:00:00, should return 3 end-slots, weekday - unit cost should 1200 HKD, should return 200 status", async () => {
             await chai.request(server)
                 .get("/end-slots?startTime=2020-05-10T13:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.length, 2);
+                    assert.equal(response.body[0].totalAmount, 1200);
+                    assert.equal(response.body[0].currency, "HKD");
+                    assert.equal(response.body[1].totalAmount, 2400);
+                    assert.equal(response.body[1].currency, "HKD");
+                });
+        });
+
+        it("successfully get end-slots starting form 05:00:00, should return 14 end-slots, weekday - unit cost should 1000 HKD, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/end-slots?startTime=2020-05-11T05:00:00")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.length, 15);
+                    assert.equal(response.body[0].totalAmount, 1000);
+                    assert.equal(response.body[0].currency, "HKD");
+                    assert.equal(response.body[1].totalAmount, 2000);
+                    assert.equal(response.body[1].currency, "HKD");
                 });
         });
     });

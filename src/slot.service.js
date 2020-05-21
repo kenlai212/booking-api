@@ -1,6 +1,7 @@
 "use strict";
 const logger = require("./logger");
 const helper = require("./helper");
+const pricingService = require("./pricing.service");
 
 const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
@@ -168,6 +169,18 @@ async function getEndSlots(input, user){
 			break;
 		}
 	}
+	
+	//set totalAmount for each end slot
+	endSlots.forEach((slot => {
+		try {
+			const totalAmountObj = pricingService.calculateTotalAmount({ "startTime": helper.dateToStandardString(startTime), "endTime": helper.dateToStandardString(slot.endTime) }, user);
+			slot.totalAmount = totalAmountObj.totalAmount;
+			slot.currency = totalAmountObj.currency;
+		} catch (err) {
+			logger.error("pricingService.calculateTotalAmount() error : " + err);
+			throw err;
+		}
+	}));
 
 	return endSlots;
 
