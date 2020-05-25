@@ -68,8 +68,14 @@ async function getSlots(input, user){
 			response.message = err.message;
 			throw response;
 		});
+
+	var outputObjs = [];
+	slots.forEach(slot => {
+		var outputObj = slotToOutuptObj(slot);
+		outputObjs.push(outputObj);
+	})
 	
-	return slots;
+	return outputObjs;
 
 }
 
@@ -176,6 +182,8 @@ async function getEndSlots(input, user){
 			const totalAmountObj = pricingService.calculateTotalAmount({ "startTime": helper.dateToStandardString(startTime), "endTime": helper.dateToStandardString(slot.endTime) }, user);
 			slot.totalAmount = totalAmountObj.totalAmount;
 			slot.currency = totalAmountObj.currency;
+			slot.startTime = helper.dateToStandardString(slot.startTime);
+			slot.endTime = helper.dateToStandardString(slot.endTime);
 		} catch (err) {
 			logger.error("pricingService.calculateTotalAmount() error : " + err);
 			throw err;
@@ -281,6 +289,16 @@ function getSlotByStartTime(startTime, slots) {
 			return slots[i];
 		}
 	}
+}
+
+function slotToOutuptObj(slot) {
+	var outputObj = new Object();
+	outputObj.index = slot.index;
+	outputObj.startTime = helper.dateToStandardString(slot.startTime);
+	outputObj.endTime = helper.dateToStandardString(slot.endTime);
+	outputObj.available = slot.available;
+
+	return outputObj;
 }
 
 module.exports = {
