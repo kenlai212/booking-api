@@ -297,6 +297,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.status, 200);
                     const booking = response.body;
                     assert(booking.id);
+                    assert.equal(booking.bookingType, "OPEN_BOOKING");
                     assert(booking.occupancyId);
                     assert(booking.creationTime);
                     assert(booking.createdBy);
@@ -352,6 +353,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.status, 200);
                     const booking = response.body;
                     assert(booking.id);
+                    assert.equal(booking.bookingType, "PRIVATE_BOOKING");
                     assert(booking.occupancyId);
                     assert(booking.creationTime);
                     assert(booking.createdBy);

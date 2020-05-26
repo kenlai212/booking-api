@@ -499,7 +499,7 @@ async function viewBookings(input, user){
 	await Booking.find({
 		startTime: { $gte: startTime },
 		endTime: { $lt: endTime }
-	})
+	}).sort("startTime")
 		.then(result => {
 			bookings = result;
 		})
@@ -559,6 +559,7 @@ async function findBookingById(input, user) {
 function bookingToOutuptObj(booking) {
 	var outputObj = new Object();
 	outputObj.id = booking._id;
+	outputObj.bookingType = booking.bookingType;
 	outputObj.creationTime = booking.creationTime;
 	outputObj.createdBy = booking.createdBy;
 	outputObj.occupancyId = booking.occupancyId;
