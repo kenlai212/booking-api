@@ -74,53 +74,78 @@ async function addNewBooking(input, user) {
 		throw response;
 	}
 
-	//check minimum booking duration
-	const diffMs = (endTime - startTime);
-	const minMs = process.env.MINIMUM_BOOKING_TIME;
-	if (diffMs < minMs) {
+	var booking = new Booking();
 
-		var minutes = Math.floor(minMs / 60000);
-		var seconds = ((minMs % 60000) / 1000).toFixed(0);
+	//check booking type, if none, assign default OPEN_BOOKING
+	const OPEN_BOOKING = "OPEN_BOOKING";
+	const PRIVATE_BOOKING = "PRIVATE_BOOKING";
+	const validBookingType = [OPEN_BOOKING, PRIVATE_BOOKING];
 
+	if (input.bookingType == null || input.bookingType.length < 0) {
+		booking.bookingType = "OPEN_BOOKING"
+	} else if (validBookingType.includes(input.bookingType) == false) {
 		response.status = 400;
-		response.message = "Booking cannot be less then " + minutes + " mins " + seconds + " secs";
-		throw response;
+		response.message = "Invalid bookingType";
+		throw response;		
+	} else {
+		booking.bookingType = input.bookingType
 	}
 
-	//check maximum booking duration
-	const maxMs = process.env.MAXIMUM_BOOKING_TIME
-	if (process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true) {
-		if (diffMs > maxMs) {
+	//calculate duration in milliseconds
+	var diffMs;
+	diffMs = (endTime - startTime);
 
-			var minutes = Math.floor(maxMs / 60000);
-			var seconds = ((maxMs % 60000) / 1000).toFixed(0);
+	if (booking.bookingType == OPEN_BOOKING) {
+
+		//check minimum booking duration
+		const minMs = process.env.MINIMUM_BOOKING_TIME;
+		if (diffMs < minMs) {
+
+			var minutes = Math.floor(minMs / 60000);
+			var seconds = ((minMs % 60000) / 1000).toFixed(0);
 
 			response.status = 400;
-			response.message = "Booking cannot be more then " + minutes + " mins " + seconds + " secs";
+			response.message = "Booking cannot be less then " + minutes + " mins " + seconds + " secs";
 			throw response;
 		}
-	}
 
-	//check for earliest startTime
-	var earliestStartTime = new Date(startTime);
-	earliestStartTime.setUTCHours(process.env.EARLIEST_BOOKING_HOUR);
-	earliestStartTime.setUTCMinutes(0);
+		//check maximum booking duration
+		if (process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true) {
 
-	if (startTime < earliestStartTime) {
-		response.status = 400;
-		response.message = "Booking cannot be earlier then 0" + process.env.EARLIEST_BOOKING_HOUR + ":00";
-		throw response;
-	}
+			const maxMs = process.env.MAXIMUM_BOOKING_TIME
 
-	//check for latest endTime
-	var latestEndTime = new Date(endTime);
-	latestEndTime.setUTCHours(process.env.LATEST_BOOKING_HOUR);
-	latestEndTime.setUTCMinutes(0);
+			if (diffMs > maxMs) {
 
-	if (endTime > latestEndTime) {
-		response.status = 400;
-		response.message = "Booking cannot be later then " + process.env.LATEST_BOOKING_HOUR + ":00";
-		throw response;
+				var minutes = Math.floor(maxMs / 60000);
+				var seconds = ((maxMs % 60000) / 1000).toFixed(0);
+
+				response.status = 400;
+				response.message = "Booking cannot be more then " + minutes + " mins " + seconds + " secs";
+				throw response;
+			}
+		}
+
+		//check for earliest startTime
+		var earliestStartTime = new Date(startTime);
+		earliestStartTime.setUTCHours(process.env.EARLIEST_BOOKING_HOUR);
+		earliestStartTime.setUTCMinutes(0);
+
+		if (startTime < earliestStartTime) {
+			response.status = 400;
+			response.message = "Booking cannot be earlier then 0" + process.env.EARLIEST_BOOKING_HOUR + ":00";
+			throw response;
+		}
+
+		//check for latest endTime
+		var latestEndTime = new Date(endTime);
+		latestEndTime.setUTCHours(process.env.LATEST_BOOKING_HOUR);
+		latestEndTime.setUTCMinutes(0);
+
+		if (endTime > latestEndTime) {
+			response.status = 400;
+			response.message = "Booking cannot be later then " + process.env.LATEST_BOOKING_HOUR + ":00";
+			throw response;
+		}
 	}
 
 	//check for retro booking (booing before current time)
@@ -146,14 +171,14 @@ async function addNewBooking(input, user) {
 	}
 	*/
 
-	var booking = new Booking();
 	booking.startTime = startTime;
 	booking.endTime = endTime;
 	
 	//calculate pricing & currency
 	const pricingTotalAmountInput = {
 		"startTime": input.startTime,
-		"endTime": input.endTime
+		"endTime": input.endTime,
+		"bookingType": booking.bookingType
 	}
 	const totalAmountObj = pricingService.calculateTotalAmount(pricingTotalAmountInput, user);
 	booking.totalAmount = totalAmountObj.totalAmount;

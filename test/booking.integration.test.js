@@ -43,10 +43,20 @@ describe('Booking Endpoints', () => {
             tomorrowEnd.setUTCMinutes(59);
             tomorrowEnd.setUTCSeconds(59);
 
-            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
-            await deleteOccupancies(occupancies);
+            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20")
+                .catch(err => {
+                    console.log(err);
+                });
 
-            Booking.deleteMany().exec();
+            await deleteOccupancies(occupancies)
+                .catch(err => {
+                    console.log(err);
+                });
+
+            Booking.deleteMany().exec()
+                .catch(err => {
+                    console.log(err);
+                });
         });
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
@@ -184,14 +194,14 @@ describe('Booking Endpoints', () => {
         startTime.setUTCHours(8);
         startTime.setUTCMinutes(0);
         startTime.setUTCSeconds(0);
-        const startTimeStr = helper.dateToStandardString(startTime);
+        var startTimeStr = helper.dateToStandardString(startTime);
 
         var endTime = new Date();
         endTime.setDate(endTime.getDate() + 1);
         endTime.setUTCHours(9);
         endTime.setUTCMinutes(59);
         endTime.setUTCSeconds(59);
-        const endTimeStr = helper.dateToStandardString(endTime);
+        var endTimeStr = helper.dateToStandardString(endTime);
 
         it("missing contactName, should return 400 status", async () => {
             await chai.request(server)
@@ -317,6 +327,43 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 400);
                     assert.equal(response.body.error, "timeslot not available");
+                });
+        });
+
+        it("test for private booking, set time from 3 - 4 am should return 200 status", async () => {
+            startTime.setHours(startTime.getHours() - 5);
+            startTimeStr = helper.dateToStandardString(startTime);
+            endTime.setHours(endTime.getHours() - 6);
+            endTimeStr = helper.dateToStandardString(endTime);
+            
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "bookingType": "PRIVATE_BOOKING",
+                    "startTime": startTimeStr,
+                    "endTime": endTimeStr,
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    const booking = response.body;
+                    assert(booking.id);
+                    assert(booking.occupancyId);
+                    assert(booking.creationTime);
+                    assert(booking.createdBy);
+                    assert.equal(booking.status, "AWAITING_PAYMENT");
+                    assert.equal(booking.startTime, startTimeStr);
+                    assert.equal(booking.endTime, endTimeStr);
+                    assert.equal(booking.totalAmount,0);
+                    assert.equal(booking.currency, "HKD");
+                    assert.equal(booking.contactName, "tester");
+                    assert.equal(booking.telephoneCountryCode, "852");
+                    assert.equal(booking.telephoneNumber, "12345678");
+                    assert.equal(booking.emailAddress, "test@test.com");
                 });
         });
     });
@@ -823,8 +870,8 @@ async function deleteOccupancies(occupancies) {
 
             var deleteResult;
             await fetch(url, { method: 'DELETE', headers: headers, body: JSON.stringify(data) })
-                .then(res => {
-                    deleteResult => res.json();
+                .then(async res => {
+                    deleteResult = await res.json();
                 })
                 .catch(err => { console.log(err); });
 
@@ -844,8 +891,8 @@ async function getOccupancies(startTime, endTime, assetId) {
 
     var response = new Object();
     await fetch(url, { method: 'GET', headers: headers })
-        .then(res => {
-            response = res.json();
+        .then(async res => {
+            response = await res.json();
         })
         .catch(err => { console.log(err) });
 
@@ -864,10 +911,10 @@ async function callLoginAPI() {
     
     var response;
     await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
-        .then((res) => {
+        .then(async res => {
             if (res.status >= 200 && res.status < 300) {
                 console.log("Sucessfully got accessToken!");
-                response = res.json();
+                response = await res.json();
             } else {
                 console.log("External Authentication Login API error : " + res.statusText);
             }

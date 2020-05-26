@@ -1,8 +1,11 @@
 "use strict";
-const logger = require("./logger");
 const helper = require("./helper");
 
 require('dotenv').config();
+
+const OPEN_BOOKING = "OPEN_BOOKING";
+const PRIVATE_BOOKING = "PRIVATE_BOOKING";
+const validBookingType = [OPEN_BOOKING, PRIVATE_BOOKING];
 
 function calculateTotalAmount(input, user) {
 	var response = new Object;
@@ -58,18 +61,35 @@ function calculateTotalAmount(input, user) {
 		throw response;
 	}
 
-	//check minimum booking duration
-	const diffTime = Math.abs(endTime - startTime);
-	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
-	const durationInHours = Math.ceil(durationInMinutes / 60);
-
-	var totalAmount = durationInHours * process.env.UNIT_PRICE_REGULAR;
-
-	//check weekday or weekend
-	if (startTime.getDay() != 6 && startTime.getDay() != 0) {
-		totalAmount = durationInHours * process.env.UNIT_PRICE_DISCOUNT_WEEKDAY;
+	//if bookingType is null, default to OPEN_BOOKING
+	if (input.bookingType == null || input.bookingType.length < 1) {
+		input.bookingType = OPEN_BOOKING;
 	}
 
+	if (validBookingType.includes(input.bookingType) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingType";
+		throw response;
+	}
+
+	//calculate total amount for OPEN_BOOKING. If PRIVATE_BOOKING then default to 0 totalAmount
+	var totalAmount;
+	if (input.bookingType == OPEN_BOOKING) {
+		//calculate duration in hours
+		const diffTime = Math.abs(endTime - startTime);
+		const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
+		const durationInHours = Math.ceil(durationInMinutes / 60);
+
+		totalAmount = durationInHours * process.env.UNIT_PRICE_REGULAR;
+
+		//check weekday or weekend
+		if (startTime.getDay() != 6 && startTime.getDay() != 0) {
+			totalAmount = durationInHours * process.env.UNIT_PRICE_DISCOUNT_WEEKDAY;
+		}
+	} else {
+		totalAmount = 0;
+	}
+	
     return { "totalAmount": totalAmount, "currency": process.env.UNIT_CURRENCY };
 }
 

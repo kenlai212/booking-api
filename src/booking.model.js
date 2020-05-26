@@ -8,6 +8,7 @@ require('dotenv').config();
 const bookingSchema = new mongoose.Schema({
 	creationTime: Date,
 	createdBy: String,
+	bookingType: String,
 	occupancyId: String,
 	status: String,
 	startTime: Date,
