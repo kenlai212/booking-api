@@ -264,23 +264,6 @@ describe('Booking Endpoints', () => {
                 });
         });
 
-        it("missing emailAddress, should return 400 status", async () => {
-            await chai.request(server)
-                .post("/booking")
-                .set("Authorization", "Token " + accessToken)
-                .send({
-                    "startTime": startTimeStr,
-                    "endTime": endTimeStr,
-                    "contactName": "tester",
-                    "telephoneCountryCode": "852",
-                    "telephoneNumber":"12345678"
-                })
-                .then(response => {
-                    assert.equal(response.body.error, "emailAddress is mandatory");
-                    assert.equal(response.status, 400);
-                });
-        });
-
         it("success new booking, should return 200 status", async () => {
             await chai.request(server)
                 .post("/booking")
@@ -301,7 +284,8 @@ describe('Booking Endpoints', () => {
                     assert(booking.occupancyId);
                     assert(booking.creationTime);
                     assert(booking.createdBy);
-                    assert.equal(booking.status,"AWAITING_PAYMENT");
+                    assert.equal(booking.status, "AWAITING_CONFIRMATION");
+                    assert.equal(booking.paymentStatus, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, startTimeStr);
                     assert.equal(booking.endTime, endTimeStr);
                     assert(booking.totalAmount);
@@ -310,6 +294,13 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.telephoneCountryCode, "852");
                     assert.equal(booking.telephoneNumber, "12345678");
                     assert.equal(booking.emailAddress, "test@test.com");
+                    assert.equal(booking.guests.length, 1);
+                    assert.equal(booking.guests[0].guestName, "tester");
+                    assert.equal(booking.guests[0].telephoneCountryCode, "852");
+                    assert.equal(booking.guests[0].telephoneNumber, "12345678");
+                    assert.equal(booking.guests[0].emailAddress, "test@test.com");
+                    assert.equal(booking.history.length, 1);
+                    assert.equal(booking.history[0].transactionDescription, "New booking");
                 });
         });
 
@@ -357,7 +348,8 @@ describe('Booking Endpoints', () => {
                     assert(booking.occupancyId);
                     assert(booking.creationTime);
                     assert(booking.createdBy);
-                    assert.equal(booking.status, "AWAITING_PAYMENT");
+                    assert.equal(booking.status, "AWAITING_CONFIRMATION");
+                    assert.equal(booking.paymentStatus, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, startTimeStr);
                     assert.equal(booking.endTime, endTimeStr);
                     assert.equal(booking.totalAmount,0);
@@ -366,6 +358,338 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.telephoneCountryCode, "852");
                     assert.equal(booking.telephoneNumber, "12345678");
                     assert.equal(booking.emailAddress, "test@test.com");
+                });
+        });
+    });
+
+    describe("tessting addGuest", function () {
+        var booking1;
+        var booking2;
+
+        var startTime = new Date();
+        startTime.setDate(startTime.getDate() + 1);
+        startTime.setUTCHours(8);
+        startTime.setUTCMinutes(0);
+        startTime.setUTCSeconds(0);
+
+        var endTime = new Date();
+        endTime.setDate(endTime.getDate() + 1);
+        endTime.setUTCHours(9);
+        endTime.setUTCMinutes(59);
+        endTime.setUTCSeconds(59);
+
+        before(async () => {
+            var tomorrowStart = new Date();
+            tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+            tomorrowStart.setUTCHours(0);
+            tomorrowStart.setUTCMinutes(0);
+            tomorrowStart.setUTCSeconds(0);
+
+            var tomorrowEnd = new Date();
+            tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+            tomorrowEnd.setUTCHours(23);
+            tomorrowEnd.setUTCMinutes(59);
+            tomorrowEnd.setUTCSeconds(59);
+
+            //delete all occupancies of today
+            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
+            await deleteOccupancies(occupancies);
+
+            //delete all bookings
+            await Booking.deleteMany().exec();
+
+            //setup booking1
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    booking1 = response.body;
+                });
+
+            //add 2 hours, setup booking 2
+            startTime.setHours(startTime.getHours() + 2);
+            endTime.setHours(endTime.getHours() + 2);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    booking2 = response.body;
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .put("/add-guest")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "bookingId is mandatory");
+                });
+        });
+
+        it("invalid bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: "1234"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid bookingId");
+                });
+        });
+
+        it("missing guestName, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "guestName is mandatory");
+                });
+        });
+
+        it("missing telephoneCountryCode, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestName: "Ken"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "telephoneCountryCode is mandatory");
+                });
+        });
+
+        it("invalid telephoneCountryCode, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestName: "Ken",
+                    telephoneCountryCode: "123"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid telephoneCountryCode");
+                });
+        });
+
+        it("missing telephoneNumber, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestName: "Ken",
+                    telephoneCountryCode: "852"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "telephoneNumber is mandatory");
+                });
+        });
+
+        it("success, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/add-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestName: "Ken",
+                    telephoneCountryCode: "852",
+                    telephoneNumber: "1234567"
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "SUCCESS");
+                });
+        });
+
+        it("find booking 1, expect 2 guests, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.history.length, 2);
+                    assert.equal(response.body.history[1].transactionDescription, "Added new guest : Ken");
+                    assert.equal(response.body.guests.length, 2);
+                    assert.equal(response.body.guests[0].guestName, "tester");
+                    assert.equal(response.body.guests[1].guestName, "Ken");
+                });
+        });
+    });
+
+    describe("testing markPaid", function () {
+        var booking1;
+        var booking2;
+
+        var startTime = new Date();
+        startTime.setDate(startTime.getDate() + 1);
+        startTime.setUTCHours(8);
+        startTime.setUTCMinutes(0);
+        startTime.setUTCSeconds(0);
+
+        var endTime = new Date();
+        endTime.setDate(endTime.getDate() + 1);
+        endTime.setUTCHours(9);
+        endTime.setUTCMinutes(59);
+        endTime.setUTCSeconds(59);
+
+        before(async () => {
+            var tomorrowStart = new Date();
+            tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+            tomorrowStart.setUTCHours(0);
+            tomorrowStart.setUTCMinutes(0);
+            tomorrowStart.setUTCSeconds(0);
+
+            var tomorrowEnd = new Date();
+            tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+            tomorrowEnd.setUTCHours(23);
+            tomorrowEnd.setUTCMinutes(59);
+            tomorrowEnd.setUTCSeconds(59);
+
+            //delete all occupancies of today
+            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
+            await deleteOccupancies(occupancies);
+
+            //delete all bookings
+            await Booking.deleteMany().exec();
+
+            //setup booking1
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    booking1 = response.body;
+                });
+
+            //add 2 hours, setup booking 2
+            startTime.setHours(startTime.getHours() + 2);
+            endTime.setHours(endTime.getHours() + 2);
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    booking2 = response.body;
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .put("/mark-paid")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/mark-paid")
+                .set("Authorization", "Token " + accessToken)
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "bookingId is mandatory");
+                });
+        });
+
+        it("invalid bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/mark-paid")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: "1234"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid bookingId");
+                });
+        });
+
+        it("success, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/mark-paid")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.paymentStatus, "PAID");
+                });
+        });
+
+        it("find booking 1, expect paymentStatus is PAID, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.paymentStatus, "PAID");
+                    assert.equal(response.body.history.length, 2);
+                    assert.equal(response.body.history[1].transactionDescription, "paymentStatus changed to PAID");
+                });
+        });
+
+        it("find booking 2, expect paymentStatus is still AWAITING_PAYMENT, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking2.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.paymentStatus, "AWAITING_PAYMENT");
                 });
         });
     });
@@ -472,13 +796,13 @@ describe('Booking Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 400);
-                    assert.equal(response.body.error, "id is mandatory");
+                    assert.equal(response.body.error, "bookingId is mandatory");
                 });
         });
         
         it("found booking1, should return 200 status", async () => {
             await chai.request(server)
-                .get("/booking?id=" + booking1.id)
+                .get("/booking?bookingId=" + booking1.id)
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
@@ -487,7 +811,8 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.occupancyId, booking1.occupancyId);
                     assert(booking.creationTime, booking1.creationTime);
                     assert(booking.createdBy, booking1.createdBy);
-                    assert.equal(booking.status, "AWAITING_PAYMENT");
+                    assert.equal(booking.status, "AWAITING_CONFIRMATION");
+                    assert.equal(booking.paymentStatus, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, booking1.startTime);
                     assert.equal(booking.endTime, booking1.endTime);
                     assert(booking.totalAmount);
@@ -501,7 +826,7 @@ describe('Booking Endpoints', () => {
 
         it("found booking2, should return 200 status", async () => {
             await chai.request(server)
-                .get("/booking?id=" + booking2.id)
+                .get("/booking?bookingId=" + booking2.id)
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
@@ -510,7 +835,8 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.occupancyId, booking2.occupancyId);
                     assert(booking.creationTime, booking2.creationTime);
                     assert(booking.createdBy, booking2.createdBy);
-                    assert.equal(booking.status, "AWAITING_PAYMENT");
+                    assert.equal(booking.status, "AWAITING_CONFIRMATION");
+                    assert.equal(booking.paymentStatus, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, booking2.startTime);
                     assert.equal(booking.endTime, booking2.endTime);
                     assert(booking.totalAmount);
@@ -707,7 +1033,8 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.occupancyId, booking4.occupancyId);
                     assert(booking.creationTime, booking4.creationTime);
                     assert(booking.createdBy, booking4.createdBy);
-                    assert.equal(booking.status, "AWAITING_PAYMENT");
+                    assert.equal(booking.paymentStatus, "AWAITING_PAYMENT");
+                    assert.equal(booking.status, "AWAITING_CONFIRMATION");
                     assert.equal(booking.startTime, booking4.startTime);
                     assert.equal(booking.endTime, booking4.endTime);
                     assert(booking.totalAmount);

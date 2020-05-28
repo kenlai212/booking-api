@@ -19,6 +19,17 @@ const bookingSchema = new mongoose.Schema({
 	emailAddress: String,
 	totalAmount: Number,
 	currency: String,
+	paymentStatus: String,
+	guests: [{
+		guestName: String,
+		telephoneCountryCode: String,
+		telephoneNumber: String,
+		emailAddress: String
+	}],
+	history: [{
+		transactionTime: Date,
+		transactionDescription: String
+	}]
 });
 
 const Booking = mongoose.model("Booking", bookingSchema);

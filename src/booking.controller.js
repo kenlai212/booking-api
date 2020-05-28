@@ -15,6 +15,46 @@ const newBooking = async (req, res) => {
 		res.json(response);
 		res.status(200);
 	} catch (err) {
+		res.status(err.status);
+		res.json({ "error": err.message });
+	}
+
+	res.on("finish", function () {
+		helper.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
+const markPaid = async (req, res) => {
+	helper.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.markPaid(req.body, req.user)
+		logger.info("Response Body : " + JSON.stringify(response));
+		res.json(response);
+		res.status(200);
+	} catch (err) {
+		res.status(err.status);
+		res.json({ "error": err.message });
+	}
+
+	res.on("finish", function () {
+		helper.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
+const addGuest = async (req, res) => {
+	helper.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.addGuest(req.body, req.user)
+		logger.info("Response Body : " + JSON.stringify(response));
+		res.json(response);
+		res.status(200);
+	} catch (err) {
 		console.log(err);
 		res.status(err.status);
 		res.json({ "error": err.message });
@@ -38,7 +78,6 @@ const cancelBooking = async (req, res) => {
 		res.json(response);
 		res.status(200);
 	} catch (err) {
-		console.log(err);
 		res.status(err.status);
 		res.json({ "error": err.message });
 	}
@@ -61,7 +100,6 @@ const searchBookings = async (req, res) => {
 		res.json(response);
 		res.status(200);
 	} catch (err) {
-		console.log(err);
 		res.status(err.status);
 		res.json({ "error": err.message });
 	}
@@ -84,7 +122,6 @@ const findBooking = async (req, res) => {
 		res.json(response);
 		res.status(200);
 	} catch (err) {
-		console.log(err);
 		res.status(err.status);
 		res.json({ "error": err.message });
 	}
@@ -98,6 +135,8 @@ const findBooking = async (req, res) => {
 
 module.exports = {
 	newBooking,
+	markPaid,
+	addGuest,
 	cancelBooking,
 	searchBookings,
 	findBooking

@@ -1,4 +1,5 @@
 "use strict";
+const mongoose = require("mongoose");
 const logger = require("./logger");
 const helper = require("./helper");
 const Booking = require("./booking.model").Booking;
@@ -9,6 +10,24 @@ const pricingService = require("./pricing.service");
 require('dotenv').config();
 
 const DEFAULT_ASSET_ID = "MC_NXT20";
+const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
+
+//constants for user groups
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN_GROUP";
+const BOOKING_USER_GROUP = "BOOKING_USER_GROUP";
+
+//constants for booking types
+const OPEN_BOOKING_TYPE = "OPEN_BOOKING";
+const PRIVATE_BOOKING_TYPE = "PRIVATE_BOOKING";
+const VALID_BOOKING_TYPES = [OPEN_BOOKING_TYPE, PRIVATE_BOOKING_TYPE];
+
+//constants for booking status
+const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
+const CANCELLED_STATUS = "CANCELLED";
+
+//constants for payment status
+const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
+const PAID_STATUS = "PAID";
 
 /**
  * By : Ken Lai
@@ -23,8 +42,8 @@ const DEFAULT_ASSET_ID = "MC_NXT20";
 async function addNewBooking(input, user) {
 	var response = new Object;
 	const rightsGroup = [
-		"BOOKING_ADMIN_GROUP",
-		"BOOKING_USER_GROUP"
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
 	]
 
 	//validate user group
@@ -74,28 +93,41 @@ async function addNewBooking(input, user) {
 		throw response;
 	}
 
+	//init booking object
 	var booking = new Booking();
 
-	//check booking type, if none, assign default OPEN_BOOKING
-	const OPEN_BOOKING = "OPEN_BOOKING";
-	const PRIVATE_BOOKING = "PRIVATE_BOOKING";
-	const validBookingType = [OPEN_BOOKING, PRIVATE_BOOKING];
+	var nowTimestampInUTC = new Date();
+	nowTimestampInUTC.setHours(nowTimestampInUTC.getHours() + 8);
+	booking.creationTime = nowTimestampInUTC;
 
+	booking.createdBy = user.id;
+
+	booking.status = AWAITING_CONFIRMATION_STATUS;
+
+	booking.history = [{
+		transactionTime: nowTimestampInUTC,
+		transactionDescription: "New booking"
+	}]
+
+	//check booking type, if none, assign default OPEN_BOOKING
 	if (input.bookingType == null || input.bookingType.length < 0) {
-		booking.bookingType = "OPEN_BOOKING"
-	} else if (validBookingType.includes(input.bookingType) == false) {
+		booking.bookingType = OPEN_BOOKING_TYPE
+	} else {
+		booking.bookingType = input.bookingType;
+	}
+
+	//check for valid booking type
+	if (VALID_BOOKING_TYPES.includes(booking.bookingType) == false) {
 		response.status = 400;
 		response.message = "Invalid bookingType";
 		throw response;		
-	} else {
-		booking.bookingType = input.bookingType
 	}
 
 	//calculate duration in milliseconds
 	var diffMs;
 	diffMs = (endTime - startTime);
 
-	if (booking.bookingType == OPEN_BOOKING) {
+	if (booking.bookingType == OPEN_BOOKING_TYPE) {
 
 		//check minimum booking duration
 		const minMs = process.env.MINIMUM_BOOKING_TIME;
@@ -183,6 +215,7 @@ async function addNewBooking(input, user) {
 	const totalAmountObj = pricingService.calculateTotalAmount(pricingTotalAmountInput, user);
 	booking.totalAmount = totalAmountObj.totalAmount;
 	booking.currency = totalAmountObj.currency;
+	booking.paymentStatus = AWAITING_PAYMENT_STATUS;
 
 	//validate contact name
 	if (input.contactName == null || input.contactName.length < 1) {
@@ -199,8 +232,7 @@ async function addNewBooking(input, user) {
 		throw response;
 	}
 
-	const acceptedTelephoneCountryCodes = ["852", "853", "86"];
-	if (acceptedTelephoneCountryCodes.includes(input.telephoneCountryCode) == false) {
+	if (ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
 		response.status = 400;
 		response.message = "Invalid telephoneCountryCode";
 		throw response;
@@ -215,18 +247,24 @@ async function addNewBooking(input, user) {
 	}
 	booking.telephoneNumber = input.telephoneNumber;
 
-	//validate email address
-	if(input.emailAddress == null){
-		response.status = 400;
-		response.message = "emailAddress is mandatory";
-		throw response;
+	//set email address if not null
+	if(input.emailAddress != null){
+		booking.emailAddress = input.emailAddress;
 	}
-	booking.emailAddress = input.emailAddress;
+	
+	//set first guest as contact
+	const firstGuest = {
+		guestName: booking.contactName,
+		telephoneCountryCode: booking.telephoneCountryCode,
+		telephoneNumber: booking.telephoneNumber,
+		emailAddress: booking.emailAddress
+	}
+	booking.guests = [firstGuest];
 
 	//call external occupancy API to save occupancy record
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
 	const data = {
-		"occupancyType": "OPEN_BOOKING",
+		"occupancyType": OPEN_BOOKING_TYPE,
 		"startTime": helper.dateToStandardString(booking.startTime),
 		"endTime": helper.dateToStandardString(booking.endTime),
 		"assetId": DEFAULT_ASSET_ID
@@ -246,10 +284,6 @@ async function addNewBooking(input, user) {
 			response.message = "timeslot not available";
 			throw response;
 		});
-
-	booking.creationTime = new Date();
-	booking.createdBy = user.id;
-	booking.status = "AWAITING_PAYMENT";
 
 	//save newBooking record
 	await booking.save()
@@ -299,7 +333,7 @@ async function addNewBooking(input, user) {
 
 	//send confirmation to contact
 	//TODO add chinese language confirmation
-	if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_EMAIL == true) {
+	if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_EMAIL == true && booking.emailAddress != null) {
 		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_EMAIL_SUBDOMAIN;
 
 		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
@@ -340,16 +374,13 @@ async function addNewBooking(input, user) {
  * By : Ken Lai
  * Date : Mar 12, 2020
  * 
- * @param {any} bookingId
- * @param {any} user
- * 
  * delete booking from database, delete the corrisponding occupancy record by calling occupancy service.
  */
 async function cancelBooking(input, user){
 	var response = new Object;
 
 	const rightsGroup = [
-		"BOOKING_ADMIN_GROUP"
+		BOOKING_ADMIN_GROUP
 	]
 
 	//validate user group
@@ -365,6 +396,12 @@ async function cancelBooking(input, user){
 		response.status = 400;
 		response.message = "bookingId is mandatory";
 		throw(response);
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
 	}
 
 	var targetBooking;
@@ -420,7 +457,7 @@ async function cancelBooking(input, user){
 	bookingHistory.telephoneCountryCode = targetBooking.telephoneCountryCode;
 	bookingHistory.telephoneNumber = targetBooking.telephoneNumber;
 	bookingHistory.emailAddress = targetBooking.emailAddress;
-	bookingHistory.status = "CANCELLED";
+	bookingHistory.status = CANCELLED_STATUS;
 	
 	await bookingHistory.save()
 		.then(bookingHistory => {
@@ -436,19 +473,186 @@ async function cancelBooking(input, user){
 	return "SUCCESS";
 }
 
+async function addGuest(input, user) {
+	var response = new Object;
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
+	]
+
+	//validate user group
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw response;
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//validate guest name
+	if (input.guestName == null || input.guestName.length < 1) {
+		response.status = 400;
+		response.message = "guestName is mandatory";
+		throw response;
+	}
+
+	//validate country code
+	if (input.telephoneCountryCode == null || input.telephoneCountryCode.length < 1) {
+		response.status = 400;
+		response.message = "telephoneCountryCode is mandatory";
+		throw response;
+	}
+
+	if (ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
+		response.status = 400;
+		response.message = "Invalid telephoneCountryCode";
+		throw response;
+	}
+
+	//validate telephone number
+	if (input.telephoneNumber == null || input.telephoneNumber.length < 1) {
+		response.status = 400;
+		response.message = "telephoneNumber is mandatory";
+		throw response;
+	}
+
+	//find booking
+	var booking;
+	await Booking.findById(input.bookingId)
+		.exec()
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Booking.findById() is not available";
+			throw response;
+		});
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		response.status = 401;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//add guest
+	const guest = {
+		guestName: input.guestName,
+		telephoneCountryCode: input.telephoneCountryCode,
+		telephoneNumber: input.telephoneNumber,
+		emailAddress: input.emailAddress
+	}
+	booking.guests.push(guest);
+
+	//add transaction history
+	booking.history.push({
+		transactionTime: new Date(),
+		transactionDescription: "Added new guest : " + input.guestName
+	});
+
+	await booking.save()
+		.then(() => {
+			logger.info("Sucessfully add guest to booking : " + booking.id);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	return { "status": "SUCCESS" };
+}
+
+async function markPaid(input, user) {
+	var response = new Object;
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP
+	]
+
+	//validate user group
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw response;
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//find booking
+	var booking;
+	await Booking.findById(input.bookingId)
+		.exec()
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Booking.findById() is not available";
+			throw response;
+		});
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		response.status = 401;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//set payment status to PAID and add transaction history
+	booking.paymentStatus = PAID_STATUS;
+	booking.history.push({
+		transactionTime: new Date(),
+		transactionDescription: "paymentStatus changed to PAID"
+	});
+
+	await booking.save()
+		.then(() => {
+			logger.info("Sucessfully updated PAID status for booking : " + booking.id);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	return { "paymentStatus": PAID_STATUS };
+}
+
 /**
  * By : Ken Lai
  * Date : Mar 01, 2020
- * 
- * @param {any} input
- * @param {any} user
  * 
  * Returns all bookings withint a datetime range
  */
 async function viewBookings(input, user){
 	var response = new Object;
 	const rightsGroup = [
-		"BOOKING_ADMIN_GROUP",
+		BOOKING_ADMIN_GROUP
 	]
 
 	//validate user group
@@ -511,7 +715,7 @@ async function viewBookings(input, user){
 		});
 
 	var outputObjs = [];
-	bookings.forEach((booking, index) => {
+	bookings.forEach((booking) => {
 		const outputObj = bookingToOutuptObj(booking);
 		outputObjs.push(outputObj);
 	});
@@ -522,8 +726,8 @@ async function viewBookings(input, user){
 async function findBookingById(input, user) {
 	var response = new Object;
 	const rightsGroup = [
-		"BOOKING_ADMIN_GROUP",
-		"BOOKING_USER_GROUP"
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
 	]
 
 	//validate user group
@@ -533,14 +737,20 @@ async function findBookingById(input, user) {
 		throw response;
 	}
 
-	if (input.id == null || input.id.length < 1) {
+	if (input.bookingId == null || input.bookingId.length < 1) {
 		response.status = 400;
-		response.message = "id is mandatory";
+		response.message = "bookingId is mandatory";
 		throw response;
 	}
-	
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
 	var booking;
-	await Booking.findById(input.id)
+	await Booking.findById(input.bookingId)
 		.then(result => {
 			booking = result;
 		})
@@ -572,12 +782,17 @@ function bookingToOutuptObj(booking) {
 	outputObj.telephoneNumber = booking.telephoneNumber;
 	outputObj.emailAddress = booking.emailAddress;
 	outputObj.status = booking.status;
+	outputObj.paymentStatus = booking.paymentStatus;
 	outputObj.durationInHours = Math.round((booking.endTime - booking.startTime) / 1000 / 60 / 60);
+	outputObj.guests = booking.guests;
+	outputObj.history = booking.history;
 
 	return outputObj;
 }
 module.exports = {
 	addNewBooking,
+	markPaid,
+	addGuest,
 	cancelBooking,
 	viewBookings,
 	findBookingById
