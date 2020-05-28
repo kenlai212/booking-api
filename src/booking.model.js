@@ -28,7 +28,8 @@ const bookingSchema = new mongoose.Schema({
 	}],
 	history: [{
 		transactionTime: Date,
-		transactionDescription: String
+		transactionDescription: String,
+		userId: String
 	}]
 });
 

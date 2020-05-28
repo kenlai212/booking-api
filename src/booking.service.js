@@ -106,7 +106,8 @@ async function addNewBooking(input, user) {
 
 	booking.history = [{
 		transactionTime: nowTimestampInUTC,
-		transactionDescription: "New booking"
+		transactionDescription: "New booking",
+		userId: user.id
 	}]
 
 	//check booking type, if none, assign default OPEN_BOOKING
@@ -559,7 +560,8 @@ async function addGuest(input, user) {
 	//add transaction history
 	booking.history.push({
 		transactionTime: new Date(),
-		transactionDescription: "Added new guest : " + input.guestName
+		transactionDescription: "Added new guest : " + input.guestName,
+		userId: user.id
 	});
 
 	await booking.save()
@@ -589,6 +591,23 @@ async function markPaid(input, user) {
 		throw response;
 	}
 
+	//validate intent
+	if (input.intent == null || input.intent.length < 1) {
+		response.status = 400;
+		response.message = "intent is mandatory";
+		throw response;
+	}
+
+	const MARK_PAID = "MARK_PAID";
+	const REVERSE_PAID = "REVERSE_PAID";
+	const validIntents = [MARK_PAID, REVERSE_PAID]
+	if (validIntents.includes(input.intent) == false) {
+		response.status = 400;
+		response.message = "Invalid intent";
+		throw response;
+	}
+
+	//validate bookingId
 	if (input.bookingId == null || input.bookingId.length < 1) {
 		response.status = 400;
 		response.message = "bookingId is mandatory";
@@ -622,12 +641,23 @@ async function markPaid(input, user) {
 		throw response;
 	}
 
-	//set payment status to PAID and add transaction history
-	booking.paymentStatus = PAID_STATUS;
-	booking.history.push({
-		transactionTime: new Date(),
-		transactionDescription: "paymentStatus changed to PAID"
-	});
+	//set payment status to PAID or AWAITING_PAYMENT_STATUS
+	if (input.intent == MARK_PAID) {
+		booking.paymentStatus = PAID_STATUS;
+	} else if (input.intent == REVERSE_PAID) {
+		booking.paymentStatus = AWAITING_PAYMENT_STATUS;
+	}
+	
+	//add transaction history
+	var transactionHistory = new Object();
+	transactionHistory.transactionTime = new Date();
+	transactionHistory.userId = user.id;
+	if (input.intent == MARK_PAID) {
+		transactionHistory.transactionDescription = "paymentStatus changed to PAID"
+	} else if (input.intent == REVERSE_PAID) {
+		transactionHistory.transactionDescription = "paymentStatus reversed to AWAITING_PAYMENT"
+	}
+	booking.history.push(transactionHistory);
 
 	await booking.save()
 		.then(() => {
@@ -640,7 +670,7 @@ async function markPaid(input, user) {
 			throw response;
 		});
 
-	return { "paymentStatus": PAID_STATUS };
+	return { "paymentStatus": booking.paymentStatus };
 }
 
 /**

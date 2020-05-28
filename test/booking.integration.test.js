@@ -634,11 +634,37 @@ describe('Booking Endpoints', () => {
                 });
         });
 
-        it("missing bookingId, should return 400 status", async () => {
+        it("missing intent, should return 400 status", async () => {
             await chai.request(server)
                 .put("/mark-paid")
                 .set("Authorization", "Token " + accessToken)
                 .send()
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "intent is mandatory");
+                });
+        });
+
+        it("invalid intent, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/mark-paid")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    intent:"abc"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid intent");
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/mark-paid")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    intent: "MARK_PAID"
+                })
                 .then(response => {
                     assert.equal(response.status, 400);
                     assert.equal(response.body.error, "bookingId is mandatory");
@@ -650,6 +676,7 @@ describe('Booking Endpoints', () => {
                 .put("/mark-paid")
                 .set("Authorization", "Token " + accessToken)
                 .send({
+                    intent: "MARK_PAID",
                     bookingId: "1234"
                 })
                 .then(response => {
@@ -658,11 +685,12 @@ describe('Booking Endpoints', () => {
                 });
         });
 
-        it("success, should return 200 status", async () => {
+        it("success MARK_PAID, should return 200 status", async () => {
             await chai.request(server)
                 .put("/mark-paid")
                 .set("Authorization", "Token " + accessToken)
                 .send({
+                    intent: "MARK_PAID",
                     bookingId: booking1.id
                 })
                 .then(response => {
@@ -676,10 +704,12 @@ describe('Booking Endpoints', () => {
                 .get("/booking?bookingId=" + booking1.id)
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
+                    console.log(response.body)
                     assert.equal(response.status, 200);
                     assert.equal(response.body.paymentStatus, "PAID");
                     assert.equal(response.body.history.length, 2);
                     assert.equal(response.body.history[1].transactionDescription, "paymentStatus changed to PAID");
+                    assert(response.body.history[1].userId);
                 });
         });
 
@@ -690,6 +720,34 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.paymentStatus, "AWAITING_PAYMENT");
+                });
+        });
+
+        it("success REVERSE_PAID for booking1, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/mark-paid")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    intent: "REVERSE_PAID",
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.paymentStatus, "AWAITING_PAYMENT");
+                });
+        });
+
+        it("find booking 1, expect paymentStatus is AWAITING_PAYMENT, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.paymentStatus, "AWAITING_PAYMENT");
+                    assert.equal(response.body.history.length, 3);
+                    assert.equal(response.body.history[1].transactionDescription, "paymentStatus changed to PAID");
+                    assert.equal(response.body.history[2].transactionDescription, "paymentStatus reversed to AWAITING_PAYMENT");
+                    assert(response.body.history[1].userId);
                 });
         });
     });
