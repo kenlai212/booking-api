@@ -487,6 +487,20 @@ describe('Booking Endpoints', () => {
                 });
         });
 
+        it("invalid guestId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/booking/remove-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: "123"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid guestId");
+                });
+        });
+
         it("success, should return 200 status", async () => {
             await chai.request(server)
                 .put("/booking/remove-guest")

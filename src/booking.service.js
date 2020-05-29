@@ -538,6 +538,12 @@ async function removeGuest(input, user) {
 	});
 	booking.guests = guests;
 
+	if (targetGuestName == null) {
+		response.status = 400;
+		response.message = "Invalid guestId";
+		throw response;
+	}
+
 	//add transaction history
 	booking.history.push({
 		transactionTime: new Date(),
