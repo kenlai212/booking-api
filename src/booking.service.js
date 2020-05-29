@@ -474,6 +474,91 @@ async function cancelBooking(input, user){
 	return "SUCCESS";
 }
 
+async function removeGuest(input, user) {
+	var response = new Object;
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
+	]
+
+	//validate user group
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw response;
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//find booking
+	var booking;
+	await Booking.findById(input.bookingId)
+		.exec()
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Booking.findById() is not available";
+			throw response;
+		});
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		response.status = 401;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//validate guestId
+	if (input.guestId == null || input.guestId.length < 1) {
+		response.status = 400;
+		response.message = "guestId is mandatory";
+		throw response;
+	}
+
+	var guests = booking.guests;
+	var targetGuestName;
+	guests.forEach((guest, index, object) => {
+		if (guest._id == input.guestId) {
+			targetGuestName = guest.guestName;
+			object.splice(index, 1);
+		}
+	});
+	booking.guests = guests;
+
+	//add transaction history
+	booking.history.push({
+		transactionTime: new Date(),
+		transactionDescription: "Removed guest : " + targetGuestName,
+		userId: user.id
+	});
+
+	await booking.save()
+		.then(() => {
+			logger.info("Sucessfully removed guest from booking : " + booking.id);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	return { "status": "SUCCESS" };
+}
+
 async function addGuest(input, user) {
 	var response = new Object;
 	const rightsGroup = [
@@ -578,7 +663,7 @@ async function addGuest(input, user) {
 	return { "status": "SUCCESS" };
 }
 
-async function markPaid(input, user) {
+async function changePaymentStatus(input, user) {
 	var response = new Object;
 	const rightsGroup = [
 		BOOKING_ADMIN_GROUP
@@ -821,8 +906,9 @@ function bookingToOutuptObj(booking) {
 }
 module.exports = {
 	addNewBooking,
-	markPaid,
+	changePaymentStatus,
 	addGuest,
+	removeGuest,
 	cancelBooking,
 	viewBookings,
 	findBookingById

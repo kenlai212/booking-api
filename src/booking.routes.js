@@ -9,8 +9,9 @@ router.post("/booking", authenticateToken, bookingController.newBooking);
 router.delete("/booking", authenticateToken, bookingController.cancelBooking);
 router.get("/bookings", authenticateToken, bookingController.searchBookings);
 router.get("/booking", authenticateToken, bookingController.findBooking);
-router.put("/mark-paid", authenticateToken, bookingController.markPaid);
-router.put("/add-guest", authenticateToken, bookingController.addGuest);
+router.put("/booking/payment-status", authenticateToken, bookingController.changePaymentStatus);
+router.put("/booking/add-guest", authenticateToken, bookingController.addGuest);
+router.put("/booking/remove-guest", authenticateToken, bookingController.removeGuest);
 
 function authenticateToken(req, res, next) {
 	const authHeader = req.headers["authorization"];

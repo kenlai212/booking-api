@@ -26,15 +26,36 @@ const newBooking = async (req, res) => {
 	return res;
 }
 
-const markPaid = async (req, res) => {
+const changePaymentStatus = async (req, res) => {
 	helper.logIncommingRequest(req);
 
 	try {
-		const response = await bookingService.markPaid(req.body, req.user)
+		const response = await bookingService.changePaymentStatus(req.body, req.user)
 		logger.info("Response Body : " + JSON.stringify(response));
 		res.json(response);
 		res.status(200);
 	} catch (err) {
+		res.status(err.status);
+		res.json({ "error": err.message });
+	}
+
+	res.on("finish", function () {
+		helper.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
+const removeGuest = async (req, res) => {
+	helper.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.removeGuest(req.body, req.user)
+		logger.info("Response Body : " + JSON.stringify(response));
+		res.json(response);
+		res.status(200);
+	} catch (err) {
+		console.log(err);
 		res.status(err.status);
 		res.json({ "error": err.message });
 	}
@@ -55,7 +76,6 @@ const addGuest = async (req, res) => {
 		res.json(response);
 		res.status(200);
 	} catch (err) {
-		console.log(err);
 		res.status(err.status);
 		res.json({ "error": err.message });
 	}
@@ -135,8 +155,9 @@ const findBooking = async (req, res) => {
 
 module.exports = {
 	newBooking,
-	markPaid,
+	changePaymentStatus,
 	addGuest,
+	removeGuest,
 	cancelBooking,
 	searchBookings,
 	findBooking
