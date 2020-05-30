@@ -415,7 +415,7 @@ describe('Booking Endpoints', () => {
 
             //add guest to booking1
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     "guestName": "guest2",
@@ -433,6 +433,7 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 200);
                     booking1 = response.body;
+                    console.log(booking1);
                     assert.equal(booking1.history.length, 2);
                     assert.equal(booking1.history[1].transactionDescription, "Added new guest : guest2");
                     assert.equal(booking1.guests.length, 2);
@@ -443,7 +444,7 @@ describe('Booking Endpoints', () => {
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
             await chai.request(server)
-                .put("/booking/remove-guest")
+                .put("/remove-guest")
                 .send()
                 .then(response => {
                     assert.equal(response.status, 401);
@@ -452,7 +453,7 @@ describe('Booking Endpoints', () => {
 
         it("missing bookingId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/remove-guest")
+                .put("/remove-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send()
                 .then(response => {
@@ -463,7 +464,7 @@ describe('Booking Endpoints', () => {
 
         it("invalid bookingId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/remove-guest")
+                .put("/remove-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: "1234"
@@ -476,7 +477,7 @@ describe('Booking Endpoints', () => {
 
         it("missing guestId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/remove-guest")
+                .put("/remove-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id
@@ -489,7 +490,7 @@ describe('Booking Endpoints', () => {
 
         it("invalid guestId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/remove-guest")
+                .put("/remove-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id,
@@ -503,7 +504,7 @@ describe('Booking Endpoints', () => {
 
         it("success, should return 200 status", async () => {
             await chai.request(server)
-                .put("/booking/remove-guest")
+                .put("/remove-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id,
@@ -527,6 +528,132 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking1.history[2].transactionDescription, "Removed guest : guest2");
                     assert.equal(booking1.guests.length, 1);
                     assert.equal(booking1.guests[0].guestName, "tester");
+                });
+        });
+    });
+
+    describe("tessting addCrew", function () {
+        var booking1;
+
+        var startTime = new Date();
+        startTime.setDate(startTime.getDate() + 1);
+        startTime.setUTCHours(8);
+        startTime.setUTCMinutes(0);
+        startTime.setUTCSeconds(0);
+
+        var endTime = new Date();
+        endTime.setDate(endTime.getDate() + 1);
+        endTime.setUTCHours(9);
+        endTime.setUTCMinutes(59);
+        endTime.setUTCSeconds(59);
+
+        before(async () => {
+            var tomorrowStart = new Date();
+            tomorrowStart.setDate(tomorrowStart.getDate() + 1);
+            tomorrowStart.setUTCHours(0);
+            tomorrowStart.setUTCMinutes(0);
+            tomorrowStart.setUTCSeconds(0);
+
+            var tomorrowEnd = new Date();
+            tomorrowEnd.setDate(tomorrowEnd.getDate() + 1);
+            tomorrowEnd.setUTCHours(23);
+            tomorrowEnd.setUTCMinutes(59);
+            tomorrowEnd.setUTCSeconds(59);
+
+            //delete all occupancies of today
+            var occupancies = await getOccupancies(helper.dateToStandardString(tomorrowStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
+            await deleteOccupancies(occupancies);
+
+            //delete all bookings
+            await Booking.deleteMany().exec();
+
+            //setup booking1
+            await chai.request(server)
+                .post("/booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    "startTime": helper.dateToStandardString(startTime),
+                    "endTime": helper.dateToStandardString(endTime),
+                    "contactName": "tester",
+                    "telephoneCountryCode": "852",
+                    "telephoneNumber": "12345678",
+                    "emailAddress": "test@test.com"
+                })
+                .then(response => {
+                    booking1 = response.body;
+                });
+        });
+
+        it("find booking 1, expect 0 crew, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    booking1 = response.body;
+                    console.log(booking1);
+                    assert.equal(booking1.history.length, 1);
+                    assert.equal(booking1.crews.length, 0);
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .put("/add-crew")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-crew")
+                .set("Authorization", "Token " + accessToken)
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "bookingId is mandatory");
+                });
+        });
+
+        it("invalid bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-crew")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: "1234"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid bookingId");
+                });
+        });
+
+        it("missing crewId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-crew")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "crewId is mandatory");
+                });
+        });
+
+        it("success, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/add-crew")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    crewId: "JOHN_CHAN"
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "SUCCESS");
                 });
         });
     });
@@ -585,7 +712,7 @@ describe('Booking Endpoints', () => {
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .send()
                 .then(response => {
                     assert.equal(response.status, 401);
@@ -594,7 +721,7 @@ describe('Booking Endpoints', () => {
 
         it("missing bookingId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send()
                 .then(response => {
@@ -605,7 +732,7 @@ describe('Booking Endpoints', () => {
 
         it("invalid bookingId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: "1234"
@@ -618,7 +745,7 @@ describe('Booking Endpoints', () => {
 
         it("missing guestName, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id
@@ -631,7 +758,7 @@ describe('Booking Endpoints', () => {
 
         it("missing telephoneCountryCode, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id,
@@ -645,7 +772,7 @@ describe('Booking Endpoints', () => {
 
         it("invalid telephoneCountryCode, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id,
@@ -660,7 +787,7 @@ describe('Booking Endpoints', () => {
 
         it("missing telephoneNumber, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id,
@@ -675,7 +802,7 @@ describe('Booking Endpoints', () => {
 
         it("success, should return 200 status", async () => {
             await chai.request(server)
-                .put("/booking/add-guest")
+                .put("/add-guest")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id,
@@ -777,7 +904,7 @@ describe('Booking Endpoints', () => {
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
             await chai.request(server)
-                .put("/booking/payment-status")
+                .put("/payment-status")
                 .send()
                 .then(response => {
                     assert.equal(response.status, 401);
@@ -786,7 +913,7 @@ describe('Booking Endpoints', () => {
 
         it("missing intent, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/payment-status")
+                .put("/payment-status")
                 .set("Authorization", "Token " + accessToken)
                 .send()
                 .then(response => {
@@ -797,7 +924,7 @@ describe('Booking Endpoints', () => {
 
         it("invalid intent, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/payment-status")
+                .put("/payment-status")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     intent:"abc"
@@ -810,7 +937,7 @@ describe('Booking Endpoints', () => {
 
         it("missing bookingId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/payment-status")
+                .put("/payment-status")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     intent: "MARK_PAID"
@@ -823,7 +950,7 @@ describe('Booking Endpoints', () => {
 
         it("invalid bookingId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/booking/payment-status")
+                .put("/payment-status")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     intent: "MARK_PAID",
@@ -837,7 +964,7 @@ describe('Booking Endpoints', () => {
 
         it("success MARK_PAID, should return 200 status", async () => {
             await chai.request(server)
-                .put("/booking/payment-status")
+                .put("/payment-status")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     intent: "MARK_PAID",
@@ -874,7 +1001,7 @@ describe('Booking Endpoints', () => {
 
         it("success REVERSE_PAID for booking1, should return 200 status", async () => {
             await chai.request(server)
-                .put("/booking/payment-status")
+                .put("/payment-status")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     intent: "REVERSE_PAID",

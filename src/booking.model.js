@@ -26,6 +26,11 @@ const bookingSchema = new mongoose.Schema({
 		telephoneNumber: String,
 		emailAddress: String
 	}],
+	crews: [{
+		crewId: String,
+		assignmentTime: Date,
+		assignmentBy: String
+	}],
 	history: [{
 		transactionTime: Date,
 		transactionDescription: String,

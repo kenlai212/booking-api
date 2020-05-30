@@ -87,6 +87,26 @@ const addGuest = async (req, res) => {
 	return res;
 }
 
+const addCrew = async (req, res) => {
+	helper.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.addCrew(req.body, req.user)
+		logger.info("Response Body : " + JSON.stringify(response));
+		res.json(response);
+		res.status(200);
+	} catch (err) {
+		res.status(err.status);
+		res.json({ "error": err.message });
+	}
+
+	res.on("finish", function () {
+		helper.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
 const cancelBooking = async (req, res) => {
 	helper.logIncommingRequest(req);
 
@@ -158,6 +178,7 @@ module.exports = {
 	changePaymentStatus,
 	addGuest,
 	removeGuest,
+	addCrew,
 	cancelBooking,
 	searchBookings,
 	findBooking

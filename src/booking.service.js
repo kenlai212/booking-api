@@ -33,9 +33,6 @@ const PAID_STATUS = "PAID";
  * By : Ken Lai
  * Date : Mar 25, 2020
  * 
- * @param {any} input
- * @param {any} user
- * 
  * Add new booking record to database, then add a corrisponding
  * new occupancy record by calling occupancy service
  */
@@ -96,8 +93,7 @@ async function addNewBooking(input, user) {
 	//init booking object
 	var booking = new Booking();
 
-	var nowTimestampInUTC = new Date();
-	nowTimestampInUTC.setHours(nowTimestampInUTC.getHours() + 8);
+	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
 	booking.creationTime = nowTimestampInUTC;
 
 	booking.createdBy = user.id;
@@ -261,6 +257,9 @@ async function addNewBooking(input, user) {
 		emailAddress: booking.emailAddress
 	}
 	booking.guests = [firstGuest];
+
+	//add crew //TODO auto add crew based on schedule
+	booking.crews = new Array();
 
 	//call external occupancy API to save occupancy record
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
@@ -545,8 +544,9 @@ async function removeGuest(input, user) {
 	}
 
 	//add transaction history
+	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
 	booking.history.push({
-		transactionTime: new Date(),
+		transactionTime: nowTimestampInUTC,
 		transactionDescription: "Removed guest : " + targetGuestName,
 		userId: user.id
 	});
@@ -579,6 +579,7 @@ async function addGuest(input, user) {
 		throw response;
 	}
 
+	//validate bookingId
 	if (input.bookingId == null || input.bookingId.length < 1) {
 		response.status = 400;
 		response.message = "bookingId is mandatory";
@@ -649,9 +650,95 @@ async function addGuest(input, user) {
 	booking.guests.push(guest);
 
 	//add transaction history
+	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
 	booking.history.push({
-		transactionTime: new Date(),
+		transactionTime: nowTimestampInUTC,
 		transactionDescription: "Added new guest : " + input.guestName,
+		userId: user.id
+	});
+
+	await booking.save()
+		.then(() => {
+			logger.info("Sucessfully add guest to booking : " + booking.id);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	return { "status": "SUCCESS" };
+}
+
+async function addCrew(input, user) {
+	var response = new Object;
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP
+	]
+
+	//validate user group
+	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw response;
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	if (input.crewId == null || input.crewId.length < 1){
+		response.status = 400;
+		response.message = "crewId is mandatory";
+		throw response;
+	}
+
+	//find booking
+	var booking;
+	await Booking.findById(input.bookingId)
+		.exec()
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Booking.findById() is not available";
+			throw response;
+		});
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		response.status = 401;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//add crew
+	if (booking.crews == null) {
+		booking.crews = new Array();
+	}
+
+	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
+	booking.crews.push({
+		crewId: input.crewId,
+		assignmentTime: nowTimestampInUTC,
+		assignmentBy: user.id
+	});
+
+	//add transaction history
+	booking.history.push({
+		transactionTime: nowTimestampInUTC,
+		transactionDescription: "Added new crew : " + input.crewId,
 		userId: user.id
 	});
 
@@ -741,7 +828,8 @@ async function changePaymentStatus(input, user) {
 	
 	//add transaction history
 	var transactionHistory = new Object();
-	transactionHistory.transactionTime = new Date();
+	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
+	transactionHistory.transactionTime = nowTimestampInUTC;
 	transactionHistory.userId = user.id;
 	if (input.intent == MARK_PAID) {
 		transactionHistory.transactionDescription = "paymentStatus changed to PAID"
@@ -907,6 +995,7 @@ function bookingToOutuptObj(booking) {
 	outputObj.durationInHours = Math.round((booking.endTime - booking.startTime) / 1000 / 60 / 60);
 	outputObj.guests = booking.guests;
 	outputObj.history = booking.history;
+	outputObj.crews = booking.crews;
 
 	return outputObj;
 }
@@ -915,6 +1004,7 @@ module.exports = {
 	changePaymentStatus,
 	addGuest,
 	removeGuest,
+	addCrew,
 	cancelBooking,
 	viewBookings,
 	findBookingById

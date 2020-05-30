@@ -3,6 +3,13 @@ const fetch = require("node-fetch");
 const moment = require('moment');
 require('dotenv').config();
 
+/**
+ * By: Ken Lai
+ * Date: Mar 01, 2020
+ * 
+ * Log all incomming requests
+ * originalURL, remoteAddress, userId, requestBody
+ */
 function logIncommingRequest(req){
 	logger.info(req.method + ":" + req.originalUrl + " from " + req.connection.remoteAddress);
 	logger.info("Request user : " + req.user.id);
@@ -12,16 +19,31 @@ function logIncommingRequest(req){
 	}
 }
 
+/**
+ * By: Ken Lai
+ * Date: Mar 01, 2020
+ * 
+ * Log all out going responses
+ * statusCode, statusMessage
+ */
 function logOutgoingResponse(res){
 	logger.info("Response : " + res.statusCode + " " + res.statusMessage);
 }
 
-/*********************************************************
-By : Ken Lai
+function getNowUTCTimeStamp() {
+	var nowTimestampInUTC = new Date();
+	nowTimestampInUTC.setHours(nowTimestampInUTC.getHours() + 8);
 
-Turn standard input date string -
-YYYY-MM-DDTHH:mm:ss into a date object
-*********************************************************/
+	return nowTimestampInUTC;
+}
+
+/**
+ * By: Ken Lai
+ * Date: Apr 15, 2020
+ * 
+ * Turn standard input date string - YYYY-MM-DDTHH:mm:ss
+ * into a date object
+ */
 function standardStringToDate(dateStr) {
 	
 	if (dateStr.length != 19) {
@@ -259,6 +281,7 @@ async function callAPI(url, requestAttr) {
 module.exports = {
 	logIncommingRequest,
 	logOutgoingResponse,
+	getNowUTCTimeStamp,
 	standardStringToDate,
 	dateToStandardString,
 	callLoginAPI,
