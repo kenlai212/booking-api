@@ -751,7 +751,8 @@ async function addCrew(input, user) {
 
 	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
 	booking.crews.push({
-		crewId: input.crewId,
+		crewId: crew.id,
+		crewName: crew.crewName,
 		assignmentTime: nowTimestampInUTC,
 		assignmentBy: user.id
 	});

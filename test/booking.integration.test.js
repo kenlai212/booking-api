@@ -694,6 +694,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.id, booking1.id);
                     assert.equal(response.body.crews.length, 1);
+                    assert.equal(response.body.crews[0].crewName, crews[0].crewName);
                 });
         });
 
@@ -719,6 +720,8 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.id, booking1.id);
                     assert.equal(response.body.crews.length, 2);
+                    assert.equal(response.body.crews[0].crewName, crews[0].crewName);
+                    assert.equal(response.body.crews[1].crewName, crews[1].crewName);
                 });
         });
     });

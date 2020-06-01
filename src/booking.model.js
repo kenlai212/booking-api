@@ -28,6 +28,7 @@ const bookingSchema = new mongoose.Schema({
 	}],
 	crews: [{
 		crewId: String,
+		crewName: String,
 		assignmentTime: Date,
 		assignmentBy: String
 	}],
