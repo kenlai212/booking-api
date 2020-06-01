@@ -723,6 +723,27 @@ async function addCrew(input, user) {
 		throw response;
 	}
 
+	//find crew
+	const url = process.env.OCCUPANCY_DOMAIN + process.env.CREW_SUBDOMAIN + "?crewId=" + input.crewId;
+	const requestAttr = {
+		method: "GET"
+	}
+
+	var crew;
+	await helper.callAPI(url, requestAttr)
+		.then(result => {
+			crew = result;
+		})
+		.catch(err => {
+			throw err;
+		});
+
+	if (crew == null || crew.id == null) {
+		response.status = 400;
+		response.message = "Invalid crewId";
+		throw response;
+	}
+
 	//add crew
 	if (booking.crews == null) {
 		booking.crews = new Array();

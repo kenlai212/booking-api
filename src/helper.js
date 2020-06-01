@@ -30,6 +30,10 @@ function logOutgoingResponse(res){
 	logger.info("Response : " + res.statusCode + " " + res.statusMessage);
 }
 
+/**
+ * By: Ken Lai
+ * Date: May 30 , 2020
+ */
 function getNowUTCTimeStamp() {
 	var nowTimestampInUTC = new Date();
 	nowTimestampInUTC.setHours(nowTimestampInUTC.getHours() + 8);

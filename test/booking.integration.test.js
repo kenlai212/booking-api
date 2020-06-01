@@ -433,7 +433,6 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 200);
                     booking1 = response.body;
-                    console.log(booking1);
                     assert.equal(booking1.history.length, 2);
                     assert.equal(booking1.history[1].transactionDescription, "Added new guest : guest2");
                     assert.equal(booking1.guests.length, 2);
@@ -534,6 +533,7 @@ describe('Booking Endpoints', () => {
 
     describe("tessting addCrew", function () {
         var booking1;
+        var crews;
 
         var startTime = new Date();
         startTime.setDate(startTime.getDate() + 1);
@@ -582,6 +582,22 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     booking1 = response.body;
                 });
+
+            //get crews
+            const url = "http://api.occupancy.hebewake.com/crews";
+            const headers = {
+                "Authorization": "Token " + accessToken,
+                "content-Type": "application/json",
+            }
+
+            var response = new Object();
+            await fetch(url, { method: 'GET', headers: headers })
+                .then(async res => {
+                    response = await res.json();
+                })
+                .catch(err => { console.log(err) });
+
+            crews = response;
         });
 
         it("find booking 1, expect 0 crew, should return 200 status", async () => {
@@ -591,7 +607,6 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 200);
                     booking1 = response.body;
-                    console.log(booking1);
                     assert.equal(booking1.history.length, 1);
                     assert.equal(booking1.crews.length, 0);
                 });
@@ -643,17 +658,67 @@ describe('Booking Endpoints', () => {
                 });
         });
 
+        it("invalid crewId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/add-crew")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    crewId: "123"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid crewId");
+                });
+        });
+
         it("success, should return 200 status", async () => {
             await chai.request(server)
                 .put("/add-crew")
                 .set("Authorization", "Token " + accessToken)
                 .send({
                     bookingId: booking1.id,
-                    crewId: "JOHN_CHAN"
+                    crewId: crews[0].id
                 })
                 .then(response => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.status, "SUCCESS");
+                });
+        });
+
+        it("find booking1, expect 1 crew member, should return 400 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.id, booking1.id);
+                    assert.equal(response.body.crews.length, 1);
+                });
+        });
+
+        it("add on more crew, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/add-crew")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    crewId: crews[1].id
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "SUCCESS");
+                });
+        });
+
+        it("find booking1, expect 2 crew members, should return 400 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.id, booking1.id);
+                    assert.equal(response.body.crews.length, 2);
                 });
         });
     });
