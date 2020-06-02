@@ -2,6 +2,7 @@ const chai = require("chai");
 var chaiHttp = require("chai-http");
 const fetch = require("node-fetch");
 const server = require("../server");
+const helper = require("../src/helper");
 
 chai.use(chaiHttp);
 const assert = chai.assert;
@@ -26,13 +27,43 @@ describe('Slot Endpoints', () => {
         }
     });
 
+    var todayStart = new Date();
+    todayStart.setHours(0);
+    todayStart.setMinutes(0);
+    todayStart.setSeconds(0);
+
+    var tomorrowEnd = new Date();
+    tomorrowEnd.setHours(23);
+    tomorrowEnd.setMinutes(59);
+    tomorrowEnd.setSeconds(59);
+
     describe("testing getSlots", function () {
 
         before(() => {
-            var occupancies = getOccupancies("2020-05-10T00:00:00","2020-05-10T23:59:59","MC_NXT20");
+            var occupancies = getOccupancies(helper.dateToStandardString(todayStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
             deleteOccupancies(occupancies);
-            occupyAsset("2020-05-10T11:00:00", "2020-05-10T12:59:59", "MC_NXT20");
-            occupyAsset("2020-05-10T15:00:00", "2020-05-10T16:59:59", "MC_NXT20");
+
+            //add one day
+            var startTime = new Date();
+            startTime.setDate(startTime.getDate() + 1);
+
+            startTime.setHours(11);
+            startTime.setMinutes(0);
+            startTime.setSeconds(0);
+            var endTime = new Date(startTime);
+            endTime.setHours(12);
+            endTime.setMinutes(59);
+            endTime.setMinutes(59);
+            occupyAsset(helper.dateToStandardString(startTime), helper.dateToStandardString(endTime), "MC_NXT20");
+
+            startTime.setHours(15);
+            startTime.setMinutes(0);
+            startTime.setSeconds(0);
+            var endTime = new Date(startTime);
+            endTime.setHours(16);
+            endTime.setMinutes(59);
+            endTime.setMinutes(59);
+            occupyAsset(helper.dateToStandardString(startTime), helper.dateToStandardString(endTime), "MC_NXT20");
             
         });
 
@@ -65,21 +96,51 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        it("success, should return 200 status", async () => {
+        var now = new Date();
+        now.setHours(now.getHours() + 8);
+        var nowStr = helper.dateToStandardString(now);
+        const todayStr = nowStr.slice(0, 10);
+        const nowHourStr = nowStr.substr(11, 2);
+        const minSlotIndex = nowHourStr - 5;
+        
+        it("success, test today, any slots before current time should have available = false, should return 200 status", async () => {
             await chai.request(server)
-                .get("/slots?targetDate=2020-05-10")
+                .get("/slots?targetDate=" + todayStr)
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 15);
-                    assert.equal(response.body[5].available, true);
-                    assert.equal(response.body[6].available, false);
-                    assert.equal(response.body[7].available, false);
-                    assert.equal(response.body[8].available, true);
-                    assert.equal(response.body[9].available, true);
-                    assert.equal(response.body[10].available, false);
-                    assert.equal(response.body[11].available, false);
-                    assert.equal(response.body[12].available, true);
+                    const slots = response.body;
+                    assert.equal(slots.length, 15);
+                    
+                    slots.forEach(slot => {
+                        if (slot.index <= minSlotIndex) {
+                            assert.equal(slot.available, false);
+                        }
+                    });
+                });
+        });
+
+        now = new Date();
+        now.setDate(now.getDate() + 1);
+        nowStr = helper.dateToStandardString(now);
+        const tomorrowStr = nowStr.slice(0, 10);
+
+        it("success, test tomorrow, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/slots?targetDate=" + tomorrowStr)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    const slots = response.body;
+                    assert.equal(slots.length, 15);
+                    assert.equal(slots[2].available, true);
+                    assert.equal(slots[3].available, false);
+                    assert.equal(slots[4].available, false);
+                    assert.equal(slots[5].available, true);
+                    assert.equal(slots[6].available, true);
+                    assert.equal(slots[7].available, false);
+                    assert.equal(slots[8].available, false);
+                    assert.equal(slots[9].available, true);
                 });
         });
     });
@@ -87,10 +148,30 @@ describe('Slot Endpoints', () => {
     describe("testing getEndSlots", function () {
 
         before(() => {
-            var occupancies = getOccupancies("2020-05-10T00:00:00", "2020-05-10T23:59:59", "MC_NXT20");
+            var occupancies = getOccupancies(helper.dateToStandardString(todayStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
             deleteOccupancies(occupancies);
-            occupyAsset("2020-05-10T11:00:00", "2020-05-10T12:59:59", "MC_NXT20");
-            occupyAsset("2020-05-10T15:00:00", "2020-05-10T16:59:59", "MC_NXT20");
+
+            //add one day
+            var startTime = new Date();
+            startTime.setDate(startTime.getDate() + 1);
+
+            startTime.setHours(11);
+            startTime.setMinutes(0);
+            startTime.setSeconds(0);
+            var endTime = new Date(startTime);
+            endTime.setHours(12);
+            endTime.setMinutes(59);
+            endTime.setMinutes(59);
+            occupyAsset(helper.dateToStandardString(startTime), helper.dateToStandardString(endTime), "MC_NXT20");
+
+            startTime.setHours(15);
+            startTime.setMinutes(0);
+            startTime.setSeconds(0);
+            var endTime = new Date(startTime);
+            endTime.setHours(16);
+            endTime.setMinutes(59);
+            endTime.setMinutes(59);
+            occupyAsset(helper.dateToStandardString(startTime), helper.dateToStandardString(endTime), "MC_NXT20");
         });
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
@@ -122,9 +203,14 @@ describe('Slot Endpoints', () => {
                 });
         });
 
+        var startTime = new Date();
+        startTime.setDate(startTime.getDate() + 1);
+        var startTimeStr = helper.dateToStandardString(startTime);
+        const startTimeDateStr = startTimeStr.slice(0, 10);
+
         it("invalid startTime, should return 400 status", async () => {
             await chai.request(server)
-                .get("/end-slots?startTime=2020-05-10T08:00:aa")
+                .get("/end-slots?startTime="+startTimeDateStr+"T08:00:aa")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.body.error, "Invalid startTime format");
@@ -132,25 +218,39 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        it("successfully get end-slots starting form 08:00:00, should return 3 end-slots, weekday - unit cost should 1200 HKD, should return 200 status", async () => {
+        it("successfully get end-slots starting form 05:00:00, should return 2 end-slots, weekday - unit cost should 1200 HKD, should return 200 status", async () => {
             await chai.request(server)
-                .get("/end-slots?startTime=2020-05-10T08:00:00")
+                .get("/end-slots?startTime="+startTimeDateStr+"T05:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.length, 3);
-                    assert.equal(response.body[0].totalAmount, 1200);
+                    assert.equal(response.body[0].startTime, startTimeDateStr + "T05:00:00");
+                    assert.equal(response.body[1].startTime, startTimeDateStr + "T06:00:00");
+                    assert.equal(response.body[2].startTime, startTimeDateStr + "T07:00:00");
+
+                    //if startTime is on weekEnd vs weekDay, the totalAmount will be different
+                    var day = startTime.getDay();
+                    var isWeekend = (day === 6) || (day === 0);
+                    if (isWeekend) {
+                        assert.equal(response.body[0].totalAmount, 1200);
+                        assert.equal(response.body[1].totalAmount, 2400);
+                        assert.equal(response.body[2].totalAmount, 3600);
+                    } else {
+                        assert.equal(response.body[0].totalAmount, 1000);
+                        assert.equal(response.body[1].totalAmount, 2000);
+                        assert.equal(response.body[2].totalAmount, 3000);
+                    }
+                    
                     assert.equal(response.body[0].currency, "HKD");
-                    assert.equal(response.body[1].totalAmount, 2400);
                     assert.equal(response.body[1].currency, "HKD");
-                    assert.equal(response.body[2].totalAmount, 3600);
                     assert.equal(response.body[2].currency, "HKD");
                 });
         });
 
-        it("successfully get end-slots starting form 11:00:00, should return 0 end-slots, should return 200 status", async () => {
+        it("successfully get end-slots starting form 08:00:00, should return 0 end-slots, should return 200 status", async () => {
             await chai.request(server)
-                .get("/end-slots?startTime=2020-05-10T11:00:00")
+                .get("/end-slots?startTime="+startTimeDateStr+"T08:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
@@ -158,30 +258,27 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        it("successfully get end-slots starting form 12:00:00, should return 3 end-slots, weekday - unit cost should 1200 HKD, should return 200 status", async () => {
+        it("successfully get end-slots starting form 10:00:00, should return 2 end-slots, should return 200 status", async () => {
             await chai.request(server)
-                .get("/end-slots?startTime=2020-05-10T13:00:00")
+                .get("/end-slots?startTime="+startTimeDateStr+"T10:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.length, 2);
-                    assert.equal(response.body[0].totalAmount, 1200);
-                    assert.equal(response.body[0].currency, "HKD");
-                    assert.equal(response.body[1].totalAmount, 2400);
-                    assert.equal(response.body[1].currency, "HKD");
-                });
-        });
+                    assert.equal(response.body[0].startTime, startTimeDateStr + "T10:00:00");
+                    assert.equal(response.body[1].startTime, startTimeDateStr + "T11:00:00");
+                    //if startTime is on weekEnd vs weekDay, the totalAmount will be different
+                    var day = startTime.getDay();
+                    var isWeekend = (day === 6) || (day === 0);
+                    if (isWeekend) {
+                        assert.equal(response.body[0].totalAmount, 1200);
+                        assert.equal(response.body[1].totalAmount, 2400);
+                    } else {
+                        assert.equal(response.body[0].totalAmount, 1000);
+                        assert.equal(response.body[1].totalAmount, 2000);
+                    }
 
-        it("successfully get end-slots starting form 05:00:00, should return 14 end-slots, weekday - unit cost should 1000 HKD, should return 200 status", async () => {
-            await chai.request(server)
-                .get("/end-slots?startTime=2020-05-11T05:00:00")
-                .set("Authorization", "Token " + accessToken)
-                .then(response => {
-                    assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 15);
-                    assert.equal(response.body[0].totalAmount, 1000);
                     assert.equal(response.body[0].currency, "HKD");
-                    assert.equal(response.body[1].totalAmount, 2000);
                     assert.equal(response.body[1].currency, "HKD");
                 });
         });

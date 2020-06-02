@@ -220,24 +220,30 @@ async function setAvailbilities(slots){
 			throw err;
 		});
 	
-	for (var i = 0; i < slots.length; i++) {
-		slots[i].available = true;
+	slots.forEach(slot => {
+		slot.available = true;
 
-		var slotStartTime = slots[i].startTime;
-		var slotEndTime = slots[i].endTime;
+		var slotStartTime = slot.startTime;
+		var slotEndTime = slot.endTime;
 
-		for(var j = 0; j < occupancies.length; j++){
-
-			const occupancyStartTime = helper.standardStringToDate(occupancies[j].startTime);
-			const occupancyEndTime = helper.standardStringToDate(occupancies[j].endTime);
+		//cross check current slot against occupancies list
+		occupancies.forEach(occupancy => {
+			const occupancyStartTime = helper.standardStringToDate(occupancy.startTime);
+			const occupancyEndTime = helper.standardStringToDate(occupancy.endTime);
 
 			if ((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
 				(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
 				(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)) {
-				slots[i].available = false;
+				slot.available = false;
 			}
-		}	
-	}
+		});
+
+		//cross check current slot is in the pass
+		const now = helper.getNowUTCTimeStamp();
+		if (slotStartTime < now) {
+			slot.available = false;
+		}
+	});
 
 	return slots;
 }
