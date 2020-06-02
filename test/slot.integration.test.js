@@ -133,11 +133,11 @@ describe('Slot Endpoints', () => {
                     assert.equal(response.status, 200);
                     const slots = response.body;
                     assert.equal(slots.length, 15);
-                    assert.equal(slots[2].available, true);
+                    assert.equal(slots[2].available, false);
                     assert.equal(slots[3].available, false);
                     assert.equal(slots[4].available, false);
                     assert.equal(slots[5].available, true);
-                    assert.equal(slots[6].available, true);
+                    assert.equal(slots[6].available, false);
                     assert.equal(slots[7].available, false);
                     assert.equal(slots[8].available, false);
                     assert.equal(slots[9].available, true);

@@ -40,7 +40,6 @@ const endSlots = async (req, res) => {
 		res.json(response);
 		res.status(200);
 	} catch (err) {
-		console.log(err);
 		res.status(err.status);
 		res.json({ "error": err.message });
 	}

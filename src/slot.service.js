@@ -69,6 +69,19 @@ async function getSlots(input, user){
 			throw response;
 		});
 
+	//for each slots, chceck the availability of the nexst slot, 
+	//if not available, set itself to not available as well due to minimum 2hrs limit
+	slots.forEach((slot, index) => {
+		const nextIndex = index + 1;
+
+		if (index < slots.length - 1) {
+			if (slots[nextIndex].available == false) {
+				slot.available = false
+			}
+		}
+		
+	});
+
 	var outputObjs = [];
 	slots.forEach(slot => {
 		var outputObj = slotToOutuptObj(slot);
@@ -220,13 +233,13 @@ async function setAvailbilities(slots){
 			throw err;
 		});
 	
-	slots.forEach(slot => {
+	slots.forEach((slot) => {
 		slot.available = true;
 
 		var slotStartTime = slot.startTime;
 		var slotEndTime = slot.endTime;
 
-		//cross check current slot against occupancies list
+		//cross check current slot against occupancies list for overlap
 		occupancies.forEach(occupancy => {
 			const occupancyStartTime = helper.standardStringToDate(occupancy.startTime);
 			const occupancyEndTime = helper.standardStringToDate(occupancy.endTime);
@@ -234,7 +247,10 @@ async function setAvailbilities(slots){
 			if ((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
 				(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
 				(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)) {
+
+				//overlapped....not available
 				slot.available = false;
+				
 			}
 		});
 
@@ -243,6 +259,7 @@ async function setAvailbilities(slots){
 		if (slotStartTime < now) {
 			slot.available = false;
 		}
+		
 	});
 
 	return slots;
