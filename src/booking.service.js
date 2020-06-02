@@ -470,7 +470,7 @@ async function cancelBooking(input, user){
 			throw response;
 		});
 
-	return "SUCCESS";
+	return {"status":"SUCCESS"};
 }
 
 async function removeGuest(input, user) {
