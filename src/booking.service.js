@@ -753,6 +753,8 @@ async function addCrew(input, user) {
 	booking.crews.push({
 		crewId: crew.id,
 		crewName: crew.crewName,
+		telephoneCountryCode: crew.telephoneCountryCode,
+		telephoneNumber: crew.telephoneNumber,
 		assignmentTime: nowTimestampInUTC,
 		assignmentBy: user.id
 	});

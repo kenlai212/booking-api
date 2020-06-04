@@ -170,9 +170,6 @@ function userAuthorization(userGroups, allowGroups) {
  * By : Ken Lai
  * Date : May 17, 2020
  * 
- * @param {any} url
- * @param {any} requestAttr
- * 
  * private function, call external api. 
  * 
  * If no global access toke available, call login api to get it

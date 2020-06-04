@@ -695,10 +695,12 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.body.id, booking1.id);
                     assert.equal(response.body.crews.length, 1);
                     assert.equal(response.body.crews[0].crewName, crews[0].crewName);
+                    assert.equal(response.body.crews[0].telephoneCountryCode, crews[0].telephoneCountryCode);
+                    assert.equal(response.body.crews[0].telephoneNumber, crews[0].telephoneNumber);
                 });
         });
 
-        it("add on more crew, should return 200 status", async () => {
+        it("add one more crew, should return 200 status", async () => {
             await chai.request(server)
                 .put("/add-crew")
                 .set("Authorization", "Token " + accessToken)
@@ -721,7 +723,11 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.body.id, booking1.id);
                     assert.equal(response.body.crews.length, 2);
                     assert.equal(response.body.crews[0].crewName, crews[0].crewName);
+                    assert.equal(response.body.crews[0].telephoneCountryCode, crews[0].telephoneCountryCode);
+                    assert.equal(response.body.crews[0].telephoneNumber, crews[0].telephoneNumber);
                     assert.equal(response.body.crews[1].crewName, crews[1].crewName);
+                    assert.equal(response.body.crews[1].telephoneCountryCode, crews[1].telephoneCountryCode);
+                    assert.equal(response.body.crews[1].telephoneNumber, crews[1].telephoneNumber);
                 });
         });
     });
