@@ -2,69 +2,73 @@ const chai = require("chai");
 var chaiHttp = require("chai-http");
 const fetch = require("node-fetch");
 const server = require("../server");
-const helper = require("../src/helper");
+const common = require("gogowake-common");
+const Booking = require("../src/booking.model").Booking;
+const mongoose = require("mongoose");
 
 chai.use(chaiHttp);
 const assert = chai.assert;
 
 require('dotenv').config();
 
-const AUTHENTICATION_DOMAIN = "http://api.authentication.hebewake.com";
-const LOGIN_SUBDOMAIN = "/login";
-const AUTHENTICATION_API_LOGIN = "ken";
-const AUTHENTICATION_API_PASSWORD = "Maxsteel1596";
+const AUTHENTICATION_API_LOGIN = "tester";
+const AUTHENTICATION_API_PASSWORD = "password123";
 var accessToken;
+
+const GET_OCCUPANCIES_URL = "http://api.occupancy.hebewake.com/occupancies";
+const DELETE_OCCUPANCY_URL = "http://api.occupancy.hebewake.com/occupancy";
+const OCCUPY_ASSET_URL = "http://api.occupancy.hebewake.com/occupancy";
 
 describe('Slot Endpoints', () => {
 
     //call login api to get accessToken
     before(async () => {
+        await mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useNewUrlParser: true });
+
         if (accessToken == null) {
-            await callLoginAPI()
+            await common.callLoginAPI(AUTHENTICATION_API_LOGIN, AUTHENTICATION_API_PASSWORD)
                 .then(accessTokenObj => {
                     accessToken = accessTokenObj.accessToken;
                 });
         }
     });
 
-    var todayStart = new Date();
-    todayStart.setHours(0);
-    todayStart.setMinutes(0);
-    todayStart.setSeconds(0);
-
-    var tomorrowEnd = new Date();
-    tomorrowEnd.setHours(23);
-    tomorrowEnd.setMinutes(59);
-    tomorrowEnd.setSeconds(59);
+    after(async () => {
+        await deleteAll();
+    })
 
     describe("testing getSlots", function () {
+        this.timeout(5000);
 
-        before(() => {
-            var occupancies = getOccupancies(helper.dateToStandardString(todayStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
-            deleteOccupancies(occupancies);
+        before(async() => {
+            await deleteAll()
+                .then(async() => {
+                    //set start time to tomorrow
+                    var startTime = common.getNowUTCTimeStamp();
+                    startTime.setUTCDate(startTime.getUTCDate() + 1);
 
-            //add one day
-            var startTime = new Date();
-            startTime.setDate(startTime.getDate() + 1);
+                    //occupy asset from 11:00:00 to 12:59:59
+                    startTime.setUTCHours(11);
+                    startTime.setUTCMinutes(0);
+                    startTime.setUTCSeconds(0);
 
-            startTime.setHours(11);
-            startTime.setMinutes(0);
-            startTime.setSeconds(0);
-            var endTime = new Date(startTime);
-            endTime.setHours(12);
-            endTime.setMinutes(59);
-            endTime.setMinutes(59);
-            occupyAsset(helper.dateToStandardString(startTime), helper.dateToStandardString(endTime), "MC_NXT20");
+                    var endTime = common.getNowUTCTimeStamp();
+                    endTime.setUTCDate(endTime.getUTCDate() + 1);
+                    endTime.setUTCHours(12);
+                    endTime.setUTCMinutes(59);
+                    endTime.setUTCSeconds(59);
+                    await occupyAsset(common.dateToStandardString(startTime), common.dateToStandardString(endTime), "MC_NXT20");
 
-            startTime.setHours(15);
-            startTime.setMinutes(0);
-            startTime.setSeconds(0);
-            var endTime = new Date(startTime);
-            endTime.setHours(16);
-            endTime.setMinutes(59);
-            endTime.setMinutes(59);
-            occupyAsset(helper.dateToStandardString(startTime), helper.dateToStandardString(endTime), "MC_NXT20");
-            
+                    //occupy asset from 15:00:00 to 16:59:59
+                    startTime.setUTCHours(15);
+                    startTime.setUTCMinutes(0);
+                    startTime.setUTCSeconds(0);
+
+                    endTime.setUTCHours(16);
+                    endTime.setUTCMinutes(59);
+                    endTime.setUTCSeconds(59);
+                    await occupyAsset(common.dateToStandardString(startTime), common.dateToStandardString(endTime), "MC_NXT20");
+                });
         });
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
@@ -96,9 +100,8 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        var now = new Date();
-        now.setHours(now.getHours() + 8);
-        var nowStr = helper.dateToStandardString(now);
+        var now = common.getNowUTCTimeStamp();
+        var nowStr = common.dateToStandardString(now);
         const todayStr = nowStr.slice(0, 10);
         const nowHourStr = nowStr.substr(11, 2);
         const minSlotIndex = nowHourStr - 5;
@@ -120,10 +123,10 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        now = new Date();
-        now.setDate(now.getDate() + 1);
-        nowStr = helper.dateToStandardString(now);
-        const tomorrowStr = nowStr.slice(0, 10);
+        var tomorrow = common.getNowUTCTimeStamp();;
+        tomorrow.setUTCDate(tomorrow.getUTCDate() + 1);
+        var tomorrowStr = common.dateToStandardString(tomorrow);
+        tomorrowStr = tomorrowStr.slice(0, 10);
 
         it("success, test tomorrow, should return 200 status", async () => {
             await chai.request(server)
@@ -133,45 +136,46 @@ describe('Slot Endpoints', () => {
                     assert.equal(response.status, 200);
                     const slots = response.body;
                     assert.equal(slots.length, 15);
-                    assert.equal(slots[2].available, false);
-                    assert.equal(slots[3].available, false);
-                    assert.equal(slots[4].available, false);
-                    assert.equal(slots[5].available, true);
+                    assert.equal(slots[5].available, false);
                     assert.equal(slots[6].available, false);
                     assert.equal(slots[7].available, false);
-                    assert.equal(slots[8].available, false);
-                    assert.equal(slots[9].available, true);
+                    assert.equal(slots[8].available, true);
+                    assert.equal(slots[9].available, false);
+                    assert.equal(slots[10].available, false);
+                    assert.equal(slots[11].available, false);
+                    assert.equal(slots[12].available, true);
                 });
         });
     });
-
+    
     describe("testing getEndSlots", function () {
 
-        before(() => {
-            var occupancies = getOccupancies(helper.dateToStandardString(todayStart), helper.dateToStandardString(tomorrowEnd), "MC_NXT20");
-            deleteOccupancies(occupancies);
+        before(async() => {
+            await deleteAll()
+                .then(async () => {
+                    //add one day
+                    var startTime = common.getNowUTCTimeStamp();
+                    startTime.setUTCDate(startTime.getUTCDate() + 1);
+                    startTime.setUTCHours(11);
+                    startTime.setUTCMinutes(0);
+                    startTime.setUTCSeconds(0);
 
-            //add one day
-            var startTime = new Date();
-            startTime.setDate(startTime.getDate() + 1);
+                    var endTime = common.getNowUTCTimeStamp();
+                    endTime.setUTCDate(endTime.getUTCDate() + 1);
+                    endTime.setUTCHours(12);
+                    endTime.setUTCMinutes(59);
+                    endTime.setUTCMinutes(59);
+                    await occupyAsset(common.dateToStandardString(startTime), common.dateToStandardString(endTime), "MC_NXT20");
 
-            startTime.setHours(11);
-            startTime.setMinutes(0);
-            startTime.setSeconds(0);
-            var endTime = new Date(startTime);
-            endTime.setHours(12);
-            endTime.setMinutes(59);
-            endTime.setMinutes(59);
-            occupyAsset(helper.dateToStandardString(startTime), helper.dateToStandardString(endTime), "MC_NXT20");
-
-            startTime.setHours(15);
-            startTime.setMinutes(0);
-            startTime.setSeconds(0);
-            var endTime = new Date(startTime);
-            endTime.setHours(16);
-            endTime.setMinutes(59);
-            endTime.setMinutes(59);
-            occupyAsset(helper.dateToStandardString(startTime), helper.dateToStandardString(endTime), "MC_NXT20");
+                    startTime.setUTCHours(15);
+                    startTime.setUTCMinutes(0);
+                    startTime.setUTCSeconds(0);
+                    
+                    endTime.setUTCHours(16);
+                    endTime.setUTCMinutes(59);
+                    endTime.setUTCMinutes(59);
+                    await occupyAsset(common.dateToStandardString(startTime), common.dateToStandardString(endTime), "MC_NXT20");
+                });
         });
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
@@ -205,7 +209,7 @@ describe('Slot Endpoints', () => {
 
         var startTime = new Date();
         startTime.setDate(startTime.getDate() + 1);
-        var startTimeStr = helper.dateToStandardString(startTime);
+        var startTimeStr = common.dateToStandardString(startTime);
         const startTimeDateStr = startTimeStr.slice(0, 10);
 
         it("invalid startTime, should return 400 status", async () => {
@@ -218,16 +222,19 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        it("successfully get end-slots starting form 05:00:00, should return 2 end-slots, weekday - unit cost should 1200 HKD, should return 200 status", async () => {
+        it("successfully get end-slots starting form 05:00:00, should return 6 end-slots, weekday - unit cost should 1200 HKD, should return 200 status", async () => {
             await chai.request(server)
                 .get("/end-slots?startTime="+startTimeDateStr+"T05:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 3);
+                    assert.equal(response.body.length, 6);
                     assert.equal(response.body[0].startTime, startTimeDateStr + "T05:00:00");
                     assert.equal(response.body[1].startTime, startTimeDateStr + "T06:00:00");
                     assert.equal(response.body[2].startTime, startTimeDateStr + "T07:00:00");
+                    assert.equal(response.body[3].startTime, startTimeDateStr + "T08:00:00");
+                    assert.equal(response.body[4].startTime, startTimeDateStr + "T09:00:00");
+                    assert.equal(response.body[5].startTime, startTimeDateStr + "T10:00:00");
 
                     //if startTime is on weekEnd vs weekDay, the totalAmount will be different
                     var day = startTime.getDay();
@@ -235,22 +242,29 @@ describe('Slot Endpoints', () => {
                     if (isWeekend) {
                         assert.equal(response.body[0].totalAmount, 1200);
                         assert.equal(response.body[1].totalAmount, 2400);
-                        assert.equal(response.body[2].totalAmount, 3600);
                     } else {
                         assert.equal(response.body[0].totalAmount, 1000);
                         assert.equal(response.body[1].totalAmount, 2000);
-                        assert.equal(response.body[2].totalAmount, 3000);
                     }
                     
                     assert.equal(response.body[0].currency, "HKD");
                     assert.equal(response.body[1].currency, "HKD");
-                    assert.equal(response.body[2].currency, "HKD");
                 });
         });
 
-        it("successfully get end-slots starting form 08:00:00, should return 0 end-slots, should return 200 status", async () => {
+        it("successfully get end-slots starting form 08:00:00, should return 3 end-slots, should return 200 status", async () => {
             await chai.request(server)
                 .get("/end-slots?startTime="+startTimeDateStr+"T08:00:00")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.length, 3);
+                });
+        });
+
+        it("successfully get end-slots starting form 11:00:00, should return 0 end-slots, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/end-slots?startTime=" + startTimeDateStr + "T11:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
@@ -258,35 +272,31 @@ describe('Slot Endpoints', () => {
                 });
         });
 
-        it("successfully get end-slots starting form 10:00:00, should return 2 end-slots, should return 200 status", async () => {
+        it("successfully get end-slots starting form 10:00:00, should return 1 end-slots, should return 200 status", async () => {
             await chai.request(server)
                 .get("/end-slots?startTime="+startTimeDateStr+"T10:00:00")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 2);
+                    assert.equal(response.body.length, 1);
                     assert.equal(response.body[0].startTime, startTimeDateStr + "T10:00:00");
-                    assert.equal(response.body[1].startTime, startTimeDateStr + "T11:00:00");
                     //if startTime is on weekEnd vs weekDay, the totalAmount will be different
                     var day = startTime.getDay();
                     var isWeekend = (day === 6) || (day === 0);
                     if (isWeekend) {
                         assert.equal(response.body[0].totalAmount, 1200);
-                        assert.equal(response.body[1].totalAmount, 2400);
                     } else {
                         assert.equal(response.body[0].totalAmount, 1000);
-                        assert.equal(response.body[1].totalAmount, 2000);
                     }
 
                     assert.equal(response.body[0].currency, "HKD");
-                    assert.equal(response.body[1].currency, "HKD");
                 });
         });
     });
 });
 
 async function occupyAsset(startTime, endTime, assetId) {
-    const url = "http://api.occupancy.hebewake.com/occupancy";
+    const url = OCCUPY_ASSET_URL;
     const headers = {
         "Authorization": "Token " + accessToken,
         "content-Type": "application/json",
@@ -298,75 +308,65 @@ async function occupyAsset(startTime, endTime, assetId) {
         "occupancyType": "OPEN_BOOKING"
     }
 
+    var occupancy;
     await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
+        .then(async res => {
+            occupancy = await res.json();
+        })
         .catch(err => { console.log(err); });
+
+    console.log(occupancy);
+    return occupancy;
 }
 
-function deleteOccupancies(occupancies) {
+async function deleteAll() {
+    var oneWeekAgo = common.getNowUTCTimeStamp();
+    oneWeekAgo.setUTCDate(oneWeekAgo.getUTCDate() - 7);
+    oneWeekAgo.setUTCHours(0);
+    oneWeekAgo.setUTCMinutes(0);
+    oneWeekAgo.setUTCSeconds(0);
 
-    var deleteResults = [];
+    var oneWeekFromNow = common.getNowUTCTimeStamp();
+    oneWeekFromNow.setUTCDate(oneWeekFromNow.getUTCDate() + 7);
+    oneWeekFromNow.setUTCHours(23);
+    oneWeekFromNow.setUTCMinutes(59);
+    oneWeekFromNow.setUTCSeconds(59);
 
-    if (occupancies.length > 0) {
-    
-        const url = "http://api.occupancy.hebewake.com/occupancy";
-        const headers = {
-            "Authorization": "Token " + accessToken,
-            "content-Type": "application/json",
-        }
-
-        occupancies.forEach(occupancy => {
-            var data = {
-                "occupancyId": occupancy.id
-            }
-
-            fetch(url, { method: 'DELETE', headers: headers, body: JSON.stringify(data) })
-                .then(res => {
-                    deleteResults.push(res.json());
-                })
-                .catch(err => { console.log(err); });
-        });
-    }
-
-    return deleteResults;
-}
-
-function getOccupancies(startTime, endTime, assetId) {
-    const url = "http://api.occupancy.hebewake.com/occupancies?startTime="+ startTime +"&endTime=" + endTime + "&assetId=" + assetId;
+    //get all occupancies from yesterday till tomorrow
+    const url = GET_OCCUPANCIES_URL + "?startTime=" + common.dateToStandardString(oneWeekAgo) + "&endTime=" + common.dateToStandardString(oneWeekFromNow) + "&assetId=MC_NXT20";
     const headers = {
         "Authorization": "Token " + accessToken,
         "content-Type": "application/json",
     }
 
-    var response = new Object();
-    fetch(url, { method: 'GET', headers: headers })
+    await fetch(url, { method: 'GET', headers: headers })
         .then(async res => {
-            response = await res.json();
+            var occupancies = await res.json();
+
+            if (occupancies.length > 0) {
+
+                //delete all occupancies from yesterday till tomorrow
+                const url = DELETE_OCCUPANCY_URL;
+                const headers = {
+                    "Authorization": "Token " + accessToken,
+                    "content-Type": "application/json",
+                }
+
+                occupancies.forEach(async occupancy => {
+                    var data = {
+                        "occupancyId": occupancy.id
+                    }
+
+                    await fetch(url, { method: 'DELETE', headers: headers, body: JSON.stringify(data) })
+                        .then(() => {
+                            console.log("Successfully deleted occupancy : " + occupancy.id);
+                        })
+                        .catch(err => { console.log(err); });
+                });
+            }
+
+            //delete all bookings
+            await Booking.deleteMany().exec();
         })
         .catch(err => { console.log(err) });
-
-    return response;
-}
-
-async function callLoginAPI() {
-    const url = AUTHENTICATION_DOMAIN + LOGIN_SUBDOMAIN;
-    const headers = {
-        "content-Type": "application/json",
-    }
-    const data = {
-        "loginId": AUTHENTICATION_API_LOGIN,
-        "password": AUTHENTICATION_API_PASSWORD
-    }
-
-    var response;
-    await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
-        .then((res) => {
-            if (res.status >= 200 && res.status < 300) {
-                console.log("Sucessfully got accessToken!");
-                response = res.json();
-            } else {
-                console.log("External Authentication Login API error : " + res.statusText);
-            }
-        });
-
-    return response;
 }

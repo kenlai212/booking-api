@@ -1,7 +1,6 @@
 const chai = require("chai");
 var chaiHttp = require("chai-http");
-const fetch = require("node-fetch");
-const jwt = require("jsonwebtoken");
+const common = require("gogowake-common");
 const server = require("../server");
 
 chai.use(chaiHttp);
@@ -9,10 +8,8 @@ const assert = chai.assert;
 
 require('dotenv').config();
 
-const AUTHENTICATION_DOMAIN = "http://api.authentication.hebewake.com";
-const LOGIN_SUBDOMAIN = "/login";
-const AUTHENTICATION_API_LOGIN = "ken";
-const AUTHENTICATION_API_PASSWORD = "Maxsteel1596";
+const AUTHENTICATION_API_LOGIN = "tester";
+const AUTHENTICATION_API_PASSWORD = "password123";
 var accessToken;
 
 describe('Pricing Endpoints', () => {
@@ -20,7 +17,7 @@ describe('Pricing Endpoints', () => {
     //call login api to get accessToken
     before(async () => {
         if (accessToken == null) {
-            await callLoginAPI()
+            await common.callLoginAPI(AUTHENTICATION_API_LOGIN, AUTHENTICATION_API_PASSWORD)
                 .then(accessTokenObj => {
                     accessToken = accessTokenObj.accessToken;
                 });
@@ -154,27 +151,3 @@ describe('Pricing Endpoints', () => {
         });
     });
 });
-
-async function callLoginAPI() {
-    const url = AUTHENTICATION_DOMAIN + LOGIN_SUBDOMAIN;
-    const headers = {
-        "content-Type": "application/json",
-    }
-    const data = {
-        "loginId": AUTHENTICATION_API_LOGIN,
-        "password": AUTHENTICATION_API_PASSWORD
-    }
-
-    var response;
-    await fetch(url, { method: 'POST', headers: headers, body: JSON.stringify(data) })
-        .then((res) => {
-            if (res.status >= 200 && res.status < 300) {
-                console.log("Sucessfully got accessToken!");
-                response = res.json();
-            } else {
-                console.log("External Authentication Login API error : " + res.statusText);
-            }
-        });
-
-    return response;
-}

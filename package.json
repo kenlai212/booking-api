@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "devStart": "nodemon server.js",
-    "test": "mocha --recursive --exit"
+    "test": "mocha './test/slot.integration.test.js' --exit"
   },
   "author": "",
   "license": "ISC",
@@ -13,20 +13,18 @@
     "bcryptjs": "^2.4.3",
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
+    "gogowake-common": "git+https://github.com/kenlai212/gogowake-common.git",
     "jsonwebtoken": "^8.5.1",
-    "moment": "^2.25.3",
-    "mongodb": "^3.3.5",
-    "mongoose": "^5.9.10",
-    "node-fetch": "^2.6.0",
-    "uuid": "^3.3.3",
-    "winston": "^3.2.1"
+    "mongodb": "^3.5.9",
+    "mongoose": "^5.9.20",
+    "uuid": "^3.4.0"
   },
   "devDependencies": {
     "chai": "^4.2.0",
     "chai-as-promised": "^7.1.1",
     "chai-http": "^4.2.0",
-    "mocha": "^6.2.2",
-    "nodemon": "^2.0.2",
+    "mocha": "^6.2.3",
+    "nodemon": "^2.0.4",
     "sinon": "^7.5.0"
   }
 }

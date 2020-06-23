@@ -1,9 +1,5 @@
 "use strict";
-const logger = require("./logger");
-
 const mongoose = require("mongoose");
-
-require('dotenv').config();
 
 const bookingSchema = new mongoose.Schema({
 	creationTime: Date,
@@ -18,6 +14,8 @@ const bookingSchema = new mongoose.Schema({
 	telephoneNumber: String,
 	emailAddress: String,
 	totalAmount: Number,
+	recievedAmount: Number,
+	fullfilledHours: Number,
 	currency: String,
 	paymentStatus: String,
 	guests: [{

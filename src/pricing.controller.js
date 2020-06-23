@@ -1,13 +1,13 @@
 "use strict";
 const url = require("url");
-const helper = require("./helper");
-const logger = require("./logger");
 const pricingService = require("./pricing.service");
+const common = require("gogowake-common");
+const logger = common.logger;
 
 require('dotenv').config();
 
 const totalAmount = async (req, res) => {
-	helper.logIncommingRequest(req);
+	common.logIncommingRequest(req);
 
 	const queryObject = url.parse(req.url, true).query;
 
@@ -23,7 +23,7 @@ const totalAmount = async (req, res) => {
 	}
 
 	res.on("finish", function () {
-		helper.logOutgoingResponse(res);
+		common.logOutgoingResponse(res);
 	});
 
 	return res;

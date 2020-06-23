@@ -1,89 +1,6 @@
 const logger = require('./logger');
 const fetch = require("node-fetch");
-const moment = require('moment');
 require('dotenv').config();
-
-/**
- * By: Ken Lai
- * Date: Mar 01, 2020
- * 
- * Log all incomming requests
- * originalURL, remoteAddress, userId, requestBody
- */
-function logIncommingRequest(req){
-	logger.info(req.method + ":" + req.originalUrl + " from " + req.connection.remoteAddress);
-	logger.info("Request user : " + req.user.id);
-
-	if (req.body != null) {
-		logger.info("Request body : " + JSON.stringify(req.body));
-	}
-}
-
-/**
- * By: Ken Lai
- * Date: Mar 01, 2020
- * 
- * Log all out going responses
- * statusCode, statusMessage
- */
-function logOutgoingResponse(res){
-	logger.info("Response : " + res.statusCode + " " + res.statusMessage);
-}
-
-/**
- * By: Ken Lai
- * Date: May 30 , 2020
- */
-function getNowUTCTimeStamp() {
-	var nowTimestampInUTC = new Date();
-	nowTimestampInUTC.setHours(nowTimestampInUTC.getHours() + 8);
-
-	return nowTimestampInUTC;
-}
-
-/**
- * By: Ken Lai
- * Date: Apr 15, 2020
- * 
- * Turn standard input date string - YYYY-MM-DDTHH:mm:ss
- * into a date object
- */
-function standardStringToDate(dateStr) {
-	
-	if (dateStr.length != 19) {
-		throw new Error(dateStr);
-	}
-
-	dateStr = dateStr + "Z";
-
-	var momentDate;
-	try {
-		momentDate = moment(dateStr);
-	} catch (err) {
-		logger.error(err);
-		throw new Error(dateStr);
-	}
-
-	var dateTime = momentDate.toDate();
-	if (isNaN(dateTime.getTime())) {
-		throw new Error(dateStr);
-	}
-	
-	return dateTime;
-}
-
-/*********************************************************
-By : Ken Lai
-
-Turn date into stardard output date string in localTime-
-YYYY-MM-DDTHH:mm:ss
-**********************************************************/
-function dateToStandardString(date) {
-	var standardStr = date.toISOString();
-	standardStr = standardStr.slice(0, 19)
-	return standardStr;
-}
-
 
 /********************************************************
 By : Ken Lai
@@ -280,11 +197,6 @@ async function callAPI(url, requestAttr) {
 }
 
 module.exports = {
-	logIncommingRequest,
-	logOutgoingResponse,
-	getNowUTCTimeStamp,
-	standardStringToDate,
-	dateToStandardString,
 	callLoginAPI,
 	callTokenAPI,
 	userAuthorization,

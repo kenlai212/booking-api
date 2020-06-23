@@ -1,5 +1,5 @@
 "use strict";
-const helper = require("./helper");
+const common = require("gogowake-common");
 
 require('dotenv').config();
 
@@ -15,7 +15,7 @@ function calculateTotalAmount(input, user) {
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -31,7 +31,7 @@ function calculateTotalAmount(input, user) {
 
 	var startTime;
 	try {
-		startTime = helper.standardStringToDate(input.startTime);
+		startTime = common.standardStringToDate(input.startTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid startTime format";
@@ -47,7 +47,7 @@ function calculateTotalAmount(input, user) {
 
 	var endTime;
 	try {
-		endTime = helper.standardStringToDate(input.endTime);
+		endTime = common.standardStringToDate(input.endTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid endTime format";

@@ -1,7 +1,7 @@
 "use strict";
-const logger = require("./logger");
-const helper = require("./helper");
 const pricingService = require("./pricing.service");
+const common = require("gogowake-common");
+const logger = common.logger;
 
 const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
@@ -23,7 +23,7 @@ async function getSlots(input, user){
 		"BOOKING_USER_GROUP"
 	]
 
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -38,7 +38,7 @@ async function getSlots(input, user){
 
 	var dayStartTime;
 	try {
-		dayStartTime = helper.standardStringToDate(input.targetDate + "T" + DAY_START);
+		dayStartTime = common.standardStringToDate(input.targetDate + "T" + DAY_START);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid targetDate format";
@@ -47,7 +47,7 @@ async function getSlots(input, user){
 
 	var dayEndTime;
 	try {
-		dayEndTime = helper.standardStringToDate(input.targetDate + "T" + DAY_END);
+		dayEndTime = common.standardStringToDate(input.targetDate + "T" + DAY_END);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid targetDate format";
@@ -106,7 +106,7 @@ async function getEndSlots(input, user){
 		"BOOKING_USER_GROUP"
 	]
 
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -120,7 +120,7 @@ async function getEndSlots(input, user){
 
 	var startTime;
 	try {
-		startTime = helper.standardStringToDate(input.startTime);
+		startTime = common.standardStringToDate(input.startTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid startTime format";
@@ -131,7 +131,7 @@ async function getEndSlots(input, user){
 	var dayStartTime;
 	var targetDateStr = input.startTime.slice(0,10);
 	try {
-		dayStartTime = helper.standardStringToDate(targetDateStr + "T" + DAY_START);
+		dayStartTime = common.standardStringToDate(targetDateStr + "T" + DAY_START);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid dayStartTime format";
@@ -141,7 +141,7 @@ async function getEndSlots(input, user){
 	//setup dayEndTime  for generateSlots() function
 	var dayEndTime;
 	try {
-		dayEndTime = helper.standardStringToDate(targetDateStr + "T" + DAY_END);
+		dayEndTime = common.standardStringToDate(targetDateStr + "T" + DAY_END);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid dayEndTime format";
@@ -192,11 +192,11 @@ async function getEndSlots(input, user){
 	//set totalAmount for each end slot
 	endSlots.forEach((slot => {
 		try {
-			const totalAmountObj = pricingService.calculateTotalAmount({ "startTime": helper.dateToStandardString(startTime), "endTime": helper.dateToStandardString(slot.endTime) }, user);
+			const totalAmountObj = pricingService.calculateTotalAmount({ "startTime": common.dateToStandardString(startTime), "endTime": common.dateToStandardString(slot.endTime) }, user);
 			slot.totalAmount = totalAmountObj.totalAmount;
 			slot.currency = totalAmountObj.currency;
-			slot.startTime = helper.dateToStandardString(slot.startTime);
-			slot.endTime = helper.dateToStandardString(slot.endTime);
+			slot.startTime = common.dateToStandardString(slot.startTime);
+			slot.endTime = common.dateToStandardString(slot.endTime);
 		} catch (err) {
 			logger.error("pricingService.calculateTotalAmount() error : " + err);
 			throw err;
@@ -216,51 +216,55 @@ external occupancy api
 async function setAvailbilities(slots){
 
 	//call external occupancy API to get all occupancies between startTime and endTime
-	const startTimeStr = helper.dateToStandardString(slots[0].startTime);
-	const endTimeStr = helper.dateToStandardString(slots[slots.length - 1].endTime);
+	const startTimeStr = common.dateToStandardString(slots[0].startTime);
+	const endTimeStr = common.dateToStandardString(slots[slots.length - 1].endTime);
 	
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCIES_SUBDOMAIN + "?startTime=" + startTimeStr + "&endTime=" + endTimeStr + "&assetId=" + DEFAULT_ASSET_ID;
 	const requestAttr = {
-		method: "GET"
+		method: "GET",
+		headers: {
+			"content-Type": "application/json",
+			"Authorization": "Token " + global.accessToken
+		}
 	}
 
-	var occupancies
-	await helper.callAPI(url, requestAttr)
+	await common.callAPI(url, requestAttr)
 		.then(result => {
-			occupancies = result;
+			var occupancies = result;
+
+			slots.forEach((slot) => {
+				slot.available = true;
+
+				var slotStartTime = slot.startTime;
+				var slotEndTime = slot.endTime;
+
+				//cross check current slot against occupancies list for overlap
+				occupancies.forEach(occupancy => {
+					const occupancyStartTime = common.standardStringToDate(occupancy.startTime);
+					const occupancyEndTime = common.standardStringToDate(occupancy.endTime);
+
+					if ((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
+						(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
+						(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)) {
+
+						//overlapped....not available
+						slot.available = false;
+					}
+				});
+
+				//cross check current slot is in the pass
+				const now = common.getNowUTCTimeStamp();
+				if (slotStartTime < now) {
+					slot.available = false;
+				}
+
+			});
 		})
 		.catch(err => {
 			throw err;
 		});
 	
-	slots.forEach((slot) => {
-		slot.available = true;
-
-		var slotStartTime = slot.startTime;
-		var slotEndTime = slot.endTime;
-
-		//cross check current slot against occupancies list for overlap
-		occupancies.forEach(occupancy => {
-			const occupancyStartTime = helper.standardStringToDate(occupancy.startTime);
-			const occupancyEndTime = helper.standardStringToDate(occupancy.endTime);
-
-			if ((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
-				(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
-				(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)) {
-
-				//overlapped....not available
-				slot.available = false;
-				
-			}
-		});
-
-		//cross check current slot is in the pass
-		const now = helper.getNowUTCTimeStamp();
-		if (slotStartTime < now) {
-			slot.available = false;
-		}
-		
-	});
+	
 
 	return slots;
 }
@@ -317,8 +321,8 @@ function getSlotByStartTime(startTime, slots) {
 function slotToOutuptObj(slot) {
 	var outputObj = new Object();
 	outputObj.index = slot.index;
-	outputObj.startTime = helper.dateToStandardString(slot.startTime);
-	outputObj.endTime = helper.dateToStandardString(slot.endTime);
+	outputObj.startTime = common.dateToStandardString(slot.startTime);
+	outputObj.endTime = common.dateToStandardString(slot.endTime);
 	outputObj.available = slot.available;
 
 	return outputObj;

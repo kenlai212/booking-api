@@ -1,9 +1,10 @@
 "use strict";
 const mongoose = require("mongoose");
-const logger = require("./logger");
-const helper = require("./helper");
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
+const common = require("gogowake-common");
+const logger = common.logger;
+const fetch = require("node-fetch");
 
 const pricingService = require("./pricing.service");
 
@@ -24,6 +25,7 @@ const VALID_BOOKING_TYPES = [OPEN_BOOKING_TYPE, PRIVATE_BOOKING_TYPE];
 //constants for booking status
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 const CANCELLED_STATUS = "CANCELLED";
+const FULFILLED_STATUS = "FULFILLED"
 
 //constants for payment status
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
@@ -44,7 +46,7 @@ async function addNewBooking(input, user) {
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -60,7 +62,7 @@ async function addNewBooking(input, user) {
 
 	var startTime;
 	try {
-		startTime = helper.standardStringToDate(input.startTime);
+		startTime = common.standardStringToDate(input.startTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid startTime format";
@@ -76,7 +78,7 @@ async function addNewBooking(input, user) {
 
 	var endTime;
 	try {
-		endTime = helper.standardStringToDate(input.endTime);
+		endTime = common.standardStringToDate(input.endTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid startTime format";
@@ -93,7 +95,7 @@ async function addNewBooking(input, user) {
 	//init booking object
 	var booking = new Booking();
 
-	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
+	const nowTimestampInUTC = common.getNowUTCTimeStamp();
 	booking.creationTime = nowTimestampInUTC;
 
 	booking.createdBy = user.id;
@@ -101,7 +103,7 @@ async function addNewBooking(input, user) {
 	booking.status = AWAITING_CONFIRMATION_STATUS;
 
 	booking.history = [{
-		transactionTime: nowTimestampInUTC,
+		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "New booking",
 		userId: user.id
 	}]
@@ -265,24 +267,26 @@ async function addNewBooking(input, user) {
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
 	const data = {
 		"occupancyType": OPEN_BOOKING_TYPE,
-		"startTime": helper.dateToStandardString(booking.startTime),
-		"endTime": helper.dateToStandardString(booking.endTime),
+		"startTime": common.dateToStandardString(booking.startTime),
+		"endTime": common.dateToStandardString(booking.endTime),
 		"assetId": DEFAULT_ASSET_ID
 	}
 	const requestAttr = {
 		method: "POST",
+		headers: {
+			"content-Type": "application/json",
+			"Authorization": "Token " + global.accessToken
+		},
 		body: JSON.stringify(data)
 	}
 
-	await helper.callAPI(url, requestAttr)
+	await common.callAPI(url, requestAttr)
 		.then(result => {
 			booking.occupancyId = result.id;
 			logger.info("Successfully call occupancy api, and saved occupancy record : " + result.id);
 		})
 		.catch(err => {
-			response.status = 400;
-			response.message = "timeslot not available";
-			throw response;
+			throw err;
 		});
 
 	//save newBooking record
@@ -319,10 +323,14 @@ async function addNewBooking(input, user) {
 
 		const requestAttr = {
 			method: "POST",
+			headers: {
+				"content-Type": "application/json",
+				"Authorization": "Token " + global.accessToken
+			},
 			body: JSON.stringify(data)
 		}
 
-		await helper.callAPI(url, requestAttr)
+		await common.callAPI(url, requestAttr)
 			.then(result => {
 				logger.info("Successfully sent notification email to admin, messageId : " + result.messageId);
 			})
@@ -353,10 +361,14 @@ async function addNewBooking(input, user) {
 		}
 		const requestAttr = {
 			method: "POST",
+			headers: {
+				"content-Type": "application/json",
+				"Authorization": "Token " + global.accessToken
+			},
 			body: JSON.stringify(data)
 		}
 
-		await helper.callAPI(url, requestAttr)
+		await common.callAPI(url, requestAttr)
 			.then(result => {
 				logger.info("Sucessfully sent new booking notification email to customer, messageId : " + result.messageId);
 			})
@@ -368,6 +380,99 @@ async function addNewBooking(input, user) {
 	var outputObj = bookingToOutuptObj(booking);
 
 	return outputObj;
+}
+
+/**
+ * By : Ken Lai
+ * Date : June, 12 2020
+ * 
+ * fulfill the booking, by seting the fulfilledHours and setting the status to "FULFILLED"
+ * add fulfill history record
+ */
+async function fulfillBooking(input, user) {
+	var response = new Object;
+
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP
+	]
+
+	//validate user group
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	//validate bookingId
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw (response);
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	var targetBooking;
+	await Booking.findById(input.bookingId)
+		.then(result => {
+			targetBooking = result;
+		})
+		.catch(err => {
+			logger.error("Error while finding target booking, running Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Cancel Booking Service not available";
+			throw response;
+		});
+
+	if (targetBooking == null) {
+		response.status = 400;
+		response.message = "Invalid booking ID";
+		throw response;
+	}
+
+	if (input.fulfilledHours == null) {
+		response.status = 400;
+		response.message = "fulfillHours is mandatory";
+		throw response;
+	}
+
+	//calculate duration in hours
+	const diffTime = Math.abs(targetBooking.endTime - targetBooking.startTime);
+	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
+	const durationInHours = Math.ceil(durationInMinutes / 60);
+
+	if (input.fulfilledHours > durationInHours) {
+		response.status = 400;
+		response.message = "fulfillHours cannot be greater then total duration hours";
+		throw response;
+	}
+
+	targetBooking.fulfilledHours = input.fulfilledHours;
+	targetBooking.status = FULFILLED_STATUS;
+
+	const fulfilledHistory = {
+		transactionTime: common.nowTimestampInUTC,
+		transactionDescription: "Fulfilled booking",
+		userId: user.id
+	}
+	targetBooking.history.push(fulfilledHistory);
+
+	await targetBooking.save()
+		.then(() => {
+			logger.info("Sucessfully fulfilled booking : " + booking.id);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	return { "status": FULFILLED_STATUS };
 }
 
 /**
@@ -384,11 +489,10 @@ async function cancelBooking(input, user){
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
-
 	}
 
 	//validate bookingId
@@ -429,10 +533,14 @@ async function cancelBooking(input, user){
 	}
 	const requestAttr = {
 		method: "DELETE",
+		headers: {
+			"content-Type": "application/json",
+			"Authorization": "Token " + user.accessToken
+		},
 		body: JSON.stringify(data)
 	}
 
-	await helper.callAPI(url, requestAttr)
+	await common.callAPI(url, requestAttr)
 		.catch(err => {
 			throw err;
 		});
@@ -481,7 +589,7 @@ async function removeGuest(input, user) {
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -544,7 +652,7 @@ async function removeGuest(input, user) {
 	}
 
 	//add transaction history
-	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
+	const nowTimestampInUTC = common.getNowUTCTimeStamp();
 	booking.history.push({
 		transactionTime: nowTimestampInUTC,
 		transactionDescription: "Removed guest : " + targetGuestName,
@@ -573,7 +681,7 @@ async function addGuest(input, user) {
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -650,7 +758,7 @@ async function addGuest(input, user) {
 	booking.guests.push(guest);
 
 	//add transaction history
-	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
+	const nowTimestampInUTC = common.getNowUTCTimeStamp();
 	booking.history.push({
 		transactionTime: nowTimestampInUTC,
 		transactionDescription: "Added new guest : " + input.guestName,
@@ -678,7 +786,7 @@ async function addCrew(input, user) {
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -726,11 +834,15 @@ async function addCrew(input, user) {
 	//find crew
 	const url = process.env.OCCUPANCY_DOMAIN + process.env.CREW_SUBDOMAIN + "?crewId=" + input.crewId;
 	const requestAttr = {
-		method: "GET"
+		method: "GET",
+		headers: {
+			"content-Type": "application/json",
+			"Authorization": "Token " + global.accessToken
+		}
 	}
 
 	var crew;
-	await helper.callAPI(url, requestAttr)
+	await common.callAPI(url, requestAttr)
 		.then(result => {
 			crew = result;
 		})
@@ -749,7 +861,7 @@ async function addCrew(input, user) {
 		booking.crews = new Array();
 	}
 
-	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
+	const nowTimestampInUTC = common.getNowUTCTimeStamp();
 	booking.crews.push({
 		crewId: crew.id,
 		crewName: crew.crewName,
@@ -787,7 +899,7 @@ async function changePaymentStatus(input, user) {
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -852,7 +964,7 @@ async function changePaymentStatus(input, user) {
 	
 	//add transaction history
 	var transactionHistory = new Object();
-	const nowTimestampInUTC = helper.getNowUTCTimeStamp();
+	const nowTimestampInUTC = common.getNowUTCTimeStamp();
 	transactionHistory.transactionTime = nowTimestampInUTC;
 	transactionHistory.userId = user.id;
 	if (input.intent == MARK_PAID) {
@@ -889,7 +1001,7 @@ async function viewBookings(input, user){
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -904,7 +1016,7 @@ async function viewBookings(input, user){
 
 	var startTime;
 	try {
-		startTime = helper.standardStringToDate(input.startTime);
+		startTime = common.standardStringToDate(input.startTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid startTime format";
@@ -919,7 +1031,7 @@ async function viewBookings(input, user){
 
 	var endTime;
 	try{
-		endTime = helper.standardStringToDate(input.endTime);
+		endTime = common.standardStringToDate(input.endTime);
 	}catch(err){
 		response.status = 400;
 		response.message = "Invalid endTime format";
@@ -964,7 +1076,7 @@ async function findBookingById(input, user) {
 	]
 
 	//validate user group
-	if (helper.userAuthorization(user.groups, rightsGroup) == false) {
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -1006,8 +1118,8 @@ function bookingToOutuptObj(booking) {
 	outputObj.creationTime = booking.creationTime;
 	outputObj.createdBy = booking.createdBy;
 	outputObj.occupancyId = booking.occupancyId;
-	outputObj.startTime = helper.dateToStandardString(booking.startTime);
-	outputObj.endTime = helper.dateToStandardString(booking.endTime);
+	outputObj.startTime = common.dateToStandardString(booking.startTime);
+	outputObj.endTime = common.dateToStandardString(booking.endTime);
 	outputObj.totalAmount = booking.totalAmount;
 	outputObj.currency = booking.currency;
 	outputObj.contactName = booking.contactName;
@@ -1023,6 +1135,7 @@ function bookingToOutuptObj(booking) {
 
 	return outputObj;
 }
+
 module.exports = {
 	addNewBooking,
 	changePaymentStatus,
@@ -1030,6 +1143,7 @@ module.exports = {
 	removeGuest,
 	addCrew,
 	cancelBooking,
+	fulfillBooking,
 	viewBookings,
 	findBookingById
 }

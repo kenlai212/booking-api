@@ -1,9 +1,6 @@
 "use strict";
-const logger = require("./logger");
-
 const mongoose = require("mongoose");
 
-require('dotenv').config();
 
 const bookingHistorySchema = new mongoose.Schema({
 	status: String,

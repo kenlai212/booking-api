@@ -1,13 +1,13 @@
 "use strict";
 const url = require("url");
-const helper = require("./helper");
-const logger = require("./logger");
 const slotService = require("./slot.service");
+const common = require("gogowake-common");
+const logger = common.logger;
 
 require('dotenv').config();
 
 const slots = async (req, res) => {
-	helper.logIncommingRequest(req);
+	common.logIncommingRequest(req);
 
 	const queryObject = url.parse(req.url, true).query;
 
@@ -23,14 +23,14 @@ const slots = async (req, res) => {
 	}
 
 	res.on("finish", function () {
-		helper.logOutgoingResponse(res);
+		common.logOutgoingResponse(res);
 	});
 
 	return res;
 }
 
 const endSlots = async (req, res) => {
-	helper.logIncommingRequest(req);
+	common.logIncommingRequest(req);
 
 	const queryObject = url.parse(req.url, true).query;
 
@@ -45,7 +45,7 @@ const endSlots = async (req, res) => {
 	}
 
 	res.on("finish", function () {
-		helper.logOutgoingResponse(res);
+		common.logOutgoingResponse(res);
 	});
 
 	return res;
