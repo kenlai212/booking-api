@@ -275,7 +275,7 @@ async function addNewBooking(input, user) {
 		method: "POST",
 		headers: {
 			"content-Type": "application/json",
-			"Authorization": "Token " + global.accessToken
+			"Authorization": "Token " + user.accessToken
 		},
 		body: JSON.stringify(data)
 	}
