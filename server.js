@@ -2,9 +2,9 @@ const express = require("express");
 const common = require("gogowake-common");
 const logger = common.logger;
 const mongoose = require("mongoose");
-const bookingRoutes = require("./src/booking.routes");
-const pricingRoutes = require("./src/pricing.routes");
-const slotRoutes = require("./src/slot.routes");
+const bookingRoutes = require("./src/booking/booking.routes");
+const pricingRoutes = require("./src/pricing/pricing.routes");
+const slotRoutes = require("./src/slot/slot.routes");
 
 require('dotenv').config();
 

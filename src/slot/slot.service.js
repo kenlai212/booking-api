@@ -1,5 +1,5 @@
 "use strict";
-const pricingService = require("./pricing.service");
+const pricingService = require("../pricing/pricing.service");
 const common = require("gogowake-common");
 const logger = common.logger;
 

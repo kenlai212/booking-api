@@ -14,7 +14,6 @@
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "gogowake-common": "git+https://github.com/kenlai212/gogowake-common.git",
-    "jsonwebtoken": "^8.5.1",
     "mongodb": "^3.5.9",
     "mongoose": "^5.9.20",
     "uuid": "^3.4.0"

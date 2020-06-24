@@ -3,7 +3,7 @@ var chaiHttp = require("chai-http");
 const fetch = require("node-fetch");
 const server = require("../server");
 const common = require("gogowake-common");
-const Booking = require("../src/booking.model").Booking;
+const Booking = require("../src/booking/booking.model").Booking;
 const mongoose = require("mongoose");
 
 chai.use(chaiHttp);

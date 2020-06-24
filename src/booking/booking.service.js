@@ -4,9 +4,8 @@ const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
 const common = require("gogowake-common");
 const logger = common.logger;
-const fetch = require("node-fetch");
 
-const pricingService = require("./pricing.service");
+const pricingService = require("../pricing/pricing.service");
 
 require('dotenv').config();
 
