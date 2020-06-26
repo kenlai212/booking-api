@@ -2,7 +2,6 @@
 const url = require("url");
 const slotService = require("./slot.service");
 const common = require("gogowake-common");
-const logger = common.logger;
 
 require('dotenv').config();
 
@@ -13,13 +12,9 @@ const slots = async (req, res) => {
 
 	try {
 		const response = await slotService.getSlots(queryObject, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		console.log(err);
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -36,12 +31,9 @@ const endSlots = async (req, res) => {
 
 	try {
 		const response = await slotService.getEndSlots(queryObject, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {

@@ -30,6 +30,11 @@ const FULFILLED_STATUS = "FULFILLED"
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 const PAID_STATUS = "PAID";
 
+const OCCUPANCY_PATH = "/occupancy";
+const SEND_EMAIL_PATH = "/email";
+const RELEASE_OCCUPANCY_PATH = "/occupancy";
+const CREW_PATH = "/crew";
+
 /**
  * By : Ken Lai
  * Date : Mar 25, 2020
@@ -263,7 +268,7 @@ async function addNewBooking(input, user) {
 	booking.crews = new Array();
 
 	//call external occupancy API to save occupancy record
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCY_SUBDOMAIN;
+	const url = process.env.OCCUPANCY_DOMAIN + OCCUPANCY_PATH;
 	const data = {
 		"occupancyType": OPEN_BOOKING_TYPE,
 		"startTime": common.dateToStandardString(booking.startTime),
@@ -303,7 +308,7 @@ async function addNewBooking(input, user) {
 
 	//send notification to admin
 	if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
-		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_EMAIL_SUBDOMAIN;
+		const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
 
 		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
 		var bodyHTML = "<html>";
@@ -341,7 +346,7 @@ async function addNewBooking(input, user) {
 	//send confirmation to contact
 	//TODO add chinese language confirmation
 	if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_EMAIL == true && booking.emailAddress != null) {
-		const url = process.env.NOTIFICATION_DOMAIN + process.env.SEND_EMAIL_SUBDOMAIN;
+		const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
 
 		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
 		var bodyHTML = "<html>";
@@ -526,7 +531,7 @@ async function cancelBooking(input, user){
 	}
 
 	//release occupancy
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.RELEASE_OCCUPANCY_SUBDOMAIN;
+	const url = process.env.OCCUPANCY_DOMAIN + RELEASE_OCCUPANCY_PATH;
 	const data = {
 		"occupancyId": targetBooking.occupancyId
 	}
@@ -831,7 +836,7 @@ async function addCrew(input, user) {
 	}
 
 	//find crew
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.CREW_SUBDOMAIN + "?crewId=" + input.crewId;
+	const url = process.env.OCCUPANCY_DOMAIN + CREW_PATH + "?crewId=" + input.crewId;
 	const requestAttr = {
 		method: "GET",
 		headers: {

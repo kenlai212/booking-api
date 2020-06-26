@@ -2,7 +2,6 @@
 const url = require("url");
 const bookingService = require("./booking.service");
 const common = require("gogowake-common");
-const logger = common.logger;
 
 require('dotenv').config();
 
@@ -11,12 +10,9 @@ const newBooking = async (req, res) => {
 
 	try {
 		const response = await bookingService.addNewBooking(req.body, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -31,12 +27,9 @@ const changePaymentStatus = async (req, res) => {
 
 	try {
 		const response = await bookingService.changePaymentStatus(req.body, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -51,13 +44,9 @@ const removeGuest = async (req, res) => {
 
 	try {
 		const response = await bookingService.removeGuest(req.body, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		console.log(err);
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -72,12 +61,9 @@ const addGuest = async (req, res) => {
 
 	try {
 		const response = await bookingService.addGuest(req.body, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -92,12 +78,9 @@ const addCrew = async (req, res) => {
 
 	try {
 		const response = await bookingService.addCrew(req.body, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -114,12 +97,9 @@ const cancelBooking = async (req, res) => {
 
 	try {
 		const response = await bookingService.cancelBooking(queryObject, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -134,12 +114,9 @@ const fulfillBooking = async (req, res) => {
 
 	try {
 		const response = await bookingService.fulfillBooking(req.body, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -156,12 +133,9 @@ const searchBookings = async (req, res) => {
 
 	try {
 		const response = await bookingService.viewBookings(queryObject, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {
@@ -178,12 +152,9 @@ const findBooking = async (req, res) => {
 
 	try {
 		const response = await bookingService.findBookingById(queryObject, req.user)
-		logger.info("Response Body : " + JSON.stringify(response));
-		res.json(response);
-		res.status(200);
+		common.readySuccessResponse(response, res);
 	} catch (err) {
-		res.status(err.status);
-		res.json({ "error": err.message });
+		common.readyErrorResponse(err, res);
 	}
 
 	res.on("finish", function () {

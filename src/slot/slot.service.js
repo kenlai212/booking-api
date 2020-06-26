@@ -7,6 +7,8 @@ const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
 const DEFAULT_ASSET_ID = "MC_NXT20";
 
+const OCCUPANCIES_PATH = "/occupancies";
+
 /**********************************************************
 By : Ken Lai
 Date : Mar 13 2020
@@ -219,7 +221,7 @@ async function setAvailbilities(slots){
 	const startTimeStr = common.dateToStandardString(slots[0].startTime);
 	const endTimeStr = common.dateToStandardString(slots[slots.length - 1].endTime);
 	
-	const url = process.env.OCCUPANCY_DOMAIN + process.env.OCCUPANCIES_SUBDOMAIN + "?startTime=" + startTimeStr + "&endTime=" + endTimeStr + "&assetId=" + DEFAULT_ASSET_ID;
+	const url = process.env.OCCUPANCY_DOMAIN + OCCUPANCIES_PATH + "?startTime=" + startTimeStr + "&endTime=" + endTimeStr + "&assetId=" + DEFAULT_ASSET_ID;
 	const requestAttr = {
 		method: "GET",
 		headers: {
