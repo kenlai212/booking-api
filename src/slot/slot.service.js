@@ -90,7 +90,7 @@ async function getSlots(input, user){
 		outputObjs.push(outputObj);
 	})
 	
-	return outputObjs;
+	return { "slots" : outputObjs };
 
 }
 
@@ -205,7 +205,7 @@ async function getEndSlots(input, user){
 		}
 	}));
 
-	return endSlots;
+	return { "endSlots" : endSlots };
 
 }
 
@@ -232,8 +232,9 @@ async function setAvailbilities(slots){
 
 	await common.callAPI(url, requestAttr)
 		.then(result => {
-			var occupancies = result;
-
+			
+			var occupancies = result.occupancies;
+			
 			slots.forEach((slot) => {
 				slot.available = true;
 
@@ -266,8 +267,6 @@ async function setAvailbilities(slots){
 			throw err;
 		});
 	
-	
-
 	return slots;
 }
 

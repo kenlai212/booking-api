@@ -112,7 +112,7 @@ describe('Slot Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    const slots = response.body;
+                    const slots = response.body.slots;
                     assert.equal(slots.length, 15);
                     
                     slots.forEach(slot => {
@@ -134,7 +134,7 @@ describe('Slot Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    const slots = response.body;
+                    const slots = response.body.slots;
                     assert.equal(slots.length, 15);
                     assert.equal(slots[5].available, false);
                     assert.equal(slots[6].available, false);
@@ -228,27 +228,28 @@ describe('Slot Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 6);
-                    assert.equal(response.body[0].startTime, startTimeDateStr + "T05:00:00");
-                    assert.equal(response.body[1].startTime, startTimeDateStr + "T06:00:00");
-                    assert.equal(response.body[2].startTime, startTimeDateStr + "T07:00:00");
-                    assert.equal(response.body[3].startTime, startTimeDateStr + "T08:00:00");
-                    assert.equal(response.body[4].startTime, startTimeDateStr + "T09:00:00");
-                    assert.equal(response.body[5].startTime, startTimeDateStr + "T10:00:00");
+                    const endSlots = response.body.endSlots;
+                    assert.equal(endSlots.length, 6);
+                    assert.equal(endSlots[0].startTime, startTimeDateStr + "T05:00:00");
+                    assert.equal(endSlots[1].startTime, startTimeDateStr + "T06:00:00");
+                    assert.equal(endSlots[2].startTime, startTimeDateStr + "T07:00:00");
+                    assert.equal(endSlots[3].startTime, startTimeDateStr + "T08:00:00");
+                    assert.equal(endSlots[4].startTime, startTimeDateStr + "T09:00:00");
+                    assert.equal(endSlots[5].startTime, startTimeDateStr + "T10:00:00");
 
                     //if startTime is on weekEnd vs weekDay, the totalAmount will be different
                     var day = startTime.getDay();
                     var isWeekend = (day === 6) || (day === 0);
                     if (isWeekend) {
-                        assert.equal(response.body[0].totalAmount, 1200);
-                        assert.equal(response.body[1].totalAmount, 2400);
+                        assert.equal(endSlots[0].totalAmount, 1200);
+                        assert.equal(endSlots[1].totalAmount, 2400);
                     } else {
-                        assert.equal(response.body[0].totalAmount, 1000);
-                        assert.equal(response.body[1].totalAmount, 2000);
+                        assert.equal(endSlots[0].totalAmount, 1000);
+                        assert.equal(endSlots[1].totalAmount, 2000);
                     }
                     
-                    assert.equal(response.body[0].currency, "HKD");
-                    assert.equal(response.body[1].currency, "HKD");
+                    assert.equal(endSlots[0].currency, "HKD");
+                    assert.equal(endSlots[1].currency, "HKD");
                 });
         });
 
@@ -258,7 +259,7 @@ describe('Slot Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 3);
+                    assert.equal(response.body.endSlots.length, 3);
                 });
         });
 
@@ -268,7 +269,7 @@ describe('Slot Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 0);
+                    assert.equal(response.body.endSlots.length, 0);
                 });
         });
 
@@ -278,21 +279,22 @@ describe('Slot Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 1);
-                    assert.equal(response.body[0].startTime, startTimeDateStr + "T10:00:00");
+                    assert.equal(response.body.endSlots.length, 1);
+                    assert.equal(response.body.endSlots[0].startTime, startTimeDateStr + "T10:00:00");
                     //if startTime is on weekEnd vs weekDay, the totalAmount will be different
                     var day = startTime.getDay();
                     var isWeekend = (day === 6) || (day === 0);
                     if (isWeekend) {
-                        assert.equal(response.body[0].totalAmount, 1200);
+                        assert.equal(response.body.endSlots[0].totalAmount, 1200);
                     } else {
-                        assert.equal(response.body[0].totalAmount, 1000);
+                        assert.equal(response.body.endSlots[0].totalAmount, 1000);
                     }
 
-                    assert.equal(response.body[0].currency, "HKD");
+                    assert.equal(response.body.endSlots[0].currency, "HKD");
                 });
         });
     });
+    
 });
 
 async function occupyAsset(startTime, endTime, assetId) {
@@ -315,7 +317,6 @@ async function occupyAsset(startTime, endTime, assetId) {
         })
         .catch(err => { console.log(err); });
 
-    console.log(occupancy);
     return occupancy;
 }
 
@@ -341,9 +342,9 @@ async function deleteAll() {
 
     await fetch(url, { method: 'GET', headers: headers })
         .then(async res => {
-            var occupancies = await res.json();
-
-            if (occupancies.length > 0) {
+            var result = await res.json();
+            
+            if (result.occupancies.length > 0) {
 
                 //delete all occupancies from yesterday till tomorrow
                 const url = DELETE_OCCUPANCY_URL;
@@ -352,7 +353,7 @@ async function deleteAll() {
                     "content-Type": "application/json",
                 }
 
-                occupancies.forEach(async occupancy => {
+                result.occupancies.forEach(async occupancy => {
                     var data = {
                         "occupancyId": occupancy.id
                     }

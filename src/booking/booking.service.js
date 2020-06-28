@@ -1069,7 +1069,7 @@ async function viewBookings(input, user){
 		outputObjs.push(outputObj);
 	});
 
-	return outputObjs;
+	return { "bookings" : outputObjs };
 }
 
 async function findBookingById(input, user) {

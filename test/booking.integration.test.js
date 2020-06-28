@@ -540,14 +540,14 @@ describe('Booking Endpoints', () => {
                         "content-Type": "application/json",
                     }
 
-                    var response = new Object();
+                    var response;
                     await fetch(url, { method: 'GET', headers: headers })
                         .then(async res => {
                             response = await res.json();
                         })
                         .catch(err => { console.log(err) });
-
-                    crews = response;
+                    
+                    crews = response.crews;
                 });
         });
 
@@ -1309,7 +1309,7 @@ describe('Booking Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 3);
+                    assert.equal(response.body.bookings.length, 3);
                 });
         });
 
@@ -1331,8 +1331,8 @@ describe('Booking Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 1);
-                    const booking = response.body[0];
+                    assert.equal(response.body.bookings.length, 1);
+                    const booking = response.body.bookings[0];
                     assert.equal(booking.id, booking4.id);
                     assert.equal(booking.occupancyId, booking4.occupancyId);
                     assert(booking.creationTime, booking4.creationTime);
@@ -1454,7 +1454,7 @@ describe('Booking Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 3);
+                    assert.equal(response.body.bookings.length, 3);
                 });
         });
 
@@ -1473,7 +1473,7 @@ describe('Booking Endpoints', () => {
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.length, 2);
+                    assert.equal(response.body.bookings.length, 2);
                 });
         });
 
@@ -1503,9 +1503,9 @@ async function deleteAll() {
     }
     await fetch(url, { method: 'GET', headers: headers })
         .then(async res => {
-            var occupancies = await res.json();
+            var result = await res.json();
 
-            if (occupancies.length > 0) {
+            if (result.occupancies.length > 0) {
 
                 //delete all occupancies from yesterday till tomorrow
                 const url = DELETE_OCCUPANCY_URL;
@@ -1514,7 +1514,7 @@ async function deleteAll() {
                     "content-Type": "application/json",
                 }
 
-                occupancies.forEach(async occupancy => {
+                result.occupancies.forEach(async occupancy => {
                     var data = {
                         "occupancyId": occupancy.id
                     }
