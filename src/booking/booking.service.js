@@ -109,7 +109,8 @@ async function addNewBooking(input, user) {
 	booking.history = [{
 		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "New booking",
-		userId: user.id
+		userId: user.id,
+		userName: user.name
 	}]
 
 	//check booking type, if none, assign default OPEN_BOOKING
@@ -434,7 +435,7 @@ async function fulfillBooking(input, user) {
 
 	if (targetBooking == null) {
 		response.status = 400;
-		response.message = "Invalid booking ID";
+		response.message = "Invalid bookingId";
 		throw response;
 	}
 
@@ -461,7 +462,8 @@ async function fulfillBooking(input, user) {
 	const fulfilledHistory = {
 		transactionTime: common.nowTimestampInUTC,
 		transactionDescription: "Fulfilled booking",
-		userId: user.id
+		userId: user.id,
+		userName: user.name
 	}
 	targetBooking.history.push(fulfilledHistory);
 

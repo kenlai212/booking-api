@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "devStart": "nodemon server.js",
-    "test": "mocha --recursive --exit"
+    "test": "mocha './test/user.integration.test.js' --exit"
   },
   "author": "",
   "license": "ISC",
