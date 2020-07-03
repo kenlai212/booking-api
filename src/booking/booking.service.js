@@ -99,8 +99,7 @@ async function addNewBooking(input, user) {
 	//init booking object
 	var booking = new Booking();
 
-	const nowTimestampInUTC = common.getNowUTCTimeStamp();
-	booking.creationTime = nowTimestampInUTC;
+	booking.creationTime = common.getNowUTCTimeStamp();
 
 	booking.createdBy = user.id;
 
@@ -185,9 +184,7 @@ async function addNewBooking(input, user) {
 	}
 
 	//check for retro booking (booing before current time)
-	var now = new Date();
-	now.setHours(now.getHours() + 8);
-	if (endTime < now) {
+	if (endTime < common.getNowUTCTimeStamp()) {
 		response.status = 400;
 		response.message = "Booking cannot be in the past";
 		throw response;
@@ -441,7 +438,7 @@ async function fulfillBooking(input, user) {
 
 	if (input.fulfilledHours == null) {
 		response.status = 400;
-		response.message = "fulfillHours is mandatory";
+		response.message = "fulfilledHours is mandatory";
 		throw response;
 	}
 
@@ -460,7 +457,7 @@ async function fulfillBooking(input, user) {
 	targetBooking.status = FULFILLED_STATUS;
 
 	const fulfilledHistory = {
-		transactionTime: common.nowTimestampInUTC,
+		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Fulfilled booking",
 		userId: user.id,
 		userName: user.name
@@ -469,7 +466,7 @@ async function fulfillBooking(input, user) {
 
 	await targetBooking.save()
 		.then(() => {
-			logger.info("Sucessfully fulfilled booking : " + booking.id);
+			logger.info("Sucessfully fulfilled booking : " + targetBooking.id);
 		})
 		.catch(err => {
 			logger.error("Error while running booking.save() : " + err);
@@ -658,9 +655,8 @@ async function removeGuest(input, user) {
 	}
 
 	//add transaction history
-	const nowTimestampInUTC = common.getNowUTCTimeStamp();
 	booking.history.push({
-		transactionTime: nowTimestampInUTC,
+		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Removed guest : " + targetGuestName,
 		userId: user.id
 	});
@@ -764,9 +760,8 @@ async function addGuest(input, user) {
 	booking.guests.push(guest);
 
 	//add transaction history
-	const nowTimestampInUTC = common.getNowUTCTimeStamp();
 	booking.history.push({
-		transactionTime: nowTimestampInUTC,
+		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Added new guest : " + input.guestName,
 		userId: user.id
 	});
@@ -867,19 +862,18 @@ async function addCrew(input, user) {
 		booking.crews = new Array();
 	}
 
-	const nowTimestampInUTC = common.getNowUTCTimeStamp();
 	booking.crews.push({
 		crewId: crew.id,
 		crewName: crew.crewName,
 		telephoneCountryCode: crew.telephoneCountryCode,
 		telephoneNumber: crew.telephoneNumber,
-		assignmentTime: nowTimestampInUTC,
+		assignmentTime: common.getNowUTCTimeStamp(),
 		assignmentBy: user.id
 	});
 
 	//add transaction history
 	booking.history.push({
-		transactionTime: nowTimestampInUTC,
+		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Added new crew : " + input.crewId,
 		userId: user.id
 	});
@@ -970,8 +964,7 @@ async function changePaymentStatus(input, user) {
 	
 	//add transaction history
 	var transactionHistory = new Object();
-	const nowTimestampInUTC = common.getNowUTCTimeStamp();
-	transactionHistory.transactionTime = nowTimestampInUTC;
+	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
 	transactionHistory.userId = user.id;
 	if (input.intent == MARK_PAID) {
 		transactionHistory.transactionDescription = "paymentStatus changed to PAID"
@@ -1135,6 +1128,7 @@ function bookingToOutuptObj(booking) {
 	outputObj.status = booking.status;
 	outputObj.paymentStatus = booking.paymentStatus;
 	outputObj.durationInHours = Math.round((booking.endTime - booking.startTime) / 1000 / 60 / 60);
+	outputObj.fulfilledHours = booking.fulfilledHours;
 	outputObj.guests = booking.guests;
 	outputObj.history = booking.history;
 	outputObj.crews = booking.crews;

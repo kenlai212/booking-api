@@ -15,7 +15,7 @@ const bookingSchema = new mongoose.Schema({
 	emailAddress: String,
 	totalAmount: Number,
 	recievedAmount: Number,
-	fullfilledHours: Number,
+	fulfilledHours: Number,
 	currency: String,
 	paymentStatus: String,
 	guests: [{
