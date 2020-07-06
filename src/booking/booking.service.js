@@ -658,7 +658,8 @@ async function removeGuest(input, user) {
 	booking.history.push({
 		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Removed guest : " + targetGuestName,
-		userId: user.id
+		userId: user.id,
+		userName: user.Name
 	});
 
 	await booking.save()
@@ -763,7 +764,8 @@ async function addGuest(input, user) {
 	booking.history.push({
 		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Added new guest : " + input.guestName,
-		userId: user.id
+		userId: user.id,
+		userName: user.Name
 	});
 
 	await booking.save()
@@ -875,7 +877,8 @@ async function addCrew(input, user) {
 	booking.history.push({
 		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Added new crew : " + input.crewId,
-		userId: user.id
+		userId: user.id,
+		userName: user.Name
 	});
 
 	await booking.save()
@@ -910,7 +913,7 @@ async function makePayment(input, user) {
 		throw response;
 	}
 
-	//validate amountCollected
+	//validate paidAmount
 	if (input.paidAmount == null || input.paidAmount.length < 1) {
 		response.status = 400;
 		response.message = "paidAmount is mandatory";
