@@ -844,7 +844,8 @@ describe('Booking Endpoints', () => {
         });
     });
     
-    describe("testing payment-status", function () {
+    describe("testing make payment", function () {
+        this.timeout(5000);
         var booking1;
         var booking2;
 
@@ -901,43 +902,43 @@ describe('Booking Endpoints', () => {
 
         it("missing authentication token, should return 401 unauthorized status", async () => {
             await chai.request(server)
-                .put("/payment-status")
+                .put("/make-payment")
                 .send()
                 .then(response => {
                     assert.equal(response.status, 401);
                 });
         });
 
-        it("missing intent, should return 400 status", async () => {
+        it("missing paidAmount, should return 400 status", async () => {
             await chai.request(server)
-                .put("/payment-status")
+                .put("/make-payment")
                 .set("Authorization", "Token " + accessToken)
                 .send()
                 .then(response => {
                     assert.equal(response.status, 400);
-                    assert.equal(response.body.error, "intent is mandatory");
+                    assert.equal(response.body.error, "paidAmount is mandatory");
                 });
         });
 
-        it("invalid intent, should return 400 status", async () => {
+        it("invalid paidAmount, should return 400 status", async () => {
             await chai.request(server)
-                .put("/payment-status")
+                .put("/make-payment")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    intent:"abc"
+                    paidAmount:"abc"
                 })
                 .then(response => {
                     assert.equal(response.status, 400);
-                    assert.equal(response.body.error, "Invalid intent");
+                    assert.equal(response.body.error, "Invalid paidAmount");
                 });
         });
 
         it("missing bookingId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/payment-status")
+                .put("/make-payment")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    intent: "MARK_PAID"
+                    paidAmount: 200
                 })
                 .then(response => {
                     assert.equal(response.status, 400);
@@ -947,10 +948,10 @@ describe('Booking Endpoints', () => {
 
         it("invalid bookingId, should return 400 status", async () => {
             await chai.request(server)
-                .put("/payment-status")
+                .put("/make-payment")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    intent: "MARK_PAID",
+                    paidAmount: 200,
                     bookingId: "1234"
                 })
                 .then(response => {
@@ -959,12 +960,12 @@ describe('Booking Endpoints', () => {
                 });
         });
 
-        it("success MARK_PAID, should return 200 status", async () => {
+        it("success make payment, should return 200 status", async () => {
             await chai.request(server)
-                .put("/payment-status")
+                .put("/make-payment")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    intent: "MARK_PAID",
+                    paidAmount: 200,
                     bookingId: booking1.id
                 })
                 .then(response => {
@@ -981,7 +982,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.paymentStatus, "PAID");
                     assert.equal(response.body.history.length, 2);
-                    assert.equal(response.body.history[1].transactionDescription, "paymentStatus changed to PAID");
+                    assert.equal(response.body.history[1].transactionDescription, "Payment status made changed to PAID");
                     assert(response.body.history[1].userId);
                 });
         });
@@ -993,34 +994,6 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 200);
                     assert.equal(response.body.paymentStatus, "AWAITING_PAYMENT");
-                });
-        });
-
-        it("success REVERSE_PAID for booking1, should return 200 status", async () => {
-            await chai.request(server)
-                .put("/payment-status")
-                .set("Authorization", "Token " + accessToken)
-                .send({
-                    intent: "REVERSE_PAID",
-                    bookingId: booking1.id
-                })
-                .then(response => {
-                    assert.equal(response.status, 200);
-                    assert.equal(response.body.paymentStatus, "AWAITING_PAYMENT");
-                });
-        });
-
-        it("find booking 1, expect paymentStatus is AWAITING_PAYMENT, should return 200 status", async () => {
-            await chai.request(server)
-                .get("/booking?bookingId=" + booking1.id)
-                .set("Authorization", "Token " + accessToken)
-                .then(response => {
-                    assert.equal(response.status, 200);
-                    assert.equal(response.body.paymentStatus, "AWAITING_PAYMENT");
-                    assert.equal(response.body.history.length, 3);
-                    assert.equal(response.body.history[1].transactionDescription, "paymentStatus changed to PAID");
-                    assert.equal(response.body.history[2].transactionDescription, "paymentStatus reversed to AWAITING_PAYMENT");
-                    assert(response.body.history[1].userId);
                 });
         });
     });
@@ -1516,7 +1489,7 @@ describe('Booking Endpoints', () => {
                             "telephoneNumber": "12345678",
                             "emailAddress": "test@test.com"
                         })
-                        .then(response => { booking2 = response.body });
+                        .then(response => { booking1 = response.body });
                 });
         });
 
@@ -1549,6 +1522,59 @@ describe('Booking Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 400);
                     assert.equal(response.body.error, "Invalid bookingId");
+                });
+        });
+
+        it("missing fulfilledHours, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/fulfill-booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "fulfilledHours is mandatory");
+                });
+        });
+
+        it("fulfilledHours more then booking hours, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/fulfill-booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    fulfilledHours: 7
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "fulfillHours cannot be greater then total duration hours");
+                });
+        });
+
+        it("fulfilled 1 hour, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/fulfill-booking")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    fulfilledHours: 1
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "FULFILLED");
+                });
+        });
+
+        it("find booking1, should have FULFILLED status, and fulfilledHours = 1 should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.fulfilledHours, 1);
+                    assert.equal(response.body.status, "FULFILLED");
+                    assert.equal(response.body.history[1].transactionDescription, "Fulfilled booking");
                 });
         });
     });

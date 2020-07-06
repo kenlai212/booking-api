@@ -22,11 +22,11 @@ const newBooking = async (req, res) => {
 	return res;
 }
 
-const changePaymentStatus = async (req, res) => {
+const makePayment = async (req, res) => {
 	common.logIncommingRequest(req);
 
 	try {
-		const response = await bookingService.changePaymentStatus(req.body, req.user)
+		const response = await bookingService.makePayment(req.body, req.user)
 		common.readySuccessResponse(response, res);
 	} catch (err) {
 		common.readyErrorResponse(err, res);
@@ -166,7 +166,7 @@ const findBooking = async (req, res) => {
 
 module.exports = {
 	newBooking,
-	changePaymentStatus,
+	makePayment,
 	addGuest,
 	removeGuest,
 	addCrew,

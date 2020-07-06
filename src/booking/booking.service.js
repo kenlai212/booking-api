@@ -892,7 +892,12 @@ async function addCrew(input, user) {
 	return { "status": "SUCCESS" };
 }
 
-async function changePaymentStatus(input, user) {
+/**
+ * By : Ken Lai
+ * Date : July 3, 2020
+ * 
+ */
+async function makePayment(input, user) {
 	var response = new Object;
 	const rightsGroup = [
 		BOOKING_ADMIN_GROUP
@@ -905,19 +910,16 @@ async function changePaymentStatus(input, user) {
 		throw response;
 	}
 
-	//validate intent
-	if (input.intent == null || input.intent.length < 1) {
+	//validate amountCollected
+	if (input.paidAmount == null || input.paidAmount.length < 1) {
 		response.status = 400;
-		response.message = "intent is mandatory";
+		response.message = "paidAmount is mandatory";
 		throw response;
 	}
 
-	const MARK_PAID = "MARK_PAID";
-	const REVERSE_PAID = "REVERSE_PAID";
-	const validIntents = [MARK_PAID, REVERSE_PAID]
-	if (validIntents.includes(input.intent) == false) {
+	if (Number.isNaN(input.paidAmount) == true) {
 		response.status = 400;
-		response.message = "Invalid intent";
+		response.message = "Invalid paidAmount";
 		throw response;
 	}
 
@@ -955,22 +957,15 @@ async function changePaymentStatus(input, user) {
 		throw response;
 	}
 
-	//set payment status to PAID or AWAITING_PAYMENT_STATUS
-	if (input.intent == MARK_PAID) {
-		booking.paymentStatus = PAID_STATUS;
-	} else if (input.intent == REVERSE_PAID) {
-		booking.paymentStatus = AWAITING_PAYMENT_STATUS;
-	}
+	booking.paymentStatus = PAID_STATUS;
+	booking.paidAmount = Number(input.paidAmount);
 	
 	//add transaction history
 	var transactionHistory = new Object();
 	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
 	transactionHistory.userId = user.id;
-	if (input.intent == MARK_PAID) {
-		transactionHistory.transactionDescription = "paymentStatus changed to PAID"
-	} else if (input.intent == REVERSE_PAID) {
-		transactionHistory.transactionDescription = "paymentStatus reversed to AWAITING_PAYMENT"
-	}
+	transactionHistory.userName = user.name;
+	transactionHistory.transactionDescription = "Payment status made changed to PAID";
 	booking.history.push(transactionHistory);
 
 	await booking.save()
@@ -1120,6 +1115,7 @@ function bookingToOutuptObj(booking) {
 	outputObj.startTime = common.dateToStandardString(booking.startTime);
 	outputObj.endTime = common.dateToStandardString(booking.endTime);
 	outputObj.totalAmount = booking.totalAmount;
+	outputObj.collectedAmount = booking.collectedAmount;
 	outputObj.currency = booking.currency;
 	outputObj.contactName = booking.contactName;
 	outputObj.telephoneCountryCode = booking.telephoneCountryCode;
@@ -1138,7 +1134,7 @@ function bookingToOutuptObj(booking) {
 
 module.exports = {
 	addNewBooking,
-	changePaymentStatus,
+	makePayment,
 	addGuest,
 	removeGuest,
 	addCrew,

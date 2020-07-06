@@ -11,7 +11,7 @@ router.delete("/booking", authenticateAccessToken, bookingController.cancelBooki
 router.get("/bookings", authenticateAccessToken, bookingController.searchBookings);
 router.get("/booking", authenticateAccessToken, bookingController.findBooking);
 router.put("/fulfill-booking", authenticateAccessToken, bookingController.fulfillBooking);
-router.put("/payment-status", authenticateAccessToken, bookingController.changePaymentStatus);
+router.put("/make-payment", authenticateAccessToken, bookingController.makePayment);
 router.put("/add-guest", authenticateAccessToken, bookingController.addGuest);
 router.put("/remove-guest", authenticateAccessToken, bookingController.removeGuest);
 router.put("/add-crew", authenticateAccessToken, bookingController.addCrew);
