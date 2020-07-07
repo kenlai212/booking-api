@@ -4,7 +4,9 @@ const fetch = require("node-fetch");
 const server = require("../server");
 const common = require("gogowake-common");
 const Booking = require("../src/booking/booking.model").Booking;
+const Occuapncy = require("../src/occupancy/occupancy.model").Occupancy;
 const mongoose = require("mongoose");
+const seedCrews = require("../seed/seedCrews");
 
 chai.use(chaiHttp);
 const assert = chai.assert;
@@ -349,7 +351,7 @@ describe('Booking Endpoints', () => {
         });
     });
     
-    describe("tessting removeGuest", function () {
+    describe("testing removeGuest", function () {
         var booking1;
 
         var startTime = new Date();
@@ -502,7 +504,7 @@ describe('Booking Endpoints', () => {
         });
     });
     
-    describe("tessting addCrew", function () {
+    describe("testing addCrew", async function () {
         var booking1;
         var crews;
 
@@ -517,6 +519,11 @@ describe('Booking Endpoints', () => {
         endTime.setUTCHours(9);
         endTime.setUTCMinutes(59);
         endTime.setUTCSeconds(59);
+
+        await seedCrews.deleteAllCrews()
+            .then(async () => {
+                await seedCrews.seedCrews();
+            });
 
         before(async () => {
             await deleteAll()
@@ -538,6 +545,15 @@ describe('Booking Endpoints', () => {
                         });
 
                     //get crews
+                    await chai.request(server)
+                        .get("/crews")
+                        .set("Authorization", "Token " + accessToken)
+                        .then(response => {
+                            assert.equal(response.status, 200);
+                            crews = response.crews;
+                        });
+
+                    /*
                     const url = "http://api.occupancy.hebewake.com/crews";
                     const headers = {
                         "Authorization": "Token " + accessToken,
@@ -552,6 +568,7 @@ describe('Booking Endpoints', () => {
                         .catch(err => { console.log(err) });
                     
                     crews = response.crews;
+                    */
                 });
         });
 
@@ -1583,6 +1600,15 @@ describe('Booking Endpoints', () => {
 });
 
 async function deleteAll() {
+    //delete all occupancies
+    await Occuapncy.deleteMany().exec();
+
+    //delete all bookings
+    await Booking.deleteMany().exec();
+}
+
+/*
+async function deleteAll() {
     var oneWeekAgo = common.getNowUTCTimeStamp();
     oneWeekAgo.setUTCDate(oneWeekAgo.getUTCDate() - 7);
     oneWeekAgo.setUTCHours(0);
@@ -1632,3 +1658,4 @@ async function deleteAll() {
         })
         .catch(err => { console.log(err) });
 }
+*/
