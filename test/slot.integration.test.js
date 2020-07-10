@@ -105,10 +105,30 @@ describe('Slot Endpoints', () => {
         const todayStr = nowStr.slice(0, 10);
         const nowHourStr = nowStr.substr(11, 2);
         const minSlotIndex = nowHourStr - 5;
-        
-        it("success, test today, any slots before current time should have available = false, should return 200 status", async () => {
+
+        it("missing requestType, should return 400 status", async () => {
             await chai.request(server)
                 .get("/slots?targetDate=" + todayStr)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.body.error, "requestType is mandatory");
+                    assert.equal(response.status, 400);
+                });
+        });
+
+        it("invalid requestType, should return 400 status", async () => {
+            await chai.request(server)
+                .get("/slots?targetDate=" + todayStr + "&requestType=ABC")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.body.error, "Invalid requestType");
+                    assert.equal(response.status, 400);
+                });
+        });
+
+        it("success, test today, any slots before current time should have available = false, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/slots?targetDate=" + todayStr + "&requestType=CUSTOMER_BOOKING")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
@@ -130,7 +150,7 @@ describe('Slot Endpoints', () => {
 
         it("success, test tomorrow, should return 200 status", async () => {
             await chai.request(server)
-                .get("/slots?targetDate=" + tomorrowStr)
+                .get("/slots?targetDate=" + tomorrowStr + "&requestType=CUSTOMER_BOOKING")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
@@ -141,6 +161,25 @@ describe('Slot Endpoints', () => {
                     assert.equal(slots[7].available, false);
                     assert.equal(slots[8].available, true);
                     assert.equal(slots[9].available, false);
+                    assert.equal(slots[10].available, false);
+                    assert.equal(slots[11].available, false);
+                    assert.equal(slots[12].available, true);
+                });
+        });
+
+        it("success, test tomorrow, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/slots?targetDate=" + tomorrowStr + "&requestType=OWNER_BOOKING")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    const slots = response.body.slots;
+                    assert.equal(slots.length, 15);
+                    assert.equal(slots[5].available, true);
+                    assert.equal(slots[6].available, false);
+                    assert.equal(slots[7].available, false);
+                    assert.equal(slots[8].available, true);
+                    assert.equal(slots[9].available, true);
                     assert.equal(slots[10].available, false);
                     assert.equal(slots[11].available, false);
                     assert.equal(slots[12].available, true);

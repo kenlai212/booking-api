@@ -16,7 +16,7 @@ Date : Mar 13 2020
 Returns hourly slots of target date.
 Will include unitPrice and availability in each slot
 **********************************************************/
-async function getSlots(input, user){
+async function getSlots(input, user) {
 	var response = new Object;
 
 	//validate user group rights
@@ -55,6 +55,22 @@ async function getSlots(input, user){
 		response.message = "Invalid targetDate format";
 		throw response;
 	}
+
+	//validate requestType
+	if (input.requestType == null || input.requestType.length < 1) {
+		response.status = 400;
+		response.message = "requestType is mandatory";
+		throw response;
+	}
+
+	const OWNER_BOOKING_REQUEST_TYPE = "OWNER_BOOKING";
+	const CUSTOMER_BOOKING_REQUEST_TYPE = "CUSTOMER_BOOKING"
+	const validRequestType = [OWNER_BOOKING_REQUEST_TYPE, CUSTOMER_BOOKING_REQUEST_TYPE];
+	if (validRequestType.includes(input.requestType) == false) {
+		response.status = 400;
+		response.message = "Invalid requestType";
+		throw response;
+	}
 	
 	//generate slots from day start to day end
 	var slots = generateSlots(dayStartTime, dayEndTime);
@@ -71,19 +87,22 @@ async function getSlots(input, user){
 			throw response;
 		});
 
+	//if customer booking
 	//for each slots, chceck the availability of the nexst slot, 
 	//if not available, set itself to not available as well due to minimum 2hrs limit
-	slots.forEach((slot, index) => {
-		const nextIndex = index + 1;
+	if (input.requestType == CUSTOMER_BOOKING_REQUEST_TYPE) {
+		slots.forEach((slot, index) => {
+			const nextIndex = index + 1;
 
-		if (index < slots.length - 1) {
-			if (slots[nextIndex].available == false) {
-				slot.available = false
+			if (index < slots.length - 1) {
+				if (slots[nextIndex].available == false) {
+					slot.available = false
+				}
 			}
-		}
-		
-	});
 
+		});
+	}
+	
 	var outputObjs = [];
 	slots.forEach(slot => {
 		var outputObj = slotToOutuptObj(slot);
