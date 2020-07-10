@@ -17,9 +17,6 @@ const AUTHENTICATION_API_LOGIN = "tester";
 const AUTHENTICATION_API_PASSWORD = "password123";
 var accessToken;
 
-const GET_OCCUPANCIES_URL = "http://api.occupancy.hebewake.com/occupancies";
-const DELETE_OCCUPANCY_URL = "http://api.occupancy.hebewake.com/occupancy";
-
 describe('Booking Endpoints', () => {
 
     //call login api to get accessToken

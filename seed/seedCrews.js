@@ -1,14 +1,15 @@
 const mongoose = require("mongoose");
 const Crew = require("../src/crew/crew.model").Crew;
 const common = require("gogowake-common");
+const logger = common.logger;
 const fetch = require("node-fetch");
 
-const AUTHENTICATION_DOMAIN = "http://api.authentication.hebewake.com";
+const AUTHENTICATION_DOMAIN = "http://api.notification.hebewake.com";
 const LOGIN_PATH = "/login";
 const LOGINID = "ken";
 const PASSWORD = "p1";
 
-const CREW_DOMAIN = "http://api.occupancy.hebewake.com";
+const CREW_DOMAIN = "http://api.booking.hebewake.com";
 const NEW_CREW_PATH = "/crew";
 
 var accessToken;

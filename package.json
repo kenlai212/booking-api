@@ -15,7 +15,7 @@
     "express": "^4.17.1",
     "gogowake-common": "git+https://github.com/kenlai212/gogowake-common.git",
     "mongodb": "^3.5.9",
-    "mongoose": "^5.9.20",
+    "mongoose": "^5.9.22",
     "uuid": "^3.4.0"
   },
   "devDependencies": {

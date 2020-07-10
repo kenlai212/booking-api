@@ -15,9 +15,9 @@ const AUTHENTICATION_API_LOGIN = "tester";
 const AUTHENTICATION_API_PASSWORD = "password123";
 var accessToken;
 
-const GET_OCCUPANCIES_URL = "http://api.occupancy.hebewake.com/occupancies";
-const DELETE_OCCUPANCY_URL = "http://api.occupancy.hebewake.com/occupancy";
-const OCCUPY_ASSET_URL = "http://api.occupancy.hebewake.com/occupancy";
+const GET_OCCUPANCIES_URL = "http://localhost/occupancies";
+const DELETE_OCCUPANCY_URL = "http://localhost/occupancy";
+const OCCUPY_ASSET_URL = "http://localhost/occupancy";
 
 describe('Slot Endpoints', () => {
 
