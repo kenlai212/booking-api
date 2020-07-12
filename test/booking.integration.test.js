@@ -1,6 +1,5 @@
 const chai = require("chai");
 var chaiHttp = require("chai-http");
-const fetch = require("node-fetch");
 const server = require("../server");
 const common = require("gogowake-common");
 const Booking = require("../src/booking/booking.model").Booking;
@@ -262,7 +261,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.status, 200);
                     const booking = response.body;
                     assert(booking.id);
-                    assert.equal(booking.bookingType, "OPEN_BOOKING");
+                    assert.equal(booking.bookingType, "CUSTOMER_BOOKING");
                     assert(booking.occupancyId);
                     assert(booking.creationTime);
                     assert(booking.createdBy);
@@ -305,7 +304,7 @@ describe('Booking Endpoints', () => {
                 });
         });
 
-        it("test for private booking, set time from 3 - 4 am should return 200 status", async () => {
+        it("test for owner booking, set time from 3 - 4 am should return 200 status", async () => {
             startTime.setHours(startTime.getHours() - 5);
             startTimeStr = common.dateToStandardString(startTime);
             endTime.setHours(endTime.getHours() - 6);
@@ -315,7 +314,7 @@ describe('Booking Endpoints', () => {
                 .post("/booking")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "bookingType": "PRIVATE_BOOKING",
+                    "bookingType": "OWNER_BOOKING",
                     "startTime": startTimeStr,
                     "endTime": endTimeStr,
                     "contactName": "tester",
@@ -327,7 +326,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(response.status, 200);
                     const booking = response.body;
                     assert(booking.id);
-                    assert.equal(booking.bookingType, "PRIVATE_BOOKING");
+                    assert.equal(booking.bookingType, "OWNER_BOOKING");
                     assert(booking.occupancyId);
                     assert(booking.creationTime);
                     assert(booking.createdBy);
@@ -335,7 +334,7 @@ describe('Booking Endpoints', () => {
                     assert.equal(booking.paymentStatus, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, startTimeStr);
                     assert.equal(booking.endTime, endTimeStr);
-                    assert.equal(booking.totalAmount,0);
+                    assert.equal(booking.totalAmount,300);
                     assert.equal(booking.currency, "HKD");
                     assert.equal(booking.contactName, "tester");
                     assert.equal(booking.telephoneCountryCode, "852");

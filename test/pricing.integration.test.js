@@ -129,6 +129,17 @@ describe('Pricing Endpoints', () => {
                 });
         });
 
+        it("customer booking weekday, success getTotalAmount 3 hours, expect 3000 totalAmount, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/total-amount?startTime=2020-05-11T08:00:00&endTime=2020-05-11T10:59:59&bookingType=CUSTOMER_BOOKING")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.totalAmount, 3000);
+                    assert.equal(response.body.currency, "HKD");
+                });
+        });
+
         it("invalid bookingType, should return 400 status", async () => {
             await chai.request(server)
                 .get("/total-amount?startTime=2020-05-10T08:00:00&endTime=2020-05-10T08:59:59&bookingType=INVALID_BOOKING_TYPE")
@@ -139,13 +150,13 @@ describe('Pricing Endpoints', () => {
                 });
         });
 
-        it("private booking, expect 0 totalAmount, should return 200 status", async () => {
+        it("customer booking, expect 0 totalAmount, should return 200 status", async () => {
             await chai.request(server)
-                .get("/total-amount?startTime=2020-05-11T08:00:00&endTime=2020-05-11T10:59:59&bookingType=PRIVATE_BOOKING")
+                .get("/total-amount?startTime=2020-05-11T08:00:00&endTime=2020-05-11T10:59:59&bookingType=OWNER_BOOKING")
                 .set("Authorization", "Token " + accessToken)
                 .then(response => {
                     assert.equal(response.status, 200);
-                    assert.equal(response.body.totalAmount, 0);
+                    assert.equal(response.body.totalAmount, 900);
                     assert.equal(response.body.currency, "HKD");
                 });
         });

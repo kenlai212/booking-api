@@ -6,7 +6,7 @@ const logger = common.logger;
 require('dotenv').config();
 
 const availableAssetIds = ["A001", "MC_NXT20"];
-const availableOccupancyType = ["OPEN_BOOKING", "PRIVATE_BOOKING", "MAINTAINANCE"];
+const availableOccupancyType = ["CUSTOMER_BOOKING", "OWNER_BOOKING", "MAINTAINANCE"];
 
 const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
 const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER_GROUP";

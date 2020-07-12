@@ -72,7 +72,7 @@ describe('Occupancy Endpoints', () => {
             await chai.request(server)
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
-                .send({ "occupancyType": "OPEN_BOOKING" })
+                .send({ "occupancyType": "CUSTOMER_BOOKING" })
                 .then(response => {
                     assert.equal(response.body.error, "startTime is mandatory");
                     assert.equal(response.status, 400);
@@ -84,7 +84,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "1234"
                 })
                 .then(response => {
@@ -98,7 +98,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-123T08:00:ab",
                 })
                 .then(response => {
@@ -112,7 +112,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                 })
                 .then(response => {
@@ -126,7 +126,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                     "endTime": "2345"
                 })
@@ -141,7 +141,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                     "endTime": "2020-04-28T08:00:00"
                 })
@@ -156,7 +156,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                     "endTime": "2020-04-29T07:00:00"
                 })
@@ -171,7 +171,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                     "endTime": "2020-04-29T08:59:58"
                 })
@@ -186,7 +186,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                     "endTime": "2020-04-29T08:59:59"
                 })
@@ -201,7 +201,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                     "endTime": "2020-04-29T08:59:59",
                     "assetId": "ABC"
@@ -217,7 +217,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                     "endTime": "2020-04-29T08:59:59",
                     "assetId": "MC_NXT20"
@@ -249,7 +249,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:00:00",
                     "endTime": "2020-04-29T08:59:59",
                     "assetId": "MC_NXT20"
@@ -265,7 +265,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T08:30:00",
                     "endTime": "2020-04-29T09:30:00",
                     "assetId": "MC_NXT20"
@@ -281,7 +281,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T06:00:00",
                     "endTime": "2020-04-29T09:00:00",
                     "assetId": "MC_NXT20"
@@ -297,7 +297,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-04-29T09:00:00",
                     "endTime": "2020-04-29T09:59:59",
                     "assetId": "MC_NXT20"
@@ -333,7 +333,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-03T05:00:00",
                     "endTime": "2020-05-03T05:59:59",
                     "assetId": "MC_NXT20"
@@ -343,7 +343,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-03T06:00:00",
                     "endTime": "2020-05-03T06:59:59",
                     "assetId": "MC_NXT20"
@@ -353,7 +353,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-03T07:00:00",
                     "endTime": "2020-05-03T07:59:59",
                     "assetId": "MC_NXT20"
@@ -363,7 +363,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-03T08:00:00",
                     "endTime": "2020-05-03T08:59:59",
                     "assetId": "MC_NXT20"
@@ -373,7 +373,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-03T09:00:00",
                     "endTime": "2020-05-03T09:59:59",
                     "assetId": "MC_NXT20"
@@ -383,7 +383,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-03T10:00:00",
                     "endTime": "2020-05-03T10:59:59",
                     "assetId": "MC_NXT20"
@@ -393,7 +393,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-03T11:00:00",
                     "endTime": "2020-05-03T11:59:59",
                     "assetId": "MC_NXT20"
@@ -403,7 +403,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-04T11:00:00",
                     "endTime": "2020-05-04T11:59:59",
                     "assetId": "MC_NXT20"
@@ -413,7 +413,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-04T17:00:00",
                     "endTime": "2020-05-04T17:59:59",
                     "assetId": "MC_NXT20"
@@ -423,7 +423,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-04T18:00:00",
                     "endTime": "2020-05-04T18:59:59",
                     "assetId": "MC_NXT20"
@@ -520,12 +520,12 @@ describe('Occupancy Endpoints', () => {
                     assert(occupancies[0].id)
                     assert.equal(occupancies[0].startTime, "2020-05-03T05:00:00");
                     assert.equal(occupancies[0].endTime, "2020-05-03T05:59:59");
-                    assert.equal(occupancies[0].occupancyType, "OPEN_BOOKING");
+                    assert.equal(occupancies[0].occupancyType, "CUSTOMER_BOOKING");
                     assert.equal(occupancies[0].assetId, "MC_NXT20");
                     assert(occupancies[1].id)
                     assert.equal(occupancies[1].startTime, "2020-05-03T06:00:00");
                     assert.equal(occupancies[1].endTime, "2020-05-03T06:59:59");
-                    assert.equal(occupancies[1].occupancyType, "OPEN_BOOKING");
+                    assert.equal(occupancies[1].occupancyType, "CUSTOMER_BOOKING");
                     assert.equal(occupancies[1].assetId, "MC_NXT20");
                 });
         });
@@ -549,7 +549,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-05T09:00:00",
                     "endTime": "2020-05-05T09:59:59",
                     "assetId": "MC_NXT20"
@@ -680,7 +680,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-05T09:00:00",
                     "endTime": "2020-05-05T09:59:59",
                     "assetId": "MC_NXT20"
@@ -694,7 +694,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-05T10:00:00",
                     "endTime": "2020-05-05T10:59:59",
                     "assetId": "MC_NXT20"
@@ -708,7 +708,7 @@ describe('Occupancy Endpoints', () => {
                 .post("/occupancy")
                 .set("Authorization", "Token " + accessToken)
                 .send({
-                    "occupancyType": "OPEN_BOOKING",
+                    "occupancyType": "CUSTOMER_BOOKING",
                     "startTime": "2020-05-05T11:00:00",
                     "endTime": "2020-05-05T11:59:59",
                     "assetId": "MC_NXT20"

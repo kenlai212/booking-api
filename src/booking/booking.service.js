@@ -17,9 +17,9 @@ const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN_GROUP";
 const BOOKING_USER_GROUP = "BOOKING_USER_GROUP";
 
 //constants for booking types
-const OPEN_BOOKING_TYPE = "OPEN_BOOKING";
-const PRIVATE_BOOKING_TYPE = "PRIVATE_BOOKING";
-const VALID_BOOKING_TYPES = [OPEN_BOOKING_TYPE, PRIVATE_BOOKING_TYPE];
+const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
+const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
+const VALID_BOOKING_TYPES = [CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE];
 
 //constants for booking status
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
@@ -112,9 +112,9 @@ async function addNewBooking(input, user) {
 		userName: user.name
 	}]
 
-	//check booking type, if none, assign default OPEN_BOOKING
+	//check booking type, if none, assign default CUSTOMER_BOOKING
 	if (input.bookingType == null || input.bookingType.length < 0) {
-		booking.bookingType = OPEN_BOOKING_TYPE
+		booking.bookingType = CUSTOMER_BOOKING_TYPE
 	} else {
 		booking.bookingType = input.bookingType;
 	}
@@ -130,7 +130,7 @@ async function addNewBooking(input, user) {
 	var diffMs;
 	diffMs = (endTime - startTime);
 
-	if (booking.bookingType == OPEN_BOOKING_TYPE) {
+	if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
 
 		//check minimum booking duration
 		const minMs = process.env.MINIMUM_BOOKING_TIME;
@@ -268,7 +268,7 @@ async function addNewBooking(input, user) {
 	//call external occupancy API to save occupancy record
 	const url = process.env.OCCUPANCY_DOMAIN + OCCUPANCY_PATH;
 	const data = {
-		"occupancyType": OPEN_BOOKING_TYPE,
+		"occupancyType": CUSTOMER_BOOKING_TYPE,
 		"startTime": common.dateToStandardString(booking.startTime),
 		"endTime": common.dateToStandardString(booking.endTime),
 		"assetId": DEFAULT_ASSET_ID

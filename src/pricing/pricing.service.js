@@ -3,9 +3,9 @@ const common = require("gogowake-common");
 
 require('dotenv').config();
 
-const OPEN_BOOKING = "OPEN_BOOKING";
-const PRIVATE_BOOKING = "PRIVATE_BOOKING";
-const validBookingType = [OPEN_BOOKING, PRIVATE_BOOKING];
+const CUSTOMER_BOOKING = "CUSTOMER_BOOKING";
+const OWNER_BOOKING = "OWNER_BOOKING";
+const validBookingType = [CUSTOMER_BOOKING, OWNER_BOOKING];
 
 function calculateTotalAmount(input, user) {
 	var response = new Object;
@@ -61,9 +61,9 @@ function calculateTotalAmount(input, user) {
 		throw response;
 	}
 
-	//if bookingType is null, default to OPEN_BOOKING
+	//if bookingType is null, default to CUSTOMER_BOOKING
 	if (input.bookingType == null || input.bookingType.length < 1) {
-		input.bookingType = OPEN_BOOKING;
+		input.bookingType = CUSTOMER_BOOKING;
 	}
 
 	if (validBookingType.includes(input.bookingType) == false) {
@@ -72,14 +72,14 @@ function calculateTotalAmount(input, user) {
 		throw response;
 	}
 
+	//calculate duration in hours
+	const diffTime = Math.abs(endTime - startTime);
+	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
+	const durationInHours = Math.ceil(durationInMinutes / 60);
+
 	//calculate total amount for OPEN_BOOKING. If PRIVATE_BOOKING then default to 0 totalAmount
 	var totalAmount;
-	if (input.bookingType == OPEN_BOOKING) {
-		//calculate duration in hours
-		const diffTime = Math.abs(endTime - startTime);
-		const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
-		const durationInHours = Math.ceil(durationInMinutes / 60);
-
+	if (input.bookingType == CUSTOMER_BOOKING) {
 		totalAmount = durationInHours * process.env.UNIT_PRICE_REGULAR;
 
 		//check weekday or weekend
@@ -87,7 +87,7 @@ function calculateTotalAmount(input, user) {
 			totalAmount = durationInHours * process.env.UNIT_PRICE_DISCOUNT_WEEKDAY;
 		}
 	} else {
-		totalAmount = 0;
+		totalAmount = durationInHours * process.env.UNTI_PRICE_OWNER_BOOKING;
 	}
 	
     return { "totalAmount": totalAmount, "currency": process.env.UNIT_CURRENCY };
