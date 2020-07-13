@@ -23,6 +23,7 @@ const VALID_BOOKING_TYPES = [CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE];
 
 //constants for booking status
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
+const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
 const CANCELLED_STATUS = "CANCELLED";
 const FULFILLED_STATUS = "FULFILLED"
 
@@ -98,13 +99,8 @@ async function addNewBooking(input, user) {
 
 	//init booking object
 	var booking = new Booking();
-
 	booking.creationTime = common.getNowUTCTimeStamp();
-
 	booking.createdBy = user.id;
-
-	booking.status = AWAITING_CONFIRMATION_STATUS;
-
 	booking.history = [{
 		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "New booking",
@@ -181,6 +177,13 @@ async function addNewBooking(input, user) {
 			response.message = "Booking cannot be later then " + process.env.LATEST_BOOKING_HOUR + ":00";
 			throw response;
 		}
+	}
+
+	//set booking status
+	if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
+		booking.status = AWAITING_CONFIRMATION_STATUS;
+	} else {
+		booking.status = CONFIRMED_BOOKING_STATUS;
 	}
 
 	//check for retro booking (booing before current time)

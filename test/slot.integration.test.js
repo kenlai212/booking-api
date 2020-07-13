@@ -155,6 +155,7 @@ describe('Slot Endpoints', () => {
                 .then(response => {
                     assert.equal(response.status, 200);
                     const slots = response.body.slots;
+                    console.log(slots);
                     assert.equal(slots.length, 15);
                     assert.equal(slots[5].available, false);
                     assert.equal(slots[6].available, false);
@@ -346,7 +347,7 @@ async function occupyAsset(startTime, endTime, assetId) {
         "startTime": startTime,
         "endTime": endTime,
         "assetId": assetId,
-        "occupancyType": "OPEN_BOOKING"
+        "occupancyType": "CUSTOMER_BOOKING"
     }
 
     var occupancy;

@@ -330,7 +330,7 @@ describe('Booking Endpoints', () => {
                     assert(booking.occupancyId);
                     assert(booking.creationTime);
                     assert(booking.createdBy);
-                    assert.equal(booking.status, "AWAITING_CONFIRMATION");
+                    assert.equal(booking.status, "CONFIRMED");
                     assert.equal(booking.paymentStatus, "AWAITING_PAYMENT");
                     assert.equal(booking.startTime, startTimeStr);
                     assert.equal(booking.endTime, endTimeStr);
