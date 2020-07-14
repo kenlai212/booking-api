@@ -15,6 +15,7 @@ router.put("/make-payment", authenticateAccessToken, bookingController.makePayme
 router.put("/add-guest", authenticateAccessToken, bookingController.addGuest);
 router.put("/remove-guest", authenticateAccessToken, bookingController.removeGuest);
 router.put("/add-crew", authenticateAccessToken, bookingController.addCrew);
+router.post("/send-disclaimer", authenticateAccessToken, bookingController.sendDisclaimer);
 
 module.exports = router;
 

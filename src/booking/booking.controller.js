@@ -164,6 +164,23 @@ const findBooking = async (req, res) => {
 	return res;
 }
 
+const sendDisclaimer = async (req, res) => {
+	common.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.sendDisclaimer(req.body, req.user)
+		common.readySuccessResponse(response, res);
+	} catch (err) {
+		common.readyErrorResponse(err, res);
+	}
+
+	res.on("finish", function () {
+		common.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
 module.exports = {
 	newBooking,
 	makePayment,
@@ -173,5 +190,6 @@ module.exports = {
 	cancelBooking,
 	fulfillBooking,
 	searchBookings,
-	findBooking
+	findBooking,
+	sendDisclaimer
 }

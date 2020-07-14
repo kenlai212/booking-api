@@ -23,7 +23,8 @@ const bookingSchema = new mongoose.Schema({
 		guestName: String,
 		telephoneCountryCode: String,
 		telephoneNumber: String,
-		emailAddress: String
+		emailAddress: String,
+		disclaimerId: String
 	}],
 	crews: [{
 		crewId: String,

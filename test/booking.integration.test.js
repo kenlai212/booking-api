@@ -1593,6 +1593,141 @@ describe('Booking Endpoints', () => {
         });
     });
 
+    describe("testing send disclaimer", function () {
+        this.timeout(5000);
+        var booking1;
+
+        before(async () => {
+            await deleteAll()
+                .then(async () => {
+
+                    var startTime = common.getNowUTCTimeStamp();
+                    startTime.setDate(startTime.getDate() + 1);
+                    startTime.setUTCHours(8);
+                    startTime.setMinutes(0);
+                    startTime.setSeconds(0);
+
+                    var endTime = common.getNowUTCTimeStamp();
+                    endTime.setDate(endTime.getDate() + 1);
+                    endTime.setUTCHours(9);
+                    endTime.setUTCMinutes(59);
+                    endTime.setUTCSeconds(59);
+
+                    //setup booking1
+                    await chai.request(server)
+                        .post("/booking")
+                        .set("Authorization", "Token " + accessToken)
+                        .send({
+                            "startTime": common.dateToStandardString(startTime),
+                            "endTime": common.dateToStandardString(endTime),
+                            "contactName": "tester",
+                            "telephoneCountryCode": "852",
+                            "telephoneNumber": "12345678",
+                            "emailAddress": "test@test.com"
+                        })
+                        .then(response => { booking1 = response.body });
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .post("/send-disclaimer")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .post("/send-disclaimer")
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "bookingId is mandatory");
+                });
+        });
+
+        it("invalid bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .post("/send-disclaimer")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: "1234"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid bookingId");
+                });
+        });
+        
+        it("missing guestId, should return 400 status", async () => {
+            await chai.request(server)
+                .post("/send-disclaimer")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "guestId is mandatory");
+                });
+        });
+
+        it("missing guestId, should return 400 status", async () => {
+            await chai.request(server)
+                .post("/send-disclaimer")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "guestId is mandatory");
+                });
+        });
+
+        it("invalid guestId, should return 400 status", async () => {
+            await chai.request(server)
+                .post("/send-disclaimer")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: "ABC"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid guestId");
+                });
+        });
+
+        it("success, should return 200 status", async () => {
+            await chai.request(server)
+                .post("/send-disclaimer")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: booking1.guests[0]._id
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "SUCCESS");
+                });
+        });
+
+        it("find booking1, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    booking1 = response.body;
+                    assert(booking1.guests[0].disclaimerId);
+                });
+        });
+        
+    });
+
 });
 
 async function deleteAll() {

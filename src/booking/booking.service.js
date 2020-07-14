@@ -1,4 +1,5 @@
 "use strict";
+var uuid = require('uuid');
 const mongoose = require("mongoose");
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
@@ -33,6 +34,7 @@ const PAID_STATUS = "PAID";
 
 const OCCUPANCY_PATH = "/occupancy";
 const SEND_EMAIL_PATH = "/email";
+const SEND_SMS_PATH = "/sms";
 const RELEASE_OCCUPANCY_PATH = "/occupancy";
 const CREW_PATH = "/crew";
 
@@ -307,6 +309,7 @@ async function addNewBooking(input, user) {
 			throw response;
 		});
 
+	/*
 	//send notification to admin
 	if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
 		const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
@@ -381,6 +384,7 @@ async function addNewBooking(input, user) {
 				logger.error("Failed to send new booking notification email to customer : " + JSON.stringify(err));
 			});
 	}
+	*/
 
 	var outputObj = bookingToOutuptObj(booking);
 
@@ -662,7 +666,7 @@ async function removeGuest(input, user) {
 		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Removed guest : " + targetGuestName,
 		userId: user.id,
-		userName: user.Name
+		userName: user.name
 	});
 
 	await booking.save()
@@ -768,7 +772,7 @@ async function addGuest(input, user) {
 		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Added new guest : " + input.guestName,
 		userId: user.id,
-		userName: user.Name
+		userName: user.name
 	});
 
 	await booking.save()
@@ -881,7 +885,7 @@ async function addCrew(input, user) {
 		transactionTime: common.getNowUTCTimeStamp(),
 		transactionDescription: "Added new crew : " + input.crewId,
 		userId: user.id,
-		userName: user.Name
+		userName: user.name
 	});
 
 	await booking.save()
@@ -1111,6 +1115,135 @@ async function findBookingById(input, user) {
 	return outputObj;
 }
 
+/**
+ * By : Ken Lai
+ * Date: July 12, 2020
+ */
+async function sendDisclaimer(input, user) {
+
+	var response = new Object;
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
+	]
+
+	//validate user group
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	//validate bookingId
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw response;
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//find booking
+	var booking;
+	await Booking.findById(input.bookingId)
+		.exec()
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Booking.findById() is not available";
+			throw response;
+		});
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//validate guestId
+	if (input.guestId == null || input.guestId.length < 1) {
+		response.status = 400;
+		response.message = "guestId is mandatory";
+		throw response;
+	}
+
+	const disclaimerId = uuid.v4();
+
+	var guest;
+	booking.guests.forEach(item => {
+		if (item._id == input.guestId) {
+			item.disclaimerId = disclaimerId;
+			guest = item;
+		}
+	});
+
+	if (guest == null) {
+		response.status = 400;
+		response.message = "Invalid guestId";
+		throw response;
+	}
+
+	//update guest.disclaimerId
+	var transactionHistory = new Object();
+	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
+	transactionHistory.userId = user.id;
+	transactionHistory.userName = user.name;
+	transactionHistory.transactionDescription = "Send disclaimer to guest : " + guest.guestName + "(" + guest.telephoneNumber + ")";
+	booking.history.push(transactionHistory);
+
+	await booking.save()
+		.then(() => {
+			logger.info("Sucessfully updated disclaimerId for guest : " + guest.guestName + " in booking : " + booking._id);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	//send sms
+	const disclaimerURL = process.env.DISCLAIMER_URL + "?disclaimerId=" + disclaimerId + "&bookingId=" + booking._id;
+	const number = guest.telephoneCountryCode + guest.telephoneNumber;
+	const data = {
+		"message": "Please read and acknowledge our disclaimer - " + disclaimerURL,
+		"number": number,
+		"subject": "GOGOWAKE"
+	}
+
+	const requestAttr = {
+		method: "POST",
+		headers: {
+			"content-Type": "application/json",
+			"Authorization": "Token " + global.accessToken
+		},
+		body: JSON.stringify(data)
+	}
+
+	const apiURL = process.env.NOTIFICATION_DOMAIN + SEND_SMS_PATH;
+
+	await common.callAPI(apiURL, requestAttr)
+		.then(result => {
+			logger.info("Successfully sent disclaimer msg to recipient : " + number + " , messageId : " + result.messageId);
+		})
+		.catch(err => {
+			logger.error("Failed to send disclaimer : " + JSON.stringify(err));
+			response.status = 500;
+			response.message = "Send SMS API is not available";
+			throw response;
+		});
+
+	return { "status": "SUCCESS" };
+}
+
 function bookingToOutuptObj(booking) {
 	var outputObj = new Object();
 	outputObj.id = booking._id;
@@ -1147,5 +1280,6 @@ module.exports = {
 	cancelBooking,
 	fulfillBooking,
 	viewBookings,
-	findBookingById
+	findBookingById,
+	sendDisclaimer
 }
