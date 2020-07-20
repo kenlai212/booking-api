@@ -11,6 +11,8 @@ const availableOccupancyType = ["CUSTOMER_BOOKING", "OWNER_BOOKING", "MAINTAINAN
 const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
 const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER_GROUP";
 const OCCUPANCY_USER_GROUP = "OCCUPANCY_USER_GROUP";
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN_GROUP";
+const BOOKING_USER_GROUP = "BOOKING_USER_GROUP";
 
 /**
  * By : Ken Lai
@@ -21,7 +23,8 @@ async function releaseOccupancy(input, user) {
 	var response = new Object;
 	const rightsGroup = [
 		OCCUPANCY_ADMIN_GROUP,
-		OCCUPANCY_POWER_USER_GROUP
+		OCCUPANCY_POWER_USER_GROUP,
+		BOOKING_ADMIN_GROUP
 	]
 
 	//validate user
@@ -65,7 +68,9 @@ async function checkAvailability(input, user) {
 	const rightsGroup = [
 		OCCUPANCY_ADMIN_GROUP,
 		OCCUPANCY_POWER_USER_GROUP,
-		OCCUPANCY_USER_GROUP
+		OCCUPANCY_USER_GROUP,
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
 	]
 
 	//validate user
@@ -198,7 +203,9 @@ async function occupyAsset(input, user) {
 	const rightsGroup = [
 		OCCUPANCY_ADMIN_GROUP,
 		OCCUPANCY_POWER_USER_GROUP,
-		OCCUPANCY_USER_GROUP
+		OCCUPANCY_USER_GROUP,
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
 	]
 
 	//validate user
@@ -352,7 +359,9 @@ async function getOccupancies(input, user) {
 	const rightsGroup = [
 		OCCUPANCY_ADMIN_GROUP,
 		OCCUPANCY_POWER_USER_GROUP,
-		OCCUPANCY_USER_GROUP
+		OCCUPANCY_USER_GROUP,
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
 	]
 
 	//validate user group
