@@ -76,7 +76,7 @@ async function getSlots(input, user) {
 	var slots = generateSlots(dayStartTime, dayEndTime);
 
 	//set availbility for all slots
-	await setAvailbilities(slots)
+	await setAvailbilities(slots, user.accessToken)
 		.then(slotsWithAvailability => {
 			slots = slotsWithAvailability;
 		})
@@ -187,7 +187,7 @@ async function getEndSlots(input, user){
 	var slots = generateSlots(dayStartTime, dayEndTime);
 	
 	//set availbility for all slots
-	await setAvailbilities(slots)
+	await setAvailbilities(slots, user.accessToken)
 	.then(slotsWithAvailability => {
 		slots = slotsWithAvailability;
 	})
@@ -234,8 +234,8 @@ By : Ken Lai
 private function - set availbility of each slot by calling
 external occupancy api
 *****************************************************************/
-async function setAvailbilities(slots){
-
+async function setAvailbilities(slots, userAccessToken){
+	
 	//call external occupancy API to get all occupancies between startTime and endTime
 	const startTimeStr = common.dateToStandardString(slots[0].startTime);
 	const endTimeStr = common.dateToStandardString(slots[slots.length - 1].endTime);
@@ -245,7 +245,7 @@ async function setAvailbilities(slots){
 		method: "GET",
 		headers: {
 			"content-Type": "application/json",
-			"Authorization": "Token " + global.accessToken
+			"Authorization": "Token " + userAccessToken
 		}
 	}
 
