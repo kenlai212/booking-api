@@ -74,8 +74,7 @@ async function getSlots(input, user) {
 	
 	//generate slots from day start to day end
 	var slots = generateSlots(dayStartTime, dayEndTime);
-	console.log("marker");
-	console.log(user);
+
 	//set availbility for all slots
 	await setAvailbilities(slots, user.accessToken)
 		.then(slotsWithAvailability => {

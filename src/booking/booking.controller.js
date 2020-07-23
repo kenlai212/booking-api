@@ -73,6 +73,23 @@ const addGuest = async (req, res) => {
 	return res;
 }
 
+const editGuest = async (req, res) => {
+	common.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.editGuest(req.body, req.user)
+		common.readySuccessResponse(response, res);
+	} catch (err) {
+		common.readyErrorResponse(err, res);
+	}
+
+	res.on("finish", function () {
+		common.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
 const addCrew = async (req, res) => {
 	common.logIncommingRequest(req);
 
@@ -191,5 +208,6 @@ module.exports = {
 	fulfillBooking,
 	searchBookings,
 	findBooking,
-	sendDisclaimer
+	sendDisclaimer,
+	editGuest
 }

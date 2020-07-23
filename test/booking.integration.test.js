@@ -699,7 +699,284 @@ describe('Booking Endpoints', () => {
                 });
         });
     });
-    
+
+    describe("testing editGuest", function () {
+        var booking1;
+
+        var startTime = new Date();
+        startTime.setDate(startTime.getDate() + 1);
+        startTime.setUTCHours(8);
+        startTime.setUTCMinutes(0);
+        startTime.setUTCSeconds(0);
+
+        var endTime = new Date();
+        endTime.setDate(endTime.getDate() + 1);
+        endTime.setUTCHours(9);
+        endTime.setUTCMinutes(59);
+        endTime.setUTCSeconds(59);
+
+        before(async () => {
+            await deleteAll()
+                .then(async () => {
+                    //setup booking1
+                    await chai.request(server)
+                        .post("/booking")
+                        .set("Authorization", "Token " + accessToken)
+                        .send({
+                            "startTime": common.dateToStandardString(startTime),
+                            "endTime": common.dateToStandardString(endTime),
+                            "contactName": "tester",
+                            "telephoneCountryCode": "852",
+                            "telephoneNumber": "12345678",
+                            "emailAddress": "test@test.com"
+                        })
+                        .then(response => {
+                            booking1 = response.body;
+                        });
+
+                    //add guest to booking1
+                    await chai.request(server)
+                        .put("/add-guest")
+                        .set("Authorization", "Token " + accessToken)
+                        .send({
+                            "guestName": "guest2",
+                            "telephoneCountryCode": "852",
+                            "telephoneNumber": "12345678",
+                            "emailAddress": "guest2@test.com",
+                            "bookingId": booking1.id
+                        });
+                });
+        });
+
+        var guest1;
+        var guest2;
+        it("find booking 1, expect 2 guests, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    booking1 = response.body;
+                    assert.equal(booking1.history.length, 2);
+                    assert.equal(booking1.history[1].transactionDescription, "Added new guest : guest2");
+                    assert.equal(booking1.guests.length, 2);
+                    assert.equal(booking1.guests[0].guestName, "tester");
+                    guest1 = booking1.guests[0];
+                    assert.equal(booking1.guests[1].guestName, "guest2");
+                    guest2 = booking1.guests[1];
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "bookingId is mandatory");
+                });
+        });
+
+        it("invalid bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: "1234"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid bookingId");
+                });
+        });
+
+        it("missing guestId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "guestId is mandatory");
+                });
+        });
+
+        it("missing guestName, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: "123"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "guestName is mandatory");
+                });
+        });
+
+        it("missing telephoneCountryCode, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: "123",
+                    guestName: "tester2"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "telephoneCountryCode is mandatory");
+                });
+        });
+
+        it("invalid telephoneCountryCode, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: "123",
+                    guestName: "tester2",
+                    telephoneCountryCode : "234"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid telephoneCountryCode");
+                });
+        });
+
+        it("missing telephoneNumber, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: "123",
+                    guestName: "tester2",
+                    telephoneCountryCode: "852"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "telephoneNumber is mandatory");
+                });
+        });
+
+        it("invalid guestId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: "123",
+                    guestName: "tester2",
+                    telephoneCountryCode: "852",
+                    telephoneNumber: "123456"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid guestId");
+                });
+        });
+
+        it("success edit guest1, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: guest1._id,
+                    guestName: "tester2",
+                    telephoneCountryCode: "853",
+                    telephoneNumber: "901234",
+                    emailAddress: "tester2@test.com"
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "SUCCESS");
+                });
+        });
+
+        it("find booking 1, expect 2 guests, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    booking1 = response.body;
+                    assert.equal(booking1.history.length, 3);
+                    assert.equal(booking1.history[1].transactionDescription, "Added new guest : guest2");
+                    assert.equal(booking1.history[2].transactionDescription, "Edited guest : tester2");
+                    assert.equal(booking1.guests.length, 2);
+                    assert.equal(booking1.guests[0].guestName, "tester2");
+                    assert.equal(booking1.guests[0].telephoneCountryCode, "853");
+                    assert.equal(booking1.guests[0].telephoneNumber, "901234");
+                    assert.equal(booking1.guests[0].emailAddress, "tester2@test.com");
+                    guest1 = booking1.guests[0];
+                    assert.equal(booking1.guests[1].guestName, "guest2");
+                    assert.equal(booking1.guests[1].telephoneCountryCode, "852");
+                    assert.equal(booking1.guests[1].telephoneNumber, "12345678");
+                    assert.equal(booking1.guests[1].emailAddress, "guest2@test.com");
+                    guest2 = booking1.guests[1];
+                });
+        });
+
+        it("success edit guest 2, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/edit-guest")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    guestId: guest2._id,
+                    guestName: "guest2",
+                    telephoneCountryCode: "853",
+                    telephoneNumber: "00000000",
+                    emailAddress: "guest0000@test.com"
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "SUCCESS");
+                });
+        });
+
+        it("find booking 1, expect 2 guests, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    booking1 = response.body;
+                    assert.equal(booking1.history.length, 4);
+                    assert.equal(booking1.history[1].transactionDescription, "Added new guest : guest2");
+                    assert.equal(booking1.history[2].transactionDescription, "Edited guest : tester2");
+                    assert.equal(booking1.history[3].transactionDescription, "Edited guest : guest2");
+                    assert.equal(booking1.guests.length, 2);
+                    assert.equal(booking1.guests[0].guestName, "tester2");
+                    assert.equal(booking1.guests[0].telephoneCountryCode, "853");
+                    assert.equal(booking1.guests[0].telephoneNumber, "901234");
+                    assert.equal(booking1.guests[0].emailAddress, "tester2@test.com");
+                    guest1 = booking1.guests[0];
+                    assert.equal(booking1.guests[1].guestName, "guest2");
+                    assert.equal(booking1.guests[1].telephoneCountryCode, "853");
+                    assert.equal(booking1.guests[1].telephoneNumber, "00000000");
+                    assert.equal(booking1.guests[1].emailAddress, "guest0000@test.com");
+                    guest2 = booking1.guests[1];
+                });
+        });
+    });
+
     describe("tessting addGuest", function () {
         var booking1;
 
