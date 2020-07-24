@@ -90,6 +90,23 @@ const editGuest = async (req, res) => {
 	return res;
 }
 
+const editContact = async (req, res) => {
+	common.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.editContact(req.body, req.user)
+		common.readySuccessResponse(response, res);
+	} catch (err) {
+		common.readyErrorResponse(err, res);
+	}
+
+	res.on("finish", function () {
+		common.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
 const addCrew = async (req, res) => {
 	common.logIncommingRequest(req);
 
@@ -209,5 +226,6 @@ module.exports = {
 	searchBookings,
 	findBooking,
 	sendDisclaimer,
-	editGuest
+	editGuest,
+	editContact
 }

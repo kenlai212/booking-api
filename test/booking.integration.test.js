@@ -1133,7 +1133,177 @@ describe('Booking Endpoints', () => {
                 });
         });
     });
-    
+
+    describe("test editContact", function () {
+        var booking1;
+
+        var startTime = new Date();
+        startTime.setDate(startTime.getDate() + 1);
+        startTime.setUTCHours(8);
+        startTime.setUTCMinutes(0);
+        startTime.setUTCSeconds(0);
+
+        var endTime = new Date();
+        endTime.setDate(endTime.getDate() + 1);
+        endTime.setUTCHours(9);
+        endTime.setUTCMinutes(59);
+        endTime.setUTCSeconds(59);
+
+        before(async () => {
+            await deleteAll()
+                .then(async () => {
+                    //setup booking1
+                    await chai.request(server)
+                        .post("/booking")
+                        .set("Authorization", "Token " + accessToken)
+                        .send({
+                            "startTime": common.dateToStandardString(startTime),
+                            "endTime": common.dateToStandardString(endTime),
+                            "contactName": "tester",
+                            "telephoneCountryCode": "852",
+                            "telephoneNumber": "12345678",
+                            "emailAddress": "test@test.com"
+                        })
+                        .then(response => {
+                            booking1 = response.body;
+                        });
+                });
+        });
+
+        it("find booking 1, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.contactName, "tester");
+                    assert.equal(response.body.telephoneCountryCode, "852");
+                    assert.equal(response.body.telephoneNumber, "12345678");
+                    assert.equal(response.body.emailAddress, "test@test.com");
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .put("/edit-contact")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-contact")
+                .set("Authorization", "Token " + accessToken)
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "bookingId is mandatory");
+                });
+        });
+
+        it("invalid bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-contact")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: "1234"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid bookingId");
+                });
+        });
+
+        it("missing contactName, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-contact")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "contactName is mandatory");
+                });
+        });
+
+        it("missing telephoneCountryCode, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-contact")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    contactName: "Ken"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "telephoneCountryCode is mandatory");
+                });
+        });
+
+        it("invalid telephoneCountryCode, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-contact")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    contactName: "Ken",
+                    telephoneCountryCode: "123"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid telephoneCountryCode");
+                });
+        });
+
+        it("missing telephoneNumber, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/edit-contact")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    contactName: "Ken",
+                    telephoneCountryCode: "853"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "telephoneNumber is mandatory");
+                });
+        });
+
+        it("success, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/edit-contact")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    contactName: "Ken",
+                    telephoneCountryCode: "853",
+                    telephoneNumber: "34567",
+                    emailAddress: "ken.test@test.com"
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "SUCCESS");
+                });
+        });
+
+        it("find booking 1, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.contactName, "Ken");
+                    assert.equal(response.body.telephoneCountryCode, "853");
+                    assert.equal(response.body.telephoneNumber, "34567");
+                    assert.equal(response.body.emailAddress, "ken.test@test.com");
+                });
+        });
+    });
+
     describe("testing make payment", function () {
         this.timeout(5000);
         var booking1;

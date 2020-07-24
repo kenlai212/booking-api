@@ -916,6 +916,119 @@ async function editGuest(input, user) {
 	return { "status": "SUCCESS" };
 }
 
+/**
+ * By : Ken Lai
+ * Date : Jul 24, 2020
+ */
+async function editContact(input, user) {
+	var response = new Object;
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
+	]
+
+	//validate user group
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	//validate bookingId
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw response;
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//find booking
+	var booking;
+	await Booking.findById(input.bookingId)
+		.exec()
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Booking.findById() is not available";
+			throw response;
+		});
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		response.status = 401;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//validate contactName
+	if (input.contactName == null || input.contactName.length < 1) {
+		response.status = 400;
+		response.message = "contactName is mandatory";
+		throw response;
+	}
+	booking.contactName = input.contactName;
+
+	//validate country code
+	if (input.telephoneCountryCode == null || input.telephoneCountryCode.length < 1) {
+		response.status = 400;
+		response.message = "telephoneCountryCode is mandatory";
+		throw response;
+	}
+
+	if (ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
+		response.status = 400;
+		response.message = "Invalid telephoneCountryCode";
+		throw response;
+	}
+	booking.telephoneCountryCode = input.telephoneCountryCode;
+
+	//validate telephone number
+	if (input.telephoneNumber == null || input.telephoneNumber.length < 1) {
+		response.status = 400;
+		response.message = "telephoneNumber is mandatory";
+		throw response;
+	}
+	booking.telephoneNumber = input.telephoneNumber;
+
+	//set emailAddress
+	if (input.emailAddress != null) {
+		if (input.emailAddress.length == 0) {
+			booking.emailAddress = null;
+		} else {
+			booking.emailAddress = input.emailAddress;
+		}
+	}
+
+	//add transaction history
+	booking.history.push({
+		transactionTime: common.getNowUTCTimeStamp(),
+		transactionDescription: "Edited contact info",
+		userId: user.id,
+		userName: user.name
+	});
+
+	await booking.save()
+		.then(() => {
+			logger.info("Sucessfully edited guest in booking : " + booking.id);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	return { "status": "SUCCESS" };
+}
+
 async function addCrew(input, user) {
 	var response = new Object;
 	const rightsGroup = [
@@ -1409,5 +1522,6 @@ module.exports = {
 	viewBookings,
 	findBookingById,
 	sendDisclaimer,
-	editGuest
+	editGuest,
+	editContact
 }

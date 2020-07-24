@@ -17,6 +17,7 @@ router.put("/remove-guest", authenticateAccessToken, bookingController.removeGue
 router.put("/add-crew", authenticateAccessToken, bookingController.addCrew);
 router.post("/send-disclaimer", authenticateAccessToken, bookingController.sendDisclaimer);
 router.put("/edit-guest", authenticateAccessToken, bookingController.editGuest);
+router.put("/edit-contact", authenticateAccessToken, bookingController.editContact);
 
 module.exports = router;
 
