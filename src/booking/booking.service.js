@@ -1087,7 +1087,7 @@ async function addCrew(input, user) {
 		method: "GET",
 		headers: {
 			"content-Type": "application/json",
-			"Authorization": "Token " + global.accessToken
+			"Authorization": "Token " + user.accessToken
 		}
 	}
 
