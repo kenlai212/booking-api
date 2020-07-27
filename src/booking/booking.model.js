@@ -14,6 +14,7 @@ const bookingSchema = new mongoose.Schema({
 	telephoneNumber: String,
 	emailAddress: String,
 	totalAmount: Number,
+	discountedAmount: Number,
 	paidAmount: Number,
 	recievedAmount: Number,
 	fulfilledHours: Number,

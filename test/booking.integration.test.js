@@ -1304,6 +1304,154 @@ describe('Booking Endpoints', () => {
         });
     });
 
+    describe("test applyDiscount", function () {
+        this.timeout(5000);
+        var booking1;
+
+        var startTime = new Date();
+        startTime.setDate(startTime.getDate() + 1);
+        startTime.setUTCHours(8);
+        startTime.setUTCMinutes(0);
+        startTime.setUTCSeconds(0);
+
+        var endTime = new Date();
+        endTime.setDate(endTime.getDate() + 1);
+        endTime.setUTCHours(9);
+        endTime.setUTCMinutes(59);
+        endTime.setUTCSeconds(59);
+
+        before(async () => {
+            await deleteAll()
+                .then(async () => {
+                    //setup booking1
+                    await chai.request(server)
+                        .post("/booking")
+                        .set("Authorization", "Token " + accessToken)
+                        .send({
+                            "startTime": common.dateToStandardString(startTime),
+                            "endTime": common.dateToStandardString(endTime),
+                            "contactName": "tester",
+                            "telephoneCountryCode": "852",
+                            "telephoneNumber": "12345678",
+                            "emailAddress": "test@test.com"
+                        })
+                        .then(response => {
+                            booking1 = response.body;
+                        });
+                });
+        });
+
+        it("find booking 1, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.history.length, 1);
+                    assert.equal(response.body.contactName, "tester");
+                    assert.equal(response.body.telephoneCountryCode, "852");
+                    assert.equal(response.body.telephoneNumber, "12345678");
+                    assert.equal(response.body.emailAddress, "test@test.com");
+                    assert.isUndefined(response.body.discountedAmount);
+                });
+        });
+
+        it("missing authentication token, should return 401 unauthorized status", async () => {
+            await chai.request(server)
+                .put("/apply-discount")
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 401);
+                });
+        });
+
+        it("missing bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/apply-discount")
+                .set("Authorization", "Token " + accessToken)
+                .send()
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "bookingId is mandatory");
+                });
+        });
+
+        it("invalid bookingId, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/apply-discount")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: "1234"
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "Invalid bookingId");
+                });
+        });
+        
+        it("missing discountedAmount, should return 400 status", async () => {
+            await chai.request(server)
+                .put("/apply-discount")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    assert.equal(response.status, 400);
+                    assert.equal(response.body.error, "discountedAmount is mandatory");
+                });
+        });
+
+        /*
+        it("invalid paidAmount, should return 400 status", async () => {
+        await chai.request(server)
+            .put("/apply-discount")
+            .set("Authorization", "Token " + accessToken)
+            .send({
+                    bookingId: booking1.id,
+                    discountedAmount: "ABC"
+                })
+            .then(response => {
+                assert.equal(response.status, 400);
+                assert.equal(response.body.error, "Invalid paidAmount");
+            });
+        });*/
+
+        it("success apply discount, should return 200 status", async () => {
+            await chai.request(server)
+                .put("/apply-discount")
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id,
+                    discountedAmount: 50
+                })
+                .then(response => {
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.status, "SUCCESS");
+                });
+        });
+
+        it("find booking 1, should return 200 status", async () => {
+            await chai.request(server)
+                .get("/booking?bookingId=" + booking1.id)
+                .set("Authorization", "Token " + accessToken)
+                .send({
+                    bookingId: booking1.id
+                })
+                .then(response => {
+                    console.log(response.body);
+                    assert.equal(response.status, 200);
+                    assert.equal(response.body.history.length, 2);
+                    assert.equal(response.body.history[1].transactionDescription, "Gave discount. Final discounted amount : 50");
+                    assert.equal(response.body.contactName, "tester");
+                    assert.equal(response.body.telephoneCountryCode, "852");
+                    assert.equal(response.body.telephoneNumber, "12345678");
+                    assert.equal(response.body.emailAddress, "test@test.com");
+                    assert.equal(response.body.discountedAmount, 50);
+                });
+        });
+    });
+
     describe("testing make payment", function () {
         this.timeout(5000);
         var booking1;

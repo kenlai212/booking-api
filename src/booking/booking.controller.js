@@ -39,6 +39,23 @@ const makePayment = async (req, res) => {
 	return res;
 }
 
+const applyDiscount = async (req, res) => {
+	common.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.applyDiscount(req.body, req.user)
+		common.readySuccessResponse(response, res);
+	} catch (err) {
+		common.readyErrorResponse(err, res);
+	}
+
+	res.on("finish", function () {
+		common.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
 const removeGuest = async (req, res) => {
 	common.logIncommingRequest(req);
 
@@ -218,6 +235,7 @@ const sendDisclaimer = async (req, res) => {
 module.exports = {
 	newBooking,
 	makePayment,
+	applyDiscount,
 	addGuest,
 	removeGuest,
 	addCrew,

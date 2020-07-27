@@ -1463,7 +1463,7 @@ async function sendDisclaimer(input, user) {
 		method: "POST",
 		headers: {
 			"content-Type": "application/json",
-			"Authorization": "Token " + global.accessToken
+			"Authorization": "Token " + user.accessToken
 		},
 		body: JSON.stringify(data)
 	}
@@ -1484,6 +1484,97 @@ async function sendDisclaimer(input, user) {
 	return { "status": "SUCCESS" };
 }
 
+/**
+ * By : Ken Lai
+ * Date : July 27, 2020
+ * 
+ */
+async function applyDiscount(input, user) {
+
+	var response = new Object;
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
+	]
+
+	//validate user group
+	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+		response.status = 401;
+		response.message = "Insufficient Rights";
+		throw response;
+	}
+
+	//validate bookingId
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw response;
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//find booking
+	var booking;
+	await Booking.findById(input.bookingId)
+		.exec()
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Booking.findById() is not available";
+			throw response;
+		});
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//validate discountedAmount
+	if (input.discountedAmount == null || input.discountedAmount.length < 0) {
+		response.status = 400;
+		response.message = "discountedAmount is mandatory";
+		throw response;
+	}
+
+	if (Number.isNaN(input.discountedAmount) == true) {
+		response.status = 400;
+		response.message = "Invalid discountedAmount";
+		throw response;
+	}
+
+	booking.discountedAmount = input.discountedAmount;
+
+	//add transaction history
+	var transactionHistory = new Object();
+	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
+	transactionHistory.userId = user.id;
+	transactionHistory.userName = user.name;
+	transactionHistory.transactionDescription = "Gave discount. Final discounted amount : " + booking.discountedAmount;
+	booking.history.push(transactionHistory);
+
+	await booking.save()
+		.then(() => {
+			logger.info("Sucessfully applied discount for booking : " + booking.id);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	return { "status": "SUCCESS" };
+}
+
 function bookingToOutuptObj(booking) {
 	var outputObj = new Object();
 	outputObj.id = booking._id;
@@ -1494,6 +1585,7 @@ function bookingToOutuptObj(booking) {
 	outputObj.startTime = common.dateToStandardString(booking.startTime);
 	outputObj.endTime = common.dateToStandardString(booking.endTime);
 	outputObj.totalAmount = booking.totalAmount;
+	outputObj.discountedAmount = booking.discountedAmount;
 	outputObj.collectedAmount = booking.collectedAmount;
 	outputObj.currency = booking.currency;
 	outputObj.contactName = booking.contactName;
@@ -1514,6 +1606,7 @@ function bookingToOutuptObj(booking) {
 module.exports = {
 	addNewBooking,
 	makePayment,
+	applyDiscount,
 	addGuest,
 	removeGuest,
 	addCrew,
