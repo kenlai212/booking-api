@@ -232,6 +232,23 @@ const sendDisclaimer = async (req, res) => {
 	return res;
 }
 
+const signDisclaimer = async (req, res) => {
+	common.logIncommingRequest(req);
+
+	try {
+		const response = await bookingService.signDisclaimer(req.body)
+		common.readySuccessResponse(response, res);
+	} catch (err) {
+		common.readyErrorResponse(err, res);
+	}
+
+	res.on("finish", function () {
+		common.logOutgoingResponse(res);
+	});
+
+	return res;
+}
+
 module.exports = {
 	newBooking,
 	makePayment,
@@ -245,5 +262,6 @@ module.exports = {
 	findBooking,
 	sendDisclaimer,
 	editGuest,
-	editContact
+	editContact,
+	signDisclaimer
 }

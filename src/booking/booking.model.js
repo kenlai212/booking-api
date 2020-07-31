@@ -16,7 +16,6 @@ const bookingSchema = new mongoose.Schema({
 	totalAmount: Number,
 	discountedAmount: Number,
 	paidAmount: Number,
-	recievedAmount: Number,
 	fulfilledHours: Number,
 	currency: String,
 	paymentStatus: String,
@@ -25,7 +24,8 @@ const bookingSchema = new mongoose.Schema({
 		telephoneCountryCode: String,
 		telephoneNumber: String,
 		emailAddress: String,
-		disclaimerId: String
+		disclaimerId: String,
+		signedDisclaimerTimeStamp: Date
 	}],
 	crews: [{
 		crewId: String,

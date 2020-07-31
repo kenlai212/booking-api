@@ -20,6 +20,8 @@ router.post("/send-disclaimer", authenticateAccessToken, bookingController.sendD
 router.put("/edit-guest", authenticateAccessToken, bookingController.editGuest);
 router.put("/edit-contact", authenticateAccessToken, bookingController.editContact);
 
+router.post("/sign-disclaimer", bookingController.signDisclaimer);
+
 module.exports = router;
 
 function authenticateAccessToken(req, res, next) {

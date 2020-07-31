@@ -1356,6 +1356,92 @@ async function findBookingById(input, user) {
 }
 
 /**
+ * By: Ken Lai
+ * Date : July 28, 2020
+ * 
+ * Public api. Customer can signDisclaimer without signing in 
+ */
+async function signDisclaimer(input) {
+	var response = new Object;
+
+	//validate bookingId
+	if (input.bookingId == null || input.bookingId.length < 1) {
+		response.status = 400;
+		response.message = "bookingId is mandatory";
+		throw response;
+	}
+
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//find booking
+	var booking;
+	await Booking.findById(input.bookingId)
+		.exec()
+		.then(result => {
+			booking = result;
+		})
+		.catch(err => {
+			logger.error("Booking.findById() error : " + err);
+			response.status = 500;
+			response.message = "Booking.findById() is not available";
+			throw response;
+		});
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		response.status = 400;
+		response.message = "Invalid bookingId";
+		throw response;
+	}
+
+	//validate disclaimerId
+	if (input.disclaimerId == null || input.disclaimerId.length == 0) {
+		response.status = 400;
+		response.message = "disclaimerId is mandatory";
+		throw response;
+	}
+
+	var guestFound = false;
+	var guestId;
+	booking.guests.forEach(guest => {
+		if (guest.disclaimerId == input.disclaimerId) {
+			guestFound = true;
+			guestId = guest._id;
+			guest.signedDisclaimerTimeStamp = common.getNowUTCTimeStamp();
+		}
+	});
+
+	if (guestFound == false) {
+		response.status = 400;
+		response.message = "Invalid disclaimerId";
+		throw response;
+	}
+
+	//add transaction history
+	var transactionHistory = new Object();
+	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
+	transactionHistory.transactionDescription = "Guest signed disclaimer. GuestId : " + guestId;
+	booking.history.push(transactionHistory);
+
+	await booking.save()
+		.then(() => {
+			logger.info("Sucessfully updated guest signedDisclaimerTimeStamp booking : " + booking.id + ", guestId : " + guestId);
+		})
+		.catch(err => {
+			logger.error("Error while running booking.save() : " + err);
+			response.status = 500;
+			response.message = "booking.save() is not available";
+			throw response;
+		});
+
+	return { "status": "SUCCESS" };
+}
+
+/**
  * By : Ken Lai
  * Date: July 12, 2020
  */
@@ -1616,5 +1702,6 @@ module.exports = {
 	findBookingById,
 	sendDisclaimer,
 	editGuest,
-	editContact
+	editContact,
+	signDisclaimer
 }
