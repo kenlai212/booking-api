@@ -1,13 +1,31 @@
 "use strict";
-const url = require("url");
-const bookingService = require("./booking.service");
 const gogowakeCommon = require("gogowake-common");
+const guestService = require("./guest.service");
 
-const newBooking = async (req, res) => {
+const removeGuest = async (req, res) => {
+	gogowakeCommon.logIncommingRequest(req);
+	
+	try {
+		const response = await guestService.removeGuest(req.body, req.user)
+		gogowakeCommon.readySuccessResponse(response, res);
+	} catch (err) {
+		gogowakeCommon.readyErrorResponse(err, res);
+	}
+
+	res.on("finish", function () {
+		gogowakeCommon.logOutgoingResponse(res);
+	});
+	
+	return res;
+	
+	
+}
+
+const addGuest = async (req, res) => {
 	gogowakeCommon.logIncommingRequest(req);
 
 	try {
-		const response = await bookingService.addNewBooking(req.body, req.user)
+		const response = await guestService.addGuest(req.body, req.user)
 		gogowakeCommon.readySuccessResponse(response, res);
 	} catch (err) {
 		gogowakeCommon.readyErrorResponse(err, res);
@@ -20,11 +38,11 @@ const newBooking = async (req, res) => {
 	return res;
 }
 
-const editContact = async (req, res) => {
+const editGuest = async (req, res) => {
 	gogowakeCommon.logIncommingRequest(req);
 
 	try {
-		const response = await bookingService.editContact(req.body, req.user)
+		const response = await guestService.editGuest(req.body, req.user)
 		gogowakeCommon.readySuccessResponse(response, res);
 	} catch (err) {
 		gogowakeCommon.readyErrorResponse(err, res);
@@ -37,13 +55,11 @@ const editContact = async (req, res) => {
 	return res;
 }
 
-const cancelBooking = async (req, res) => {
+const sendDisclaimer = async (req, res) => {
 	gogowakeCommon.logIncommingRequest(req);
 
-	const queryObject = url.parse(req.url, true).query;
-
 	try {
-		const response = await bookingService.cancelBooking(queryObject, req.user)
+		const response = await guestService.sendDisclaimer(req.body, req.user)
 		gogowakeCommon.readySuccessResponse(response, res);
 	} catch (err) {
 		gogowakeCommon.readyErrorResponse(err, res);
@@ -56,49 +72,11 @@ const cancelBooking = async (req, res) => {
 	return res;
 }
 
-const fulfillBooking = async (req, res) => {
+const signDisclaimer = async (req, res) => {
 	gogowakeCommon.logIncommingRequest(req);
 
 	try {
-		const response = await bookingService.fulfillBooking(req.body, req.user)
-		gogowakeCommon.readySuccessResponse(response, res);
-	} catch (err) {
-		gogowakeCommon.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		gogowakeCommon.logOutgoingResponse(res);
-	});
-
-	return res;
-}
-
-const searchBookings = async (req, res) => {
-	gogowakeCommon.logIncommingRequest(req);
-
-	const queryObject = url.parse(req.url, true).query;
-
-	try {
-		const response = await bookingService.viewBookings(queryObject, req.user)
-		gogowakeCommon.readySuccessResponse(response, res);
-	} catch (err) {
-		gogowakeCommon.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		gogowakeCommon.logOutgoingResponse(res);
-	});
-
-	return res;
-}
-
-const findBooking = async (req, res) => {
-	gogowakeCommon.logIncommingRequest(req);
-
-	const queryObject = url.parse(req.url, true).query;
-
-	try {
-		const response = await bookingService.findBookingById(queryObject, req.user)
+		const response = await guestService.signDisclaimer(req.body)
 		gogowakeCommon.readySuccessResponse(response, res);
 	} catch (err) {
 		gogowakeCommon.readyErrorResponse(err, res);
@@ -112,10 +90,9 @@ const findBooking = async (req, res) => {
 }
 
 module.exports = {
-	newBooking,
-	cancelBooking,
-	fulfillBooking,
-	searchBookings,
-	findBooking,
-	editContact
+	addGuest,
+	removeGuest,
+	editGuest,
+	sendDisclaimer,
+	signDisclaimer
 }

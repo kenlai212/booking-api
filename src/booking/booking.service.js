@@ -1,21 +1,16 @@
 "use strict";
-var uuid = require('uuid');
 const mongoose = require("mongoose");
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
-const common = require("gogowake-common");
-const logger = common.logger;
+const bookingCommon = require("./booking.common");
+const gogowakeCommon = require("gogowake-common");
+const logger = gogowakeCommon.logger;
 
 const pricingService = require("../pricing/pricing.service");
 
 require('dotenv').config();
 
 const DEFAULT_ASSET_ID = "MC_NXT20";
-const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
-
-//constants for user groups
-const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN_GROUP";
-const BOOKING_USER_GROUP = "BOOKING_USER_GROUP";
 
 //constants for booking types
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
@@ -30,13 +25,9 @@ const FULFILLED_STATUS = "FULFILLED"
 
 //constants for payment status
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
-const PAID_STATUS = "PAID";
 
 const OCCUPANCY_PATH = "/occupancy";
-const SEND_EMAIL_PATH = "/email";
-const SEND_SMS_PATH = "/sms";
 const RELEASE_OCCUPANCY_PATH = "/occupancy";
-const CREW_PATH = "/crew";
 
 /**
  * By : Ken Lai
@@ -48,12 +39,12 @@ const CREW_PATH = "/crew";
 async function addNewBooking(input, user) {
 	var response = new Object;
 	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
+		bookingCommon.BOOKING_ADMIN_GROUP,
+		bookingCommon.BOOKING_USER_GROUP
 	]
 
 	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -69,7 +60,7 @@ async function addNewBooking(input, user) {
 
 	var startTime;
 	try {
-		startTime = common.standardStringToDate(input.startTime);
+		startTime = gogowakeCommon.standardStringToDate(input.startTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid startTime format";
@@ -85,7 +76,7 @@ async function addNewBooking(input, user) {
 
 	var endTime;
 	try {
-		endTime = common.standardStringToDate(input.endTime);
+		endTime = gogowakeCommon.standardStringToDate(input.endTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid startTime format";
@@ -101,10 +92,10 @@ async function addNewBooking(input, user) {
 
 	//init booking object
 	var booking = new Booking();
-	booking.creationTime = common.getNowUTCTimeStamp();
+	booking.creationTime = gogowakeCommon.getNowUTCTimeStamp();
 	booking.createdBy = user.id;
 	booking.history = [{
-		transactionTime: common.getNowUTCTimeStamp(),
+		transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
 		transactionDescription: "New booking",
 		userId: user.id,
 		userName: user.name
@@ -189,7 +180,7 @@ async function addNewBooking(input, user) {
 	}
 
 	//check for retro booking (booing before current time)
-	if (endTime < common.getNowUTCTimeStamp()) {
+	if (endTime < gogowakeCommon.getNowUTCTimeStamp()) {
 		response.status = 400;
 		response.message = "Booking cannot be in the past";
 		throw response;
@@ -238,7 +229,7 @@ async function addNewBooking(input, user) {
 		throw response;
 	}
 
-	if (ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
+	if (bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
 		response.status = 400;
 		response.message = "Invalid telephoneCountryCode";
 		throw response;
@@ -274,8 +265,8 @@ async function addNewBooking(input, user) {
 	const url = process.env.OCCUPANCY_DOMAIN + OCCUPANCY_PATH;
 	const data = {
 		"occupancyType": CUSTOMER_BOOKING_TYPE,
-		"startTime": common.dateToStandardString(booking.startTime),
-		"endTime": common.dateToStandardString(booking.endTime),
+		"startTime": gogowakeCommon.dateToStandardString(booking.startTime),
+		"endTime": gogowakeCommon.dateToStandardString(booking.endTime),
 		"assetId": DEFAULT_ASSET_ID
 	}
 	const requestAttr = {
@@ -287,7 +278,7 @@ async function addNewBooking(input, user) {
 		body: JSON.stringify(data)
 	}
 
-	await common.callAPI(url, requestAttr)
+	await gogowakeCommon.callAPI(url, requestAttr)
 		.then(result => {
 			booking.occupancyId = result.id;
 			logger.info("Successfully call occupancy api, and saved occupancy record : " + result.id);
@@ -386,7 +377,7 @@ async function addNewBooking(input, user) {
 	}
 	*/
 
-	var outputObj = bookingToOutuptObj(booking);
+	var outputObj = bookingCommon.bookingToOutputObj(booking);
 
 	return outputObj;
 }
@@ -402,11 +393,11 @@ async function fulfillBooking(input, user) {
 	var response = new Object;
 
 	const rightsGroup = [
-		BOOKING_ADMIN_GROUP
+		bookingCommon.BOOKING_ADMIN_GROUP
 	]
 
 	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -464,7 +455,7 @@ async function fulfillBooking(input, user) {
 	targetBooking.status = FULFILLED_STATUS;
 
 	const fulfilledHistory = {
-		transactionTime: common.getNowUTCTimeStamp(),
+		transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
 		transactionDescription: "Fulfilled booking",
 		userId: user.id,
 		userName: user.name
@@ -495,17 +486,19 @@ async function cancelBooking(input, user){
 	var response = new Object;
 
 	const rightsGroup = [
-		BOOKING_ADMIN_GROUP
+		bookingCommon.BOOKING_ADMIN_GROUP
 	]
 
 	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
 	}
 
 	//validate bookingId
+	var targetBooking = await bookingCommon.validateBookingIdInput(input);
+	/*
 	if (input.bookingId == null || input.bookingId.length < 1) {
 		response.status = 400;
 		response.message = "bookingId is mandatory";
@@ -535,6 +528,7 @@ async function cancelBooking(input, user){
 		response.message = "Invalid booking ID";
 		throw response;
 	}
+	*/
 
 	//release occupancy
 	const url = process.env.OCCUPANCY_DOMAIN + RELEASE_OCCUPANCY_PATH;
@@ -550,7 +544,7 @@ async function cancelBooking(input, user){
 		body: JSON.stringify(data)
 	}
 
-	await common.callAPI(url, requestAttr)
+	await gogowakeCommon.callAPI(url, requestAttr)
 		.catch(err => {
 			throw err;
 		});
@@ -591,218 +585,19 @@ async function cancelBooking(input, user){
 	return {"status":"SUCCESS"};
 }
 
-async function removeGuest(input, user) {
-	var response = new Object;
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//find booking
-	var booking;
-	await Booking.findById(input.bookingId)
-		.exec()
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Booking.findById() is not available";
-			throw response;
-		});
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 401;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//validate guestId
-	if (input.guestId == null || input.guestId.length < 1) {
-		response.status = 400;
-		response.message = "guestId is mandatory";
-		throw response;
-	}
-
-	var guests = booking.guests;
-	var targetGuestName;
-	guests.forEach((guest, index, object) => {
-		if (guest._id == input.guestId) {
-			targetGuestName = guest.guestName;
-			object.splice(index, 1);
-		}
-	});
-	booking.guests = guests;
-
-	if (targetGuestName == null) {
-		response.status = 400;
-		response.message = "Invalid guestId";
-		throw response;
-	}
-
-	//add transaction history
-	booking.history.push({
-		transactionTime: common.getNowUTCTimeStamp(),
-		transactionDescription: "Removed guest : " + targetGuestName,
-		userId: user.id,
-		userName: user.name
-	});
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully removed guest from booking : " + booking.id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
-
-	return { "status": "SUCCESS" };
-}
-
-async function addGuest(input, user) {
-	var response = new Object;
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//validate guest name
-	if (input.guestName == null || input.guestName.length < 1) {
-		response.status = 400;
-		response.message = "guestName is mandatory";
-		throw response;
-	}
-
-	//validate country code
-	if (input.telephoneCountryCode == null || input.telephoneCountryCode.length < 1) {
-		response.status = 400;
-		response.message = "telephoneCountryCode is mandatory";
-		throw response;
-	}
-
-	if (ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
-		response.status = 400;
-		response.message = "Invalid telephoneCountryCode";
-		throw response;
-	}
-
-	//validate telephone number
-	if (input.telephoneNumber == null || input.telephoneNumber.length < 1) {
-		response.status = 400;
-		response.message = "telephoneNumber is mandatory";
-		throw response;
-	}
-
-	//find booking
-	var booking;
-	await Booking.findById(input.bookingId)
-		.exec()
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Booking.findById() is not available";
-			throw response;
-		});
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 401;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//add guest
-	const guest = {
-		guestName: input.guestName,
-		telephoneCountryCode: input.telephoneCountryCode,
-		telephoneNumber: input.telephoneNumber,
-		emailAddress: input.emailAddress
-	}
-	booking.guests.push(guest);
-
-	//add transaction history
-	booking.history.push({
-		transactionTime: common.getNowUTCTimeStamp(),
-		transactionDescription: "Added new guest : " + input.guestName,
-		userId: user.id,
-		userName: user.name
-	});
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully add guest to booking : " + booking.id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
-
-	return { "status": "SUCCESS" };
-}
-
 /**
  * By : Ken Lai
- * Date : Jul 23, 2020
+ * Date: Aug 03, 2020
  */
-async function editGuest(input, user) {
-
+async function reschedule(input, user) {
 	var response = new Object;
+
 	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
+		bookingCommon.BOOKING_ADMIN_GROUP
 	]
 
 	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -812,7 +607,7 @@ async function editGuest(input, user) {
 	if (input.bookingId == null || input.bookingId.length < 1) {
 		response.status = 400;
 		response.message = "bookingId is mandatory";
-		throw response;
+		throw (response);
 	}
 
 	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
@@ -821,99 +616,23 @@ async function editGuest(input, user) {
 		throw response;
 	}
 
-	//find booking
-	var booking;
+	var targetBooking;
 	await Booking.findById(input.bookingId)
-		.exec()
 		.then(result => {
-			booking = result;
+			targetBooking = result;
 		})
 		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
+			logger.error("Error while finding target booking, running Booking.findById() error : " + err);
 			response.status = 500;
-			response.message = "Booking.findById() is not available";
+			response.message = "Cancel Booking Service not available";
 			throw response;
 		});
 
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 401;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//validate guestId
-	if (input.guestId == null || input.guestId.length < 1) {
+	if (targetBooking == null) {
 		response.status = 400;
-		response.message = "guestId is mandatory";
+		response.message = "Invalid booking ID";
 		throw response;
 	}
-
-	//validate guest name
-	if (input.guestName == null || input.guestName.length < 1) {
-		response.status = 400;
-		response.message = "guestName is mandatory";
-		throw response;
-	}
-
-	//validate country code
-	if (input.telephoneCountryCode == null || input.telephoneCountryCode.length < 1) {
-		response.status = 400;
-		response.message = "telephoneCountryCode is mandatory";
-		throw response;
-	}
-
-	if (ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
-		response.status = 400;
-		response.message = "Invalid telephoneCountryCode";
-		throw response;
-	}
-
-	//validate telephone number
-	if (input.telephoneNumber == null || input.telephoneNumber.length < 1) {
-		response.status = 400;
-		response.message = "telephoneNumber is mandatory";
-		throw response;
-	}
-
-	var guestFound = false;
-	booking.guests.forEach(guest => {
-		if (guest._id == input.guestId) {
-			guestFound = true;
-
-			guest.guestName = input.guestName;
-			guest.telephoneCountryCode = input.telephoneCountryCode;
-			guest.telephoneNumber = input.telephoneNumber;
-			guest.emailAddress = input.emailAddress;
-		}
-	});
-
-	if (guestFound == false) {
-		response.status = 400;
-		response.message = "Invalid guestId";
-		throw response;
-	}
-
-	//add transaction history
-	booking.history.push({
-		transactionTime: common.getNowUTCTimeStamp(),
-		transactionDescription: "Edited guest : " + input.guestName,
-		userId: user.id,
-		userName: user.name
-	});
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully edited guest in booking : " + booking.id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
-
-	return { "status": "SUCCESS" };
 }
 
 /**
@@ -923,12 +642,12 @@ async function editGuest(input, user) {
 async function editContact(input, user) {
 	var response = new Object;
 	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
+		bookingCommon.BOOKING_ADMIN_GROUP,
+		bookingCommon.BOOKING_USER_GROUP
 	]
 
 	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -983,7 +702,7 @@ async function editContact(input, user) {
 		throw response;
 	}
 
-	if (ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
+	if (bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
 		response.status = 400;
 		response.message = "Invalid telephoneCountryCode";
 		throw response;
@@ -1009,7 +728,7 @@ async function editContact(input, user) {
 
 	//add transaction history
 	booking.history.push({
-		transactionTime: common.getNowUTCTimeStamp(),
+		transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
 		transactionDescription: "Edited contact info",
 		userId: user.id,
 		userName: user.name
@@ -1029,209 +748,6 @@ async function editContact(input, user) {
 	return { "status": "SUCCESS" };
 }
 
-async function addCrew(input, user) {
-	var response = new Object;
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP
-	]
-
-	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	if (input.crewId == null || input.crewId.length < 1){
-		response.status = 400;
-		response.message = "crewId is mandatory";
-		throw response;
-	}
-
-	//find booking
-	var booking;
-	await Booking.findById(input.bookingId)
-		.exec()
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Booking.findById() is not available";
-			throw response;
-		});
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 401;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//find crew
-	const url = process.env.OCCUPANCY_DOMAIN + CREW_PATH + "?crewId=" + input.crewId;
-	const requestAttr = {
-		method: "GET",
-		headers: {
-			"content-Type": "application/json",
-			"Authorization": "Token " + user.accessToken
-		}
-	}
-
-	var crew;
-	await common.callAPI(url, requestAttr)
-		.then(result => {
-			crew = result;
-		})
-		.catch(err => {
-			throw err;
-		});
-
-	if (crew == null || crew.id == null) {
-		response.status = 400;
-		response.message = "Invalid crewId";
-		throw response;
-	}
-
-	//add crew
-	if (booking.crews == null) {
-		booking.crews = new Array();
-	}
-
-	booking.crews.push({
-		crewId: crew.id,
-		crewName: crew.crewName,
-		telephoneCountryCode: crew.telephoneCountryCode,
-		telephoneNumber: crew.telephoneNumber,
-		assignmentTime: common.getNowUTCTimeStamp(),
-		assignmentBy: user.id
-	});
-
-	//add transaction history
-	booking.history.push({
-		transactionTime: common.getNowUTCTimeStamp(),
-		transactionDescription: "Added new crew : " + input.crewId,
-		userId: user.id,
-		userName: user.name
-	});
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully add guest to booking : " + booking.id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
-
-	return { "status": "SUCCESS" };
-}
-
-/**
- * By : Ken Lai
- * Date : July 3, 2020
- * 
- */
-async function makePayment(input, user) {
-	var response = new Object;
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP
-	]
-
-	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	//validate paidAmount
-	if (input.paidAmount == null || input.paidAmount.length < 1) {
-		response.status = 400;
-		response.message = "paidAmount is mandatory";
-		throw response;
-	}
-
-	if (Number.isNaN(input.paidAmount) == true) {
-		response.status = 400;
-		response.message = "Invalid paidAmount";
-		throw response;
-	}
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//find booking
-	var booking;
-	await Booking.findById(input.bookingId)
-		.exec()
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Booking.findById() is not available";
-			throw response;
-		});
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 401;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	booking.paymentStatus = PAID_STATUS;
-	booking.paidAmount = Number(input.paidAmount);
-	
-	//add transaction history
-	var transactionHistory = new Object();
-	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
-	transactionHistory.userId = user.id;
-	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = "Payment status made changed to PAID";
-	booking.history.push(transactionHistory);
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully updated PAID status for booking : " + booking.id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
-
-	return { "paymentStatus": booking.paymentStatus };
-}
-
 /**
  * By : Ken Lai
  * Date : Mar 01, 2020
@@ -1241,11 +757,11 @@ async function makePayment(input, user) {
 async function viewBookings(input, user){
 	var response = new Object;
 	const rightsGroup = [
-		BOOKING_ADMIN_GROUP
+		bookingCommon.BOOKING_ADMIN_GROUP
 	]
 
 	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -1260,7 +776,7 @@ async function viewBookings(input, user){
 
 	var startTime;
 	try {
-		startTime = common.standardStringToDate(input.startTime);
+		startTime = gogowakeCommon.standardStringToDate(input.startTime);
 	} catch (err) {
 		response.status = 400;
 		response.message = "Invalid startTime format";
@@ -1275,7 +791,7 @@ async function viewBookings(input, user){
 
 	var endTime;
 	try{
-		endTime = common.standardStringToDate(input.endTime);
+		endTime = gogowakeCommon.standardStringToDate(input.endTime);
 	}catch(err){
 		response.status = 400;
 		response.message = "Invalid endTime format";
@@ -1305,7 +821,7 @@ async function viewBookings(input, user){
 
 	var outputObjs = [];
 	bookings.forEach((booking) => {
-		const outputObj = bookingToOutuptObj(booking);
+		const outputObj = bookingCommon.bookingToOutputObj(booking);
 		outputObjs.push(outputObj);
 	});
 
@@ -1315,12 +831,12 @@ async function viewBookings(input, user){
 async function findBookingById(input, user) {
 	var response = new Object;
 	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
+		bookingCommon.BOOKING_ADMIN_GROUP,
+		bookingCommon.BOOKING_USER_GROUP
 	]
 
 	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
+	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
 		response.status = 401;
 		response.message = "Insufficient Rights";
 		throw response;
@@ -1350,358 +866,16 @@ async function findBookingById(input, user) {
 			throw response;
 		});
 
-	const outputObj = bookingToOutuptObj(booking);
-
-	return outputObj;
-}
-
-/**
- * By: Ken Lai
- * Date : July 28, 2020
- * 
- * Public api. Customer can signDisclaimer without signing in 
- */
-async function signDisclaimer(input) {
-	var response = new Object;
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//find booking
-	var booking;
-	await Booking.findById(input.bookingId)
-		.exec()
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Booking.findById() is not available";
-			throw response;
-		});
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//validate disclaimerId
-	if (input.disclaimerId == null || input.disclaimerId.length == 0) {
-		response.status = 400;
-		response.message = "disclaimerId is mandatory";
-		throw response;
-	}
-
-	var guestFound = false;
-	var guestId;
-	booking.guests.forEach(guest => {
-		if (guest.disclaimerId == input.disclaimerId) {
-			guestFound = true;
-			guestId = guest._id;
-			guest.signedDisclaimerTimeStamp = common.getNowUTCTimeStamp();
-		}
-	});
-
-	if (guestFound == false) {
-		response.status = 400;
-		response.message = "Invalid disclaimerId";
-		throw response;
-	}
-
-	//add transaction history
-	var transactionHistory = new Object();
-	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
-	transactionHistory.transactionDescription = "Guest signed disclaimer. GuestId : " + guestId;
-	booking.history.push(transactionHistory);
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully updated guest signedDisclaimerTimeStamp booking : " + booking.id + ", guestId : " + guestId);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
-
-	return { "status": "SUCCESS" };
-}
-
-/**
- * By : Ken Lai
- * Date: July 12, 2020
- */
-async function sendDisclaimer(input, user) {
-
-	var response = new Object;
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//find booking
-	var booking;
-	await Booking.findById(input.bookingId)
-		.exec()
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Booking.findById() is not available";
-			throw response;
-		});
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//validate guestId
-	if (input.guestId == null || input.guestId.length < 1) {
-		response.status = 400;
-		response.message = "guestId is mandatory";
-		throw response;
-	}
-
-	const disclaimerId = uuid.v4();
-
-	var guest;
-	booking.guests.forEach(item => {
-		if (item._id == input.guestId) {
-			item.disclaimerId = disclaimerId;
-			guest = item;
-		}
-	});
-
-	if (guest == null) {
-		response.status = 400;
-		response.message = "Invalid guestId";
-		throw response;
-	}
-
-	//update guest.disclaimerId
-	var transactionHistory = new Object();
-	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
-	transactionHistory.userId = user.id;
-	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = "Send disclaimer to guest : " + guest.guestName + "(" + guest.telephoneNumber + ")";
-	booking.history.push(transactionHistory);
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully updated disclaimerId for guest : " + guest.guestName + " in booking : " + booking._id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
-
-	//send sms
-	const disclaimerURL = process.env.DISCLAIMER_URL + "?disclaimerId=" + disclaimerId + "&bookingId=" + booking._id;
-	const number = guest.telephoneCountryCode + guest.telephoneNumber;
-	const data = {
-		"message": "Please read and acknowledge our disclaimer - " + disclaimerURL,
-		"number": number,
-		"subject": "GOGOWAKE"
-	}
-
-	const requestAttr = {
-		method: "POST",
-		headers: {
-			"content-Type": "application/json",
-			"Authorization": "Token " + user.accessToken
-		},
-		body: JSON.stringify(data)
-	}
-
-	const apiURL = process.env.NOTIFICATION_DOMAIN + SEND_SMS_PATH;
-
-	await common.callAPI(apiURL, requestAttr)
-		.then(result => {
-			logger.info("Successfully sent disclaimer msg to recipient : " + number + " , messageId : " + result.messageId);
-		})
-		.catch(err => {
-			logger.error("Failed to send disclaimer : " + JSON.stringify(err));
-			response.status = 500;
-			response.message = "Send SMS API is not available";
-			throw response;
-		});
-
-	return { "status": "SUCCESS" };
-}
-
-/**
- * By : Ken Lai
- * Date : July 27, 2020
- * 
- */
-async function applyDiscount(input, user) {
-
-	var response = new Object;
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	//validate user group
-	if (common.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//find booking
-	var booking;
-	await Booking.findById(input.bookingId)
-		.exec()
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Booking.findById() is not available";
-			throw response;
-		});
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//validate discountedAmount
-	if (input.discountedAmount == null || input.discountedAmount.length < 0) {
-		response.status = 400;
-		response.message = "discountedAmount is mandatory";
-		throw response;
-	}
-
-	if (Number.isNaN(input.discountedAmount) == true) {
-		response.status = 400;
-		response.message = "Invalid discountedAmount";
-		throw response;
-	}
-
-	booking.discountedAmount = input.discountedAmount;
-
-	//add transaction history
-	var transactionHistory = new Object();
-	transactionHistory.transactionTime = common.getNowUTCTimeStamp();
-	transactionHistory.userId = user.id;
-	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = "Gave discount. Final discounted amount : " + booking.discountedAmount;
-	booking.history.push(transactionHistory);
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully applied discount for booking : " + booking.id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
-
-	return { "status": "SUCCESS" };
-}
-
-function bookingToOutuptObj(booking) {
-	var outputObj = new Object();
-	outputObj.id = booking._id;
-	outputObj.bookingType = booking.bookingType;
-	outputObj.creationTime = booking.creationTime;
-	outputObj.createdBy = booking.createdBy;
-	outputObj.occupancyId = booking.occupancyId;
-	outputObj.startTime = common.dateToStandardString(booking.startTime);
-	outputObj.endTime = common.dateToStandardString(booking.endTime);
-	outputObj.totalAmount = booking.totalAmount;
-	outputObj.discountedAmount = booking.discountedAmount;
-	outputObj.collectedAmount = booking.collectedAmount;
-	outputObj.currency = booking.currency;
-	outputObj.contactName = booking.contactName;
-	outputObj.telephoneCountryCode = booking.telephoneCountryCode;
-	outputObj.telephoneNumber = booking.telephoneNumber;
-	outputObj.emailAddress = booking.emailAddress;
-	outputObj.status = booking.status;
-	outputObj.paymentStatus = booking.paymentStatus;
-	outputObj.durationInHours = Math.round((booking.endTime - booking.startTime) / 1000 / 60 / 60);
-	outputObj.fulfilledHours = booking.fulfilledHours;
-	outputObj.guests = booking.guests;
-	outputObj.history = booking.history;
-	outputObj.crews = booking.crews;
+	const outputObj = bookingCommon.bookingToOutputObj(booking);
 
 	return outputObj;
 }
 
 module.exports = {
 	addNewBooking,
-	makePayment,
-	applyDiscount,
-	addGuest,
-	removeGuest,
-	addCrew,
 	cancelBooking,
 	fulfillBooking,
 	viewBookings,
 	findBookingById,
-	sendDisclaimer,
-	editGuest,
-	editContact,
-	signDisclaimer
+	editContact
 }

@@ -1,0 +1,13 @@
+{
+  "ExpandedNodes": [
+    "",
+    "\\src",
+    "\\src\\booking",
+    "\\src\\occupancy",
+    "\\test",
+    "\\test\\booking",
+    "\\test\\occupancy"
+  ],
+  "SelectedNode": "\\test\\occupancy\\occupancy.service.test.js",
+  "PreviewInSolutionExplorer": false
+}

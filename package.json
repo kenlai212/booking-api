@@ -5,7 +5,7 @@
   "main": "server.js",
   "scripts": {
     "devStart": "nodemon server.js",
-    "test": "mocha './test/booking.integration.test.js' --exit"
+    "test": "jest"
   },
   "author": "",
   "license": "ISC",
@@ -14,16 +14,13 @@
     "dotenv": "^8.2.0",
     "express": "^4.17.1",
     "gogowake-common": "git+https://github.com/kenlai212/gogowake-common.git",
+    "moment": "^2.27.0",
+    "joi": "^17.2.0",
     "mongodb": "^3.5.9",
     "mongoose": "^5.9.22",
     "uuid": "^3.4.0"
   },
   "devDependencies": {
-    "chai": "^4.2.0",
-    "chai-as-promised": "^7.1.1",
-    "chai-http": "^4.2.0",
-    "mocha": "^6.2.3",
-    "nodemon": "^2.0.4",
-    "sinon": "^7.5.0"
+    "jest": "^26.2.2"
   }
 }
