@@ -15,21 +15,21 @@ Check to see if startTime and endTime will overlap with any
 existing occupancies
 */
 function checkAvailibility(startTime, endTime, assetId) {
-	return new Promise(async (resolve, reject) => {
+	return new Promise((resolve, reject) => {
 		//expand search range to -1 day from startTime and +1 from endTime 
 		const searchTimeRangeStart = moment(startTime).subtract(1, 'days');
 		const searchTimeRangeEnd = moment(endTime).add(1, 'days');
 
-		var isAvailable = true;
-
 		//fetch occupancies with in search start and end time
-		await Occupancy.find(
+		Occupancy.find(
 			{
 				startTime: { $gte: searchTimeRangeStart },
 				endTime: { $lt: searchTimeRangeEnd },
 				assetId: assetId
 			})
 			.then(occupancies => {
+				var isAvailable = true;
+
 				occupancies.forEach((item) => {
 					if ((startTime >= item.startTime && startTime <= item.endTime) ||
 						(endTime >= item.startTime && endTime <= item.endTime) ||
@@ -37,13 +37,13 @@ function checkAvailibility(startTime, endTime, assetId) {
 						isAvailable = false;
 					}
 				});
+
+				resolve(isAvailable);
 			})
 			.catch(err => {
 				logger.error("Occupancy.find() error : " + err);
 				reject(err);
 			});
-
-		resolve(isAvailable);
 	});
 }
 

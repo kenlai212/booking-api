@@ -1,7 +1,7 @@
 const moment = require('moment');
 
-const availibilityService = require("../../src/occupancy/availibility.service");
-const Occupancy = require("../../src/occupancy/occupancy.model").Occupancy;
+const availibilityService = require("../../../src/occupancy/availibility.service");
+const Occupancy = require("../../../src/occupancy/occupancy.model").Occupancy;
 
 describe('Test availibility.service', () => {
     describe("testing checckAvailibility()", function () {
