@@ -1,14 +1,10 @@
 "use strict";
 const common = require("gogowake-common");
 
-require('dotenv').config();
-
 const CUSTOMER_BOOKING = "CUSTOMER_BOOKING";
 const OWNER_BOOKING = "OWNER_BOOKING";
-const validBookingType = [CUSTOMER_BOOKING, OWNER_BOOKING];
 
 function calculateTotalAmount(input, user) {
-	var response = new Object;
 	const rightsGroup = [
 		"BOOKING_ADMIN_GROUP",
 		"BOOKING_USER_GROUP"
@@ -16,60 +12,30 @@ function calculateTotalAmount(input, user) {
 
 	//validate user group
 	if (common.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-
+		throw { status: 401, message: "Insufficient Rights"};
 	}
 
-	//validate startTime
-	if (input.startTime == null || input.startTime.length < 1) {
-		response.status = 400;
-		response.message = "startTime is mandatory";
-		throw response;
+	//validate input data
+	const schema = Joi.object({
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		bookingType: Joi
+			.string()
+			.required()
+			.valid(CUSTOMER_BOOKING, OWNER_BOOKING)
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		reject({ status: 400, message: result.error.details[0].message.replace(/\"/g, '') });
 	}
 
-	var startTime;
-	try {
-		startTime = common.standardStringToDate(input.startTime);
-	} catch (err) {
-		response.status = 400;
-		response.message = "Invalid startTime format";
-		throw response;
-	}
+	const startTime = moment(input.startTime).toDate();
+	const endTime = moment(input.endTime).toDate();
 
-	//validate end time
-	if (input.endTime == null || input.endTime.length < 1) {
-		response.status = 400;
-		response.message = "endTime is mandatory";
-		throw response;
-	}
-
-	var endTime;
-	try {
-		endTime = common.standardStringToDate(input.endTime);
-	} catch (err) {
-		response.status = 400;
-		response.message = "Invalid endTime format";
-		throw response;
-	}
-
-	//check if endTime is earlier then startTime
+	//startTime cannot be later then endTime
 	if (startTime > endTime) {
-		response.status = 400;
-		response.message = "Invalid endTime";
-		throw response;
-	}
-
-	//if bookingType is null, default to CUSTOMER_BOOKING
-	if (input.bookingType == null || input.bookingType.length < 1) {
-		input.bookingType = CUSTOMER_BOOKING;
-	}
-
-	if (validBookingType.includes(input.bookingType) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingType";
-		throw response;
+		reject({ status: 400, message: "endTime cannot be earlier then startTime" });
 	}
 
 	//calculate duration in hours
@@ -77,7 +43,7 @@ function calculateTotalAmount(input, user) {
 	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
 	const durationInHours = Math.ceil(durationInMinutes / 60);
 
-	//calculate total amount for OPEN_BOOKING. If PRIVATE_BOOKING then default to 0 totalAmount
+	//calculate total amount for CUSTOMER_BOOKING or OWNER_BOOKING
 	var totalAmount;
 	if (input.bookingType == CUSTOMER_BOOKING) {
 		totalAmount = durationInHours * process.env.UNIT_PRICE_REGULAR;

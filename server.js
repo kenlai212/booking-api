@@ -1,51 +1,73 @@
 const express = require("express");
-const common = require("gogowake-common");
-const logger = common.logger;
 const mongoose = require("mongoose");
+const jwt = require("jsonwebtoken");
+const winston = require("winston");
+require("winston-mongodb");
+
 const bookingRoutes = require("./src/booking/booking.routes");
 const pricingRoutes = require("./src/pricing/pricing.routes");
 const slotRoutes = require("./src/slot/slot.routes");
 const occupancyRoutes = require("./src/occupancy/occupancy.routes");
 const crewRoutes = require("./src/crew/crew.routes");
 
-require('dotenv').config();
-
 const app = express();
-app.use(express.json());
-app.use("/", bookingRoutes);
-app.use("/", pricingRoutes);
-app.use("/", slotRoutes);
-app.use("/", occupancyRoutes);
-app.use("/", crewRoutes);
 
+//set up routes
+app.use(express.json());
+//app.use("/", bookingRoutes);
+//app.use("/", pricingRoutes);
+//app.use("/", slotRoutes);
+app.use("/", occupancyRoutes);
+//app.use("/", crewRoutes);
+
+//set winston transport to console and MongoDB
+winston.add(new winston.transports.Console({level: "info"}));
+//winston.add(new winston.transports.MongoDB({ db: process.env.DB_CONNECTION_URL}));
+
+//catch all uncaught rejects and excpetions
+process.on("unhandledRejection", (ex) => {
+	console.log("WE GOT AN UNHANDLED REJECTION!!!!!!!");
+	winston.error(ex.message, ex);
+});
+
+process.on("uncaughtException", (ex) => {
+	console.log("WE GOT AN UNCAUGHT EXCEPTION!!!!!!!");
+	winston.error(ex.message, ex);
+});
+
+//boot starpping
 mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useNewUrlParser: true })
 	.then(async () => {
+		winston.info("Connected to MongoDB....");
 
-		app.listen(process.env.PORT, function (err) {
+		await app.listen(process.env.PORT, function (err) {
 			if (err) {
-				logger.error("Error while starting Booking Services : ", err);
+				winston.error("Error while starting Booking Services", err);
 				throw err;
 			}
-			logger.info("Booking Services started up. Listening to port " + process.env.PORT);
+			winston.info("Booking Services started up. Listening to port " + process.env.PORT);
 		});
+	})
+	.then(() => {
 
-		var loginResponse;
-		await common.callLoginAPI(process.env.AUTHENTICATION_API_LOGIN, process.env.AUTHENTICATION_API_PASSWORD)
-			.then(response => {
-				loginResponse = response;
-			})
-			.catch(err => {
-				throw err;
-			});
+		//generate access token for booking api
+		const bookingAPIUser = {
+			groups: [
+				"OCCUPANCY_ADMIN_GROUP",
+				"NOTIFICATION_USER_GROUP"]
+		}
 
-		global.accessToken = loginResponse.accessToken;
-		logger.info("Obtained accessToken : " + global.accessToken);
-
-		global.refreshToken = loginResponse.refreshToken;
-		logger.info("Obtained refreshToken : " + global.refreshToken);
+		try {
+			global.accessToken = jwt.sign(bookingAPIUser, process.env.ACCESS_TOKEN_SECRET);
+			winston.info("bookingAPIUser accessToken : " + global.accessToken);
+		} catch (err) {
+			winston.error("Error while generating access token", err);
+			throw err;
+		}
 	})
 	.catch(err => {
-		logger.error("Error while connecting to MongoDB : " + err);
+		winston.error("Bootup Error", err);
+		throw err;
 	});
 
 module.exports = app;

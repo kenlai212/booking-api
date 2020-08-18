@@ -2,13 +2,11 @@
 const Joi = require("joi");
 const moment = require('moment');
 const mongoose = require("mongoose");
+const winston = require("winston");
 
 const Occupancy = require("./occupancy.model").Occupancy;
 const availibilityService = require("./availibility.service");
 const gogowakeCommon = require("gogowake-common");
-const logger = gogowakeCommon.logger;
-
-require('dotenv').config();
 
 const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
 const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER_GROUP";
@@ -47,6 +45,7 @@ function releaseOccupancy(input, user) {
 			reject({ status: 400, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
 
+		//validate occupancyId
 		if (mongoose.Types.ObjectId.isValid(input.occupancyId) == false) {
 			throw { status: 404, message: "Invalid occupancyId"};
 		}
@@ -54,11 +53,11 @@ function releaseOccupancy(input, user) {
 		//delete target occupancy
 		Occupancy.findByIdAndDelete(input.occupancyId)
 			.then(() => {
-				logger.info("Successfully deleted Occupancy.id : " + input.occupancyId);
+				winston.info("Successfully deleted Occupancy", input.occupancyId);
 				resolve ({ "result": "SUCCESS" });
 			})
 			.catch(err => {
-				logger.error("Occupancy.findByIdAndDelete() error : " + err);
+				winston.error("Occupancy.findByIdAndDelete() error : ", err);
 				reject({ status: 500, message: "Delete function not available" });
 			});
 	});
@@ -152,7 +151,8 @@ function occupyAsset(input, user) {
 				resolve(outputObj);
 			})
 			.catch(err => {
-				reject({ status: 500, message: err.message });
+				winston.error("Internal Server Error", err);
+				reject({ status: 500, message: "Internal Server Error" });
 			});
 	});
 	
@@ -217,7 +217,8 @@ async function getOccupancies(input, user) {
 				resolve({ "occupancies": outputObjs });
 			})
 			.catch(err => {
-				reject({ status: 500, message: err.message });
+				winston.error("Internal Server Error", err);
+				reject({ status: 500, message: "Internal Server Error" });
 			});
 	});
 }

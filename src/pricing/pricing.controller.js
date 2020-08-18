@@ -1,28 +1,13 @@
 "use strict";
 const url = require("url");
+
+const asyncMiddleware = require("../middleware/asyncMiddleware");
 const pricingService = require("./pricing.service");
-const common = require("gogowake-common");
 
-require('dotenv').config();
-
-const totalAmount = async (req, res) => {
-	common.logIncommingRequest(req);
-
+const totalAmount = asyncMiddleware(async (req) => {
 	const queryObject = url.parse(req.url, true).query;
-
-	try {
-		const response = pricingService.calculateTotalAmount(queryObject, req.user)
-		common.readySuccessResponse(response, res);
-	} catch (err) {
-		common.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		common.logOutgoingResponse(res);
-	});
-
-	return res;
-}
+	return await pricingService.calculateTotalAmount(queryObject, req.user)
+});
 
 module.exports = {
 	totalAmount

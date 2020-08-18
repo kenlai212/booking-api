@@ -1,16 +1,12 @@
 "use strict";
 const express = require("express");
 const pricingController = require("./pricing.controller");
+
+const logIncommingRequest = require("../middleware/logIncommingRequest");
+const logOutgoingResponse = require("../middleware/logOutgoingResponse");
+const authenticateAccessToken = require("../middleware/authenticateAccessToken");
+
 const router = express.Router();
-const common = require("gogowake-common");
-
-require('dotenv').config();
-
-router.get("/total-amount", authenticateAccessToken, pricingController.totalAmount);
+router.get("/total-amount", authenticateAccessToken, logIncommingRequest, pricingController.totalAmount, logOutgoingResponse);
 
 module.exports = router;
-
-function authenticateAccessToken(req, res, next) {
-    req.user = common.authenticateAccessToken(req, res);
-    next();
-}

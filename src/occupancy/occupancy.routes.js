@@ -1,19 +1,18 @@
 "use strict";
 const express = require("express");
 const controller = require("./occupancy.controller");
-const common = require("gogowake-common");
 
-require('dotenv').config();
+const logIncommingRequest = require("../middleware/logIncommingRequest");
+const logOutgoingResponse = require("../middleware/logOutgoingResponse");
+const authenticateAccessToken = require("../middleware/authenticateAccessToken");
 
 const router = express.Router();
-router.get("/occupancies", authenticateAccessToken, controller.getOccupancies);
-router.post("/occupancy", authenticateAccessToken, controller.newOccupancy);
-router.get("/availability", authenticateAccessToken, controller.availability);
-router.delete("/occupancy", authenticateAccessToken, controller.cancelOccupancy);
+router.get("/occupancies", authenticateAccessToken, logIncommingRequest, controller.getOccupancies, logOutgoingResponse);
+router.post("/occupancy", authenticateAccessToken, logIncommingRequest, controller.newOccupancy, logOutgoingResponse);
+router.get("/availability", authenticateAccessToken, logIncommingRequest, controller.availability, logOutgoingResponse);
+router.delete("/occupancy", authenticateAccessToken, logIncommingRequest, controller.cancelOccupancy, logOutgoingResponse);
 
 module.exports = router;
 
-function authenticateAccessToken(req, res, next) {
-    req.user = common.authenticateAccessToken(req, res);
-    next();
-}
+
+
