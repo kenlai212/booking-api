@@ -1,0 +1,14 @@
+{
+  "bootstrap": {
+    "mongoDBName":  "Development MongoDB"
+  },
+  "pricing": {
+    "unitPriceRegular": 1200,
+    "unitPriceDiscounted": 1000,
+    "unitPriceOwnerBooking": 300,
+    "unitCurrency": "HKD"
+  },
+  "domainURL": {
+    "occupancy": "http://localhost"
+  }
+}

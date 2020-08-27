@@ -8,11 +8,8 @@ describe('Test occupancy.getOccupancies()', () => {
     user = {};
 
     it("no user authorization, should return 401", async () => {
-
         //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = function () {
-            return false;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(false);
 
         expect.assertions(1);
 
@@ -23,11 +20,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("missing startTime, should return 400", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         expect.assertions(1);
 
@@ -38,11 +32,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("invalid startTime, should return 400", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         input.startTime = "ABC";
 
@@ -55,11 +46,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("missing endTime, should return 400", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         input.startTime = "2020-02-02T23:59:59Z";
 
@@ -72,11 +60,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("invalid startTime, should return 400", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         input.endTime = "ABC";
 
@@ -89,11 +74,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("missing assetId, should return 400", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         input.endTime = "2020-02-02T22:00:00Z";
 
@@ -106,11 +88,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("invalid assetId, should return 400", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         input.assetId = "ABC";
 
@@ -123,11 +102,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("startTime grater then endTime, should return 400", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         input.assetId = "A001";
         input.startTime = "2020-02-02T23:59:59Z";
@@ -142,11 +118,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("occupancy.find() db error, should return 500", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         //setup mock occupancy.find, reject
         Occupancy.find = await jest.fn().mockRejectedValue(new Error());
@@ -164,11 +137,8 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("success!!", async () => {
-
         //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = function () {
-            return true;
-        }
+        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         //setup mock occupancy.save, reject
         var occupancies = [

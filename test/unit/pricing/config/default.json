@@ -1,0 +1,8 @@
+{
+  "pricing": {
+    "unitPriceRegular": 1200,
+    "unitPriceDiscounted": 1000,
+    "unitPriceOwnerBooking": 300,
+    "unitCurrency": "HKD"
+  }
+}

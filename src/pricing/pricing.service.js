@@ -1,4 +1,9 @@
 "use strict";
+const Joi = require("joi");
+const winston = require("winston");
+const moment = require("moment");
+const config = require("config");
+
 const common = require("gogowake-common");
 
 const CUSTOMER_BOOKING = "CUSTOMER_BOOKING";
@@ -24,39 +29,46 @@ function calculateTotalAmount(input, user) {
 			.required()
 			.valid(CUSTOMER_BOOKING, OWNER_BOOKING)
 	});
-
+	
 	const result = schema.validate(input);
 	if (result.error) {
-		reject({ status: 400, message: result.error.details[0].message.replace(/\"/g, '') });
+		throw { status: 400, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	const startTime = moment(input.startTime).toDate();
-	const endTime = moment(input.endTime).toDate();
+	var startTime;
+	var endTime;
+	try {
+		startTime = moment(input.startTime).toDate();
+		endTime = moment(input.endTime).toDate();
+	} catch (err) {
+		winston.error("Error converting date iso string to date object", err);
+	}
 
 	//startTime cannot be later then endTime
 	if (startTime > endTime) {
-		reject({ status: 400, message: "endTime cannot be earlier then startTime" });
+		throw { status: 400, message: "endTime cannot be earlier then startTime" };
 	}
 
 	//calculate duration in hours
 	const diffTime = Math.abs(endTime - startTime);
 	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
-	const durationInHours = Math.ceil(durationInMinutes / 60);
+	//const durationInHours = Math.ceil(durationInMinutes / 60);
+	const durationInHours = Math.round((durationInMinutes / 60) * 2) / 2;
 
 	//calculate total amount for CUSTOMER_BOOKING or OWNER_BOOKING
 	var totalAmount;
 	if (input.bookingType == CUSTOMER_BOOKING) {
-		totalAmount = durationInHours * process.env.UNIT_PRICE_REGULAR;
-
+		totalAmount = durationInHours * config.get("pricing.unitPriceRegular");
+		
 		//check weekday or weekend
 		if (startTime.getDay() != 6 && startTime.getDay() != 0) {
-			totalAmount = durationInHours * process.env.UNIT_PRICE_DISCOUNT_WEEKDAY;
+			totalAmount = durationInHours * config.get("pricing.unitPriceDiscounted");
 		}
 	} else {
-		totalAmount = durationInHours * process.env.UNTI_PRICE_OWNER_BOOKING;
+		totalAmount = durationInHours * config.get("pricing.unitPriceOwnerBooking");
 	}
-	
-    return { "totalAmount": totalAmount, "currency": process.env.UNIT_CURRENCY };
+
+	return { "totalAmount": totalAmount, "totalHours": durationInHours, "currency": config.get("pricing.unitCurrency") };
 }
 
 module.exports = {

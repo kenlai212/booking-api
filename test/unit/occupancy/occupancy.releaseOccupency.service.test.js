@@ -76,7 +76,7 @@ describe('Test occupancy.releaseOccupancy()', () => {
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
-        //setup mock Occupancy.findByIdAndDelete(), reject
+        //setup mock Occupancy.findByIdAndDelete(), resolve
         Occupancy.findByIdAndDelete = await jest.fn().mockResolvedValue();
 
         expect.assertions(1);

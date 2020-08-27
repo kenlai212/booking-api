@@ -7,6 +7,6 @@ const logOutgoingResponse = require("../middleware/logOutgoingResponse");
 const authenticateAccessToken = require("../middleware/authenticateAccessToken");
 
 const router = express.Router();
-router.get("/total-amount", authenticateAccessToken, logIncommingRequest, pricingController.totalAmount, logOutgoingResponse);
+router.get("/total-amount", authenticateAccessToken, logIncommingRequest, pricingController.totalAmount);
 
 module.exports = router;

@@ -5,8 +5,9 @@ const mongoose = require("mongoose");
 const winston = require("winston");
 
 const Occupancy = require("./occupancy.model").Occupancy;
-const availibilityService = require("./availibility.service");
+const checkAvailibility = require("./checkAvailibility.helper");
 const gogowakeCommon = require("gogowake-common");
+const customError = require("../errors/customError");
 
 const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
 const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER_GROUP";
@@ -30,7 +31,7 @@ function releaseOccupancy(input, user) {
 
 		//validate user group
 		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ status: 401, message: "Insufficient Rights" });
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
 		//validate input data
@@ -42,12 +43,12 @@ function releaseOccupancy(input, user) {
 
 		const result = schema.validate(input);
 		if (result.error) {
-			reject({ status: 400, message: result.error.details[0].message.replace(/\"/g, '') });
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
 
 		//validate occupancyId
 		if (mongoose.Types.ObjectId.isValid(input.occupancyId) == false) {
-			throw { status: 404, message: "Invalid occupancyId"};
+			reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid occupancyId" });
 		}
 
 		//delete target occupancy
@@ -58,7 +59,7 @@ function releaseOccupancy(input, user) {
 			})
 			.catch(err => {
 				winston.error("Occupancy.findByIdAndDelete() error : ", err);
-				reject({ status: 500, message: "Delete function not available" });
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Delete function not available" });
 			});
 	});
 	
@@ -82,7 +83,7 @@ function occupyAsset(input, user) {
 		
 		//validate user
 		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ status: 401, message: "Insufficient Rights" });
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
 		//validate input data
@@ -101,7 +102,7 @@ function occupyAsset(input, user) {
 		
 		const result = schema.validate(input);
 		if (result.error) {
-			reject({ status: 400, message: result.error.details[0].message.replace(/\"/g, '') });
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
 		
 		const startTime = moment(input.startTime).toDate();
@@ -109,20 +110,26 @@ function occupyAsset(input, user) {
 
 		//startTime cannot be later then endTime
 		if (startTime > endTime) {
-			reject({ status: 400, message: "endTime cannot be earlier then startTime" });
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
 		}
 
-		//check availibility
-		//console.log("startTime : " + startTime + ", endTime : " + endTime + ", assetId : " + input.assetId);
-		availibilityService.checkAvailibility(startTime, endTime, input.assetId)
-			.then(isAvailable => {
-				if (isAvailable == false) {
-					reject({ status: 400, message: "Timeslot not available" });
-				}
-
-				return;
+		//find all occupancies with in search start and end time
+		//expand search range to -1 day from startTime and +1 from endTime 
+		const searchTimeRangeStart = moment(startTime).subtract(1, 'days');
+		const searchTimeRangeEnd = moment(endTime).add(1, 'days');
+		Occupancy.find(
+			{
+				startTime: { $gte: searchTimeRangeStart },
+				endTime: { $lt: searchTimeRangeEnd },
+				assetId: input.assetId
 			})
-			.then(() => {
+			.then(occupancies => {
+				//check availibility, if false, reject
+				const isAvailable = checkAvailibility(startTime, endTime, occupancies);
+
+				if (isAvailable == false) {
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" });
+				}
 
 				//set up occupancy object for saving
 				var occupancy = new Occupancy();
@@ -140,20 +147,20 @@ function occupyAsset(input, user) {
 						userName: user.name
 					}
 				]
-				
+
 				//save to db
 				return occupancy.save();
 			})
 			.then(occupancy => {
 				//set output object
 				var outputObj = occupancyToOutputObj(occupancy);
-				
+
 				resolve(outputObj);
 			})
 			.catch(err => {
 				winston.error("Internal Server Error", err);
-				reject({ status: 500, message: "Internal Server Error" });
-			});
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});	
 	});
 	
 }
@@ -176,7 +183,7 @@ async function getOccupancies(input, user) {
 
 		//validate user group
 		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ status: 401, message: "Insufficient Rights"});
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights"});
 		}
 
 		//validate input data
@@ -191,14 +198,14 @@ async function getOccupancies(input, user) {
 
 		const result = schema.validate(input);
 		if (result.error) {
-			reject({ status: 400, message: result.error.details[0].message.replace(/\"/g, '') });
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
 
 		const startTime = moment(input.startTime).toDate();
 		const endTime = moment(input.endTime).toDate();
 
 		if (startTime > endTime) {
-			reject({ status: 400, message: "endTime cannot be earlier then startTime" });
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
 		}
 
 		Occupancy.find({
@@ -218,7 +225,7 @@ async function getOccupancies(input, user) {
 			})
 			.catch(err => {
 				winston.error("Internal Server Error", err);
-				reject({ status: 500, message: "Internal Server Error" });
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
 }

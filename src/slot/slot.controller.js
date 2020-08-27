@@ -1,47 +1,18 @@
 "use strict";
 const url = require("url");
+
+const asyncMiddleware = require("../middleware/asyncMiddleware");
 const slotService = require("./slot.service");
-const common = require("gogowake-common");
 
-require('dotenv').config();
-
-const slots = async (req, res) => {
-	common.logIncommingRequest(req);
-
+const slots = asyncMiddleware(async (req, res) => {
 	const queryObject = url.parse(req.url, true).query;
+	return await slotService.getSlots(queryObject, req.user);
+});
 
-	try {
-		const response = await slotService.getSlots(queryObject, req.user)
-		common.readySuccessResponse(response, res);
-	} catch (err) {
-		common.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		common.logOutgoingResponse(res);
-	});
-
-	return res;
-}
-
-const endSlots = async (req, res) => {
-	common.logIncommingRequest(req);
-
+const endSlots = asyncMiddleware(async (req, res) => {
 	const queryObject = url.parse(req.url, true).query;
-
-	try {
-		const response = await slotService.getEndSlots(queryObject, req.user)
-		common.readySuccessResponse(response, res);
-	} catch (err) {
-		common.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		common.logOutgoingResponse(res);
-	});
-
-	return res;
-}
+	return await slotService.getEndSlots(queryObject, req.user);
+});
 
 module.exports = {
 	slots,

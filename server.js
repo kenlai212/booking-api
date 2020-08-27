@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const jwt = require("jsonwebtoken");
+const config = require("config");
 const winston = require("winston");
 require("winston-mongodb");
 
@@ -14,10 +15,10 @@ const app = express();
 
 //set up routes
 app.use(express.json());
-//app.use("/", bookingRoutes);
-//app.use("/", pricingRoutes);
-//app.use("/", slotRoutes);
 app.use("/", occupancyRoutes);
+app.use("/", pricingRoutes);
+//app.use("/", bookingRoutes);
+//app.use("/", slotRoutes);
 //app.use("/", crewRoutes);
 
 //set winston transport to console and MongoDB
@@ -38,7 +39,7 @@ process.on("uncaughtException", (ex) => {
 //boot starpping
 mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useNewUrlParser: true })
 	.then(async () => {
-		winston.info("Connected to MongoDB....");
+		winston.info("Connected to " + config.get("bootstrap.mongoDBName") + "....");
 
 		await app.listen(process.env.PORT, function (err) {
 			if (err) {
