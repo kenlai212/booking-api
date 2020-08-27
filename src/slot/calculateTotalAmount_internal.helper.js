@@ -5,7 +5,6 @@ const pricingService = require("../pricing/pricing.service");
 const customError = require("../errors/customError");
 
 function calculateTotalAmount(startTime, endTime) {
-
     var user = new Object();
     jwt.verify(global.accessToken, process.env.ACCESS_TOKEN_SECRET, (err, targetUser) => {
         if (err) {
