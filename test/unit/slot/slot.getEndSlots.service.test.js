@@ -135,11 +135,25 @@ describe('Test slot.getEndSlots', () => {
         //mock calculateTotalAmountHelper.calculateTotalAmount, 
         calculateTotalAmountHelper.calculateTotalAmount = jest.fn().mockReturnValue({totalAmount: 1000, currency: "HKD"});
 
-        expect.assertions(1);
+        expect.assertions(3);
 
-        return expect(slotService.getEndSlots(input, user)).resolves.toEqual({
-            name: customError.INTERNAL_SERVER_ERROR,
-            message: "Internal Server Error"
-        });
+        slotService.getEndSlots(input, user)
+            .then(result => {
+                const endSlots = result.endSlots;
+                
+                expect(endSlots.length).toEqual(6);
+
+                expect(endSlots[0].startTime).toEqual(moment()
+                    .utcOffset(0)
+                    .add(1, "days")
+                    .set({ hour: 15, minute: 0, second: 0, millisecond: 0 })
+                    .toISOString());
+
+                expect(endSlots[5].endTime).toEqual(moment()
+                    .utcOffset(0)
+                    .add(1, "days")
+                    .set({ hour: 17, minute: 59, second: 59, millisecond: 0 })
+                    .toISOString())
+            });
     });
 });
