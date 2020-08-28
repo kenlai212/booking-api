@@ -2,14 +2,10 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\errors",
-    "\\src\\occupancy",
-    "\\src\\pricing",
-    "\\src\\slot",
+    "\\src\\crew",
     "\\test",
-    "\\test\\unit",
-    "\\test\\unit\\slot"
+    "\\test\\unit"
   ],
-  "SelectedNode": "\\src\\slot\\slot.service.js",
+  "SelectedNode": "\\src\\slot",
   "PreviewInSolutionExplorer": false
 }

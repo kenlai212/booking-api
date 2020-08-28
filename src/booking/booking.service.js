@@ -8,8 +8,6 @@ const logger = gogowakeCommon.logger;
 
 const pricingService = require("../pricing/pricing.service");
 
-require('dotenv').config();
-
 const DEFAULT_ASSET_ID = "MC_NXT20";
 
 //constants for booking types
@@ -37,349 +35,283 @@ const RELEASE_OCCUPANCY_PATH = "/occupancy";
  * new occupancy record by calling occupancy service
  */
 async function addNewBooking(input, user) {
-	var response = new Object;
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP,
-		bookingCommon.BOOKING_USER_GROUP
-	]
+	return new Promise((resolve, reject) => {
+		const rightsGroup = [
+			bookingCommon.BOOKING_ADMIN_GROUP,
+			bookingCommon.BOOKING_USER_GROUP
+		]
 
-	//validate user group
-	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-
-	}
-
-	//validate startTime
-	if (input.startTime == null || input.startTime.length < 1) {
-		response.status = 400;
-		response.message = "startTime is mandatory";
-		throw response;
-	}
-
-	var startTime;
-	try {
-		startTime = gogowakeCommon.standardStringToDate(input.startTime);
-	} catch (err) {
-		response.status = 400;
-		response.message = "Invalid startTime format";
-		throw response;
-	}
-
-	//validate end time
-	if (input.endTime == null || input.endTime.length < 1) {
-		response.status = 400;
-		response.message = "endTime is mandatory";
-		throw response;
-	}
-
-	var endTime;
-	try {
-		endTime = gogowakeCommon.standardStringToDate(input.endTime);
-	} catch (err) {
-		response.status = 400;
-		response.message = "Invalid startTime format";
-		throw response;
-	}
-
-	//check if endTime is earlier then startTime
-	if (startTime > endTime) {
-		response.status = 400;
-		response.message = "Invalid endTime";
-		throw response;
-	}
-
-	//init booking object
-	var booking = new Booking();
-	booking.creationTime = gogowakeCommon.getNowUTCTimeStamp();
-	booking.createdBy = user.id;
-	booking.history = [{
-		transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
-		transactionDescription: "New booking",
-		userId: user.id,
-		userName: user.name
-	}]
-
-	//check booking type, if none, assign default CUSTOMER_BOOKING
-	if (input.bookingType == null || input.bookingType.length < 0) {
-		booking.bookingType = CUSTOMER_BOOKING_TYPE
-	} else {
-		booking.bookingType = input.bookingType;
-	}
-
-	//check for valid booking type
-	if (VALID_BOOKING_TYPES.includes(booking.bookingType) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingType";
-		throw response;		
-	}
-
-	//calculate duration in milliseconds
-	var diffMs;
-	diffMs = (endTime - startTime);
-
-	if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
-
-		//check minimum booking duration
-		const minMs = process.env.MINIMUM_BOOKING_TIME;
-		if (diffMs < minMs) {
-
-			var minutes = Math.floor(minMs / 60000);
-			var seconds = ((minMs % 60000) / 1000).toFixed(0);
-
-			response.status = 400;
-			response.message = "Booking cannot be less then " + minutes + " mins " + seconds + " secs";
-			throw response;
+		//validate user
+		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
-		//check maximum booking duration
-		if (process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true) {
+		//validate input data
+		const schema = Joi.object({
+			startTime: Joi.date().iso().required(),
+			endTime: Joi.date().iso().required(),
+			bookingType: Joi
+				.string()
+				.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
+				.required(),
+			contactName: Joi
+				.string()
+				.required(),
+			telephoneCountryCode: Joi
+				.string()
+				.valid(bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES)
+				.required(),
+			telephoneNumber: Joi.string().required()
+		});
 
-			const maxMs = process.env.MAXIMUM_BOOKING_TIME
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-			if (diffMs > maxMs) {
+		//check if endTime is earlier then startTime
+		if (startTime > endTime) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
+		}
 
-				var minutes = Math.floor(maxMs / 60000);
-				var seconds = ((maxMs % 60000) / 1000).toFixed(0);
+		//init booking object
+		var booking = new Booking();
+		booking.creationTime = gogowakeCommon.getNowUTCTimeStamp();
+		booking.createdBy = user.id;
+		booking.history = [{
+			transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
+			transactionDescription: "New booking",
+			userId: user.id,
+			userName: user.name
+		}]
 
-				response.status = 400;
-				response.message = "Booking cannot be more then " + minutes + " mins " + seconds + " secs";
-				throw response;
+		//calculate duration in milliseconds
+		var diffMs;
+		diffMs = (endTime - startTime);
+
+		if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
+			//check minimum booking duration
+			const minMs = process.env.MINIMUM_BOOKING_TIME;
+			if (diffMs < minMs) {
+
+				var minutes = Math.floor(minMs / 60000);
+				var seconds = ((minMs % 60000) / 1000).toFixed(0);
+
+				reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be less then " + minutes + " mins " + seconds + " secs" });
+			}
+
+			//check maximum booking duration
+			if (process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true) {
+				const maxMs = process.env.MAXIMUM_BOOKING_TIME
+
+				if (diffMs > maxMs) {
+
+					var minutes = Math.floor(maxMs / 60000);
+					var seconds = ((maxMs % 60000) / 1000).toFixed(0);
+
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be more then " + minutes + " mins " + seconds + " secs" });
+				}
+			}
+
+			//check for earliest startTime
+			var earliestStartTime = new Date(startTime);
+			earliestStartTime.setUTCHours(process.env.EARLIEST_BOOKING_HOUR);
+			earliestStartTime.setUTCMinutes(0);
+
+			if (startTime < earliestStartTime) {
+				reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be earlier then 0" + process.env.EARLIEST_BOOKING_HOUR + ":00" });
+			}
+
+			//check for latest endTime
+			var latestEndTime = new Date(endTime);
+			latestEndTime.setUTCHours(process.env.LATEST_BOOKING_HOUR);
+			latestEndTime.setUTCMinutes(0);
+
+			if (endTime > latestEndTime) {
+				reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be later then " + process.env.LATEST_BOOKING_HOUR + ":00" });
 			}
 		}
 
-		//check for earliest startTime
-		var earliestStartTime = new Date(startTime);
-		earliestStartTime.setUTCHours(process.env.EARLIEST_BOOKING_HOUR);
-		earliestStartTime.setUTCMinutes(0);
+		//set booking status
+		if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
+			booking.status = AWAITING_CONFIRMATION_STATUS;
+		} else {
+			booking.status = CONFIRMED_BOOKING_STATUS;
+		}
 
-		if (startTime < earliestStartTime) {
+		//check for retro booking (booing before current time)
+		if (endTime < gogowakeCommon.getNowUTCTimeStamp()) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be in the past" });
+		}
+
+		/*
+		//check for minimum booking notice
+		var latestAdvanceBooking = new Date(startTime);
+		latestAdvanceBooking.setUTCHours(latestAdvanceBooking.getHours() - 12);
+		latestAdvanceBooking.setUTCMinutes(0);
+		var now = new Date();
+		now.setHours(now.getHours() + 8);
+		if (now > latestAdvanceBooking) {
 			response.status = 400;
-			response.message = "Booking cannot be earlier then 0" + process.env.EARLIEST_BOOKING_HOUR + ":00";
+			response.message = "Must book 12 hours in advanced";
 			throw response;
 		}
+		*/
 
-		//check for latest endTime
-		var latestEndTime = new Date(endTime);
-		latestEndTime.setUTCHours(process.env.LATEST_BOOKING_HOUR);
-		latestEndTime.setUTCMinutes(0);
+		booking.startTime = startTime;
+		booking.endTime = endTime;
 
-		if (endTime > latestEndTime) {
-			response.status = 400;
-			response.message = "Booking cannot be later then " + process.env.LATEST_BOOKING_HOUR + ":00";
-			throw response;
+		//calculate pricing & currency
+		const pricingTotalAmountInput = {
+			"startTime": input.startTime,
+			"endTime": input.endTime,
+			"bookingType": booking.bookingType
 		}
-	}
+		const totalAmountObj = pricingService.calculateTotalAmount(pricingTotalAmountInput, user);
+		booking.totalAmount = totalAmountObj.totalAmount;
+		booking.currency = totalAmountObj.currency;
+		booking.paymentStatus = AWAITING_PAYMENT_STATUS;
+		booking.contactName = input.contactName;
+		booking.telephoneCountryCode = input.telephoneCountryCode;
+		booking.telephoneNumber = input.telephoneNumber;
 
-	//set booking status
-	if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
-		booking.status = AWAITING_CONFIRMATION_STATUS;
-	} else {
-		booking.status = CONFIRMED_BOOKING_STATUS;
-	}
+		//set email address if not null
+		if (input.emailAddress != null) {
+			booking.emailAddress = input.emailAddress;
+		}
 
-	//check for retro booking (booing before current time)
-	if (endTime < gogowakeCommon.getNowUTCTimeStamp()) {
-		response.status = 400;
-		response.message = "Booking cannot be in the past";
-		throw response;
-	}
+		//set first guest as contact
+		const firstGuest = {
+			guestName: booking.contactName,
+			telephoneCountryCode: booking.telephoneCountryCode,
+			telephoneNumber: booking.telephoneNumber,
+			emailAddress: booking.emailAddress
+		}
+		booking.guests = [firstGuest];
 
-	/*
-	//check for minimum booking notice
-	var latestAdvanceBooking = new Date(startTime);
-	latestAdvanceBooking.setUTCHours(latestAdvanceBooking.getHours() - 12);
-	latestAdvanceBooking.setUTCMinutes(0);
-	var now = new Date();
-	now.setHours(now.getHours() + 8);
-	if (now > latestAdvanceBooking) {
-		response.status = 400;
-		response.message = "Must book 12 hours in advanced";
-		throw response;
-	}
-	*/
+		//add crew //TODO auto add crew based on schedule
+		booking.crews = new Array();
 
-	booking.startTime = startTime;
-	booking.endTime = endTime;
-	
-	//calculate pricing & currency
-	const pricingTotalAmountInput = {
-		"startTime": input.startTime,
-		"endTime": input.endTime,
-		"bookingType": booking.bookingType
-	}
-	const totalAmountObj = pricingService.calculateTotalAmount(pricingTotalAmountInput, user);
-	booking.totalAmount = totalAmountObj.totalAmount;
-	booking.currency = totalAmountObj.currency;
-	booking.paymentStatus = AWAITING_PAYMENT_STATUS;
-
-	//validate contact name
-	if (input.contactName == null || input.contactName.length < 1) {
-		response.status = 400;
-		response.message = "contactName is mandatory";
-		throw response;
-	}
-	booking.contactName = input.contactName;
-
-	//validate country code
-	if (input.telephoneCountryCode == null || input.telephoneCountryCode.length < 1) {
-		response.status = 400;
-		response.message = "telephoneCountryCode is mandatory";
-		throw response;
-	}
-
-	if (bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
-		response.status = 400;
-		response.message = "Invalid telephoneCountryCode";
-		throw response;
-	}
-	booking.telephoneCountryCode = input.telephoneCountryCode;
-
-	//validate telephone number
-	if (input.telephoneNumber == null || input.telephoneNumber.length < 1) {
-		response.status = 400;
-		response.message = "telephoneNumber is mandatory";
-		throw response;
-	}
-	booking.telephoneNumber = input.telephoneNumber;
-
-	//set email address if not null
-	if(input.emailAddress != null){
-		booking.emailAddress = input.emailAddress;
-	}
-	
-	//set first guest as contact
-	const firstGuest = {
-		guestName: booking.contactName,
-		telephoneCountryCode: booking.telephoneCountryCode,
-		telephoneNumber: booking.telephoneNumber,
-		emailAddress: booking.emailAddress
-	}
-	booking.guests = [firstGuest];
-
-	//add crew //TODO auto add crew based on schedule
-	booking.crews = new Array();
-
-	//call external occupancy API to save occupancy record
-	const url = process.env.OCCUPANCY_DOMAIN + OCCUPANCY_PATH;
-	const data = {
-		"occupancyType": CUSTOMER_BOOKING_TYPE,
-		"startTime": gogowakeCommon.dateToStandardString(booking.startTime),
-		"endTime": gogowakeCommon.dateToStandardString(booking.endTime),
-		"assetId": DEFAULT_ASSET_ID
-	}
-	const requestAttr = {
-		method: "POST",
-		headers: {
-			"content-Type": "application/json",
-			"Authorization": "Token " + user.accessToken
-		},
-		body: JSON.stringify(data)
-	}
-
-	await gogowakeCommon.callAPI(url, requestAttr)
-		.then(result => {
-			booking.occupancyId = result.id;
-			logger.info("Successfully call occupancy api, and saved occupancy record : " + result.id);
-		})
-		.catch(err => {
-			throw err;
-		});
-
-	//save newBooking record
-	await booking.save()
-		.then(result => {
-			booking = result;
-			logger.info("Successfully saved new booking : " + booking.id);
-		})
-		.catch(err => {
-			logger.error("booking.save() error : " + err);
-			response.status = 500;
-			response.message = "Add new booking function not available";
-			throw response;
-		});
-
-	/*
-	//send notification to admin
-	if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
-		const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
-
-		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
-		var bodyHTML = "<html>";
-		bodyHTML += "<body>";
-		bodyHTML += "<div>New Booking recieved form " + booking.contactName + "</div>";
-		bodyHTML += "<div>" + booking.startTime + "&nbsp;to&nbsp;" + booking.endTime + "</div>";
-		bodyHTML += "<div>Go to details <a href=" + linkToThankyouPage +">here</a></div>";
-		bodyHTML += "</body>";
-		bodyHTML += "</html>";
-
+		//call external occupancy API to save occupancy record
+		const url = process.env.OCCUPANCY_DOMAIN + OCCUPANCY_PATH;
 		const data = {
-			"sender": "booking@hebewake.com",
-			"recipient": "gogowakehk@gmail.com",
-			"emailBody": bodyHTML
-		}
-
-		const requestAttr = {
-			method: "POST",
-			headers: {
-				"content-Type": "application/json",
-				"Authorization": "Token " + global.accessToken
-			},
-			body: JSON.stringify(data)
-		}
-
-		await common.callAPI(url, requestAttr)
-			.then(result => {
-				logger.info("Successfully sent notification email to admin, messageId : " + result.messageId);
-			})
-			.catch(err => {
-				logger.error("Failed to send new booking notification email to admin : " + JSON.stringify(err));
-			});
-	}
-
-	//send confirmation to contact
-	//TODO add chinese language confirmation
-	if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_EMAIL == true && booking.emailAddress != null) {
-		const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
-
-		const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
-		var bodyHTML = "<html>";
-		bodyHTML += "<head>";
-		bodyHTML += "</head>";
-		bodyHTML += "<body>";
-		bodyHTML += "<div>Thank you for booking with us.</div>";
-		bodyHTML += "<div>You can view your booking details <a href=" + linkToThankyouPage +">here</a></div>";
-		bodyHTML += "</body>";
-		bodyHTML += "</html>";
-
-		const data = {
-			"sender": "booking@hebewake.com",
-			"recipient": booking.emailAddress,
-			"emailBody": bodyHTML
+			"occupancyType": CUSTOMER_BOOKING_TYPE,
+			"startTime": gogowakeCommon.dateToStandardString(booking.startTime),
+			"endTime": gogowakeCommon.dateToStandardString(booking.endTime),
+			"assetId": DEFAULT_ASSET_ID
 		}
 		const requestAttr = {
 			method: "POST",
 			headers: {
 				"content-Type": "application/json",
-				"Authorization": "Token " + global.accessToken
+				"Authorization": "Token " + user.accessToken
 			},
 			body: JSON.stringify(data)
 		}
 
-		await common.callAPI(url, requestAttr)
+		await gogowakeCommon.callAPI(url, requestAttr)
 			.then(result => {
-				logger.info("Sucessfully sent new booking notification email to customer, messageId : " + result.messageId);
+				booking.occupancyId = result.id;
+				logger.info("Successfully call occupancy api, and saved occupancy record : " + result.id);
 			})
 			.catch(err => {
-				logger.error("Failed to send new booking notification email to customer : " + JSON.stringify(err));
+				throw err;
 			});
-	}
-	*/
 
-	var outputObj = bookingCommon.bookingToOutputObj(booking);
+		//save newBooking record
+		await booking.save()
+			.then(result => {
+				booking = result;
+				logger.info("Successfully saved new booking : " + booking.id);
+			})
+			.catch(err => {
+				logger.error("booking.save() error : " + err);
+				response.status = 500;
+				response.message = "Add new booking function not available";
+				throw response;
+			});
 
-	return outputObj;
+		/*
+		//send notification to admin
+		if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
+			const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
+	
+			const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
+			var bodyHTML = "<html>";
+			bodyHTML += "<body>";
+			bodyHTML += "<div>New Booking recieved form " + booking.contactName + "</div>";
+			bodyHTML += "<div>" + booking.startTime + "&nbsp;to&nbsp;" + booking.endTime + "</div>";
+			bodyHTML += "<div>Go to details <a href=" + linkToThankyouPage +">here</a></div>";
+			bodyHTML += "</body>";
+			bodyHTML += "</html>";
+	
+			const data = {
+				"sender": "booking@hebewake.com",
+				"recipient": "gogowakehk@gmail.com",
+				"emailBody": bodyHTML
+			}
+	
+			const requestAttr = {
+				method: "POST",
+				headers: {
+					"content-Type": "application/json",
+					"Authorization": "Token " + global.accessToken
+				},
+				body: JSON.stringify(data)
+			}
+	
+			await common.callAPI(url, requestAttr)
+				.then(result => {
+					logger.info("Successfully sent notification email to admin, messageId : " + result.messageId);
+				})
+				.catch(err => {
+					logger.error("Failed to send new booking notification email to admin : " + JSON.stringify(err));
+				});
+		}
+	
+		//send confirmation to contact
+		//TODO add chinese language confirmation
+		if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_EMAIL == true && booking.emailAddress != null) {
+			const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
+	
+			const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
+			var bodyHTML = "<html>";
+			bodyHTML += "<head>";
+			bodyHTML += "</head>";
+			bodyHTML += "<body>";
+			bodyHTML += "<div>Thank you for booking with us.</div>";
+			bodyHTML += "<div>You can view your booking details <a href=" + linkToThankyouPage +">here</a></div>";
+			bodyHTML += "</body>";
+			bodyHTML += "</html>";
+	
+			const data = {
+				"sender": "booking@hebewake.com",
+				"recipient": booking.emailAddress,
+				"emailBody": bodyHTML
+			}
+			const requestAttr = {
+				method: "POST",
+				headers: {
+					"content-Type": "application/json",
+					"Authorization": "Token " + global.accessToken
+				},
+				body: JSON.stringify(data)
+			}
+	
+			await common.callAPI(url, requestAttr)
+				.then(result => {
+					logger.info("Sucessfully sent new booking notification email to customer, messageId : " + result.messageId);
+				})
+				.catch(err => {
+					logger.error("Failed to send new booking notification email to customer : " + JSON.stringify(err));
+				});
+		}
+		*/
+
+		var outputObj = bookingCommon.bookingToOutputObj(booking);
+
+		return outputObj;
+	});
 }
 
 /**

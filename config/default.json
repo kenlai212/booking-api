@@ -1,6 +1,6 @@
 {
   "bootstrap": {
-    "mongoDBName":  "Development MongoDB"
+    "mongoDBName": "Development MongoDB"
   },
   "pricing": {
     "unitPriceRegular": 1200,
@@ -9,6 +9,8 @@
     "unitCurrency": "HKD"
   },
   "domainURL": {
-    "occupancy": "http://localhost"
-  }
+    "occupancy": "http://localhost",
+    "notification": "http://localhost"
+  },
+  "disclaimerURL": "http://admin.hebewake.com/disclaimer"
 }

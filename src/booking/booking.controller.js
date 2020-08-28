@@ -1,114 +1,32 @@
 "use strict";
 const url = require("url");
-const bookingService = require("./booking.service");
-const gogowakeCommon = require("gogowake-common");
+const bookingService = require("./booking.service");;
 
-const newBooking = async (req, res) => {
-	gogowakeCommon.logIncommingRequest(req);
+const newBooking = asyncMiddleware(async (req) => {
+	return await bookingService.addNewBooking(req.body, req.user);
+});
 
-	try {
-		const response = await bookingService.addNewBooking(req.body, req.user)
-		gogowakeCommon.readySuccessResponse(response, res);
-	} catch (err) {
-		gogowakeCommon.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		gogowakeCommon.logOutgoingResponse(res);
-	});
-
-	return res;
+const editContact = async (req) => {
+	return await bookingService.editContact(req.body, req.user);
 }
 
-const editContact = async (req, res) => {
-	gogowakeCommon.logIncommingRequest(req);
-
-	try {
-		const response = await bookingService.editContact(req.body, req.user)
-		gogowakeCommon.readySuccessResponse(response, res);
-	} catch (err) {
-		gogowakeCommon.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		gogowakeCommon.logOutgoingResponse(res);
-	});
-
-	return res;
-}
-
-const cancelBooking = async (req, res) => {
-	gogowakeCommon.logIncommingRequest(req);
-
+const cancelBooking = async (req) => {
 	const queryObject = url.parse(req.url, true).query;
-
-	try {
-		const response = await bookingService.cancelBooking(queryObject, req.user)
-		gogowakeCommon.readySuccessResponse(response, res);
-	} catch (err) {
-		gogowakeCommon.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		gogowakeCommon.logOutgoingResponse(res);
-	});
-
-	return res;
+	return await bookingService.cancelBooking(queryObject, req.user);
 }
 
-const fulfillBooking = async (req, res) => {
-	gogowakeCommon.logIncommingRequest(req);
-
-	try {
-		const response = await bookingService.fulfillBooking(req.body, req.user)
-		gogowakeCommon.readySuccessResponse(response, res);
-	} catch (err) {
-		gogowakeCommon.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		gogowakeCommon.logOutgoingResponse(res);
-	});
-
-	return res;
+const fulfillBooking = async (req) => {
+	return await bookingService.fulfillBooking(req.body, req.user);
 }
 
-const searchBookings = async (req, res) => {
-	gogowakeCommon.logIncommingRequest(req);
-
+const searchBookings = async (req) => {
 	const queryObject = url.parse(req.url, true).query;
-
-	try {
-		const response = await bookingService.viewBookings(queryObject, req.user)
-		gogowakeCommon.readySuccessResponse(response, res);
-	} catch (err) {
-		gogowakeCommon.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		gogowakeCommon.logOutgoingResponse(res);
-	});
-
-	return res;
+	return await bookingService.viewBookings(queryObject, req.user);
 }
 
-const findBooking = async (req, res) => {
-	gogowakeCommon.logIncommingRequest(req);
-
+const findBooking = async (req) => {
 	const queryObject = url.parse(req.url, true).query;
-
-	try {
-		const response = await bookingService.findBookingById(queryObject, req.user)
-		gogowakeCommon.readySuccessResponse(response, res);
-	} catch (err) {
-		gogowakeCommon.readyErrorResponse(err, res);
-	}
-
-	res.on("finish", function () {
-		gogowakeCommon.logOutgoingResponse(res);
-	});
-
-	return res;
+	return await bookingService.findBookingById(queryObject, req.user);
 }
 
 module.exports = {
