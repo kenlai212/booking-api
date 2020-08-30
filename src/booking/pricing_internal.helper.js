@@ -11,9 +11,9 @@ function calculateTotalAmount(startTime, endTime, bookingType){
     });
     
     const pricingTotalAmountInput = {
-        "startTime": booking.startTime,
-        "endTime": booking.endTime,
-        "bookingType": booking.bookingType
+        "startTime": startTime,
+        "endTime": endTime,
+        "bookingType": bookingType
     }
 
     return pricingService.calculateTotalAmount(pricingTotalAmountInput, user);

@@ -1,4 +1,5 @@
 const config = require("config");
+const moment = require("moment");
 
 function checkMimumDuration(startTime, endTime){
     const diffMs = (endTime - startTime);
@@ -30,31 +31,27 @@ function checkMaximumDuration(startTime, endTime){
     return true;
 }
 
-function checkEarliestStartTime(startTime){
+function checkEarliestStartTime(startTime, utcOffset){
     const earlistBookingHour = config.get("booking.earliestBooking.hour");
     const earlistBookingMinute = config.get("booking.earliestBooking.minute");
 
-    var earliestStartTime = new Date(startTime);
-	earliestStartTime.setUTCHours(earlistBookingHour);
-	earliestStartTime.setUTCMinutes(earlistBookingMinute);
+    var earliestStartTime = moment(startTime).utcOffset(utcOffset).set({ hour: earlistBookingHour, minute: earlistBookingMinute });
 
-	if (startTime < earliestStartTime) {
-		throw "Booking cannot be earlier then 0" + earlistBookingHour + ":" + earlistBookingMinute;
+    if (startTime < earliestStartTime) {
+        throw "Booking cannot be earlier then " + ("0" + earlistBookingHour).slice(-2) + ":" + ("0" + earlistBookingMinute).slice(-2);
     }
     
     return true;
 }
 
-function checkLatestEndTime(endTime){
+function checkLatestEndTime(endTime, utcOffset){
     const latestBookingHour = config.get("booking.latestBooking.hour");
     const latestBookingMinute = config.get("booking.latestBooking.minute");
 
-    var latestEndTime = new Date(endTime);
-    latestEndTime.setUTCHours(latestBookingHour);
-    latestEndTime.setUTCMinutes(latestBookingMinute);
+    var latestEndTime = moment(endTime).utcOffset(utcOffset).set({ hour: latestBookingHour, minute: latestBookingMinute });
 
     if (endTime > latestEndTime) {
-        throw "Booking cannot be later then " + latestBookingHour + ":" + latestBookingMinute;
+        throw "Booking cannot be later then " + ("0" + latestBookingHour).slice(-2) + ":" + ("0" + latestBookingMinute).slice(-2);
     }
 
     return true;

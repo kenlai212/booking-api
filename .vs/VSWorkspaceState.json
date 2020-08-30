@@ -5,8 +5,9 @@
     "\\src",
     "\\src\\booking",
     "\\test",
-    "\\test\\unit"
+    "\\test\\unit",
+    "\\test\\unit\\booking"
   ],
-  "SelectedNode": "\\src\\booking\\booking.guest.service.js",
+  "SelectedNode": "\\src\\booking\\booking.service.js",
   "PreviewInSolutionExplorer": false
 }

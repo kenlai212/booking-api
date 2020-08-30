@@ -12,7 +12,7 @@ const NotificationHelper = require("./notification_external.helper");
 const gogowakeCommon = require("gogowake-common");
 const logger = gogowakeCommon.logger;
 
-const DEFAULT_ASSET_ID = "MC_NXT20";
+const UTC_OFFSET = 8;
 
 //constants for booking types
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
@@ -54,6 +54,7 @@ async function addNewBooking(input, user) {
 		const schema = Joi.object({
 			startTime: Joi.date().iso().required(),
 			endTime: Joi.date().iso().required(),
+			assetId: Joi.string().required(),
 			bookingType: Joi
 				.string()
 				.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
@@ -87,8 +88,8 @@ async function addNewBooking(input, user) {
 			try{
 				BookingDurationHelper.checkMimumDuration(startTime,endTime);
 				BookingDurationHelper.checkMaximumDuration(startTime,endTime);
-				BookingDurationHelper.checkEarliestStartTime(startTime);
-				BookingDurationHelper.checkLatestEndTime(endTime);
+				BookingDurationHelper.checkEarliestStartTime(startTime, UTC_OFFSET);
+				BookingDurationHelper.checkLatestEndTime(endTime, UTC_OFFSET);
 			}catch(err){
 				reject({ name: customError.BAD_REQUEST_ERROR, message: result});
 			}
@@ -102,7 +103,7 @@ async function addNewBooking(input, user) {
 		}
 
 		//check for retro booking (booing before current time)
-		if (endTime < gogowakeCommon.getNowUTCTimeStamp()) {
+		if (endTime < moment().toDate()) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be in the past" });
 		}
 
