@@ -1,11 +1,12 @@
 {
   "ExpandedNodes": [
     "",
+    "\\config",
     "\\src",
-    "\\src\\crew",
+    "\\src\\booking",
     "\\test",
     "\\test\\unit"
   ],
-  "SelectedNode": "\\src\\slot",
+  "SelectedNode": "\\src\\booking\\booking.guest.service.js",
   "PreviewInSolutionExplorer": false
 }
