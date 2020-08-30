@@ -171,7 +171,7 @@ By : Ken Lai
 Get all occupancies with in startTime and endTime of
 target asset
 ********************************************************/
-async function getOccupancies(input, user) {
+function getOccupancies(input, user) {
 	return new Promise((resolve, reject) => {
 		const rightsGroup = [
 			OCCUPANCY_ADMIN_GROUP,

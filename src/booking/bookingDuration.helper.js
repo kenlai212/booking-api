@@ -12,7 +12,7 @@ function checkMimumDuration(startTime, endTime){
         throw "Booking cannot be less then " + minutes + " mins " + seconds + " secs";
     }
 
-    return;
+    return true;
 }
 
 function checkMaximumDuration(startTime, endTime){
@@ -27,7 +27,7 @@ function checkMaximumDuration(startTime, endTime){
         throw "Booking cannot be more then " + minutes + " mins " + seconds + " secs";
     }
 
-    return;
+    return true;
 }
 
 function checkEarliestStartTime(startTime){
@@ -42,7 +42,7 @@ function checkEarliestStartTime(startTime){
 		throw "Booking cannot be earlier then 0" + earlistBookingHour + ":" + earlistBookingMinute;
     }
     
-    return;
+    return true;
 }
 
 function checkLatestEndTime(endTime){
@@ -57,7 +57,7 @@ function checkLatestEndTime(endTime){
         throw "Booking cannot be later then " + latestBookingHour + ":" + latestBookingMinute;
     }
 
-    return;
+    return true;
 }
 
 module.exports = {

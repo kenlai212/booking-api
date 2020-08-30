@@ -187,7 +187,6 @@ function getEndSlots(input, user) {
 				resolve({ "endSlots": endSlots });
 			})
 			.catch(err => {
-				console.log("diu", err);
 				winston.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
