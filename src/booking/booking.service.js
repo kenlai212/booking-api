@@ -1,5 +1,7 @@
 "use strict";
 const mongoose = require("mongoose");
+const moment = require("moment");
+
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
 const bookingCommon = require("./booking.common");
