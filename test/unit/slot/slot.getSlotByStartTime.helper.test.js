@@ -1,7 +1,7 @@
 const moment = require("moment");
 
 const generateSlots = require("../../../src/slot/generateSlots.helper");
-const getSlotByStartTime = require("../../../src/slot/getSlotByStartTime.helper");
+const getSlotByStartTimeHelper = require("../../../src/slot/getSlotByStartTime.helper");
 
 describe('Test slot.getSlotByStartTime.helper', () => {
     describe("testing getSlotByStartTime()", function () {
@@ -13,7 +13,7 @@ describe('Test slot.getSlotByStartTime.helper', () => {
 
             const slots = generateSlots(dayStartTime, dayEndTime);
 
-            const targetSlot = getSlotByStartTime(moment("2020-02-02T10:45:00Z").toDate(), slots);
+            const targetSlot = getSlotByStartTimeHelper.getSlotByStartTime(moment("2020-02-02T10:45:00Z").toDate(), slots);
 
             expect(targetSlot).toEqual({
                 index: 5,

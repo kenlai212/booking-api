@@ -14,7 +14,7 @@ describe('Test occupancy.getOccupancies()', () => {
         expect.assertions(1);
 
         return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
-            name: customError.UNAUTHORIZE_ERROR,
+            name: customError.UNAUTHORIZED_ERROR,
             message: "Insufficient Rights"
         });
     });
