@@ -1,3 +1,7 @@
+const winston = require("winston/lib/winston/config");
+
+const customError = require("../errors/customError");
+
 function newBookingNotificationToAdmin(booking){
     return new Promise((resolve, reject) => {
         const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
@@ -26,12 +30,13 @@ function newBookingNotificationToAdmin(booking){
             body: JSON.stringify(data)
         }
 
-        await common.callAPI(url, requestAttr)
+        common.callAPI(url, requestAttr)
             .then(result => {
-                logger.info("Successfully sent notification email to admin, messageId : " + result.messageId);
+                resolve({messageId: result.messageId});
             })
             .catch(err => {
-                logger.error("Failed to send new booking notification email to admin : " + JSON.stringify(err));
+                winston.error("External Email Notification Error", err);
+                reject({name: customError.INTERNAL_SERVER_ERROR, message: "External Email Notification Error"});
             });
     });
     
@@ -67,12 +72,13 @@ function newBookingConfirmationToCustomer(booking){
 				body: JSON.stringify(data)
 			}
 	
-			await common.callAPI(url, requestAttr)
+			common.callAPI(url, requestAttr)
 				.then(result => {
-					logger.info("Sucessfully sent new booking notification email to customer, messageId : " + result.messageId);
+                    resolve({ messageId: result.messageId });
 				})
 				.catch(err => {
-					logger.error("Failed to send new booking notification email to customer : " + JSON.stringify(err));
+                    winston.error("External Email Notification Error", err);
+                    reject({name: customError.INTERNAL_SERVER_ERROR, message: "External Email Notification Error"});
 				});
 		}
     });

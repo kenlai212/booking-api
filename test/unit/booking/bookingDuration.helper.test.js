@@ -23,13 +23,21 @@ describe('Test bookingDuration.helper', () => {
     });
 
     describe("testing checkMaxiumDuration", () => {
-        it("240mins, more than maximium, expect throw error", () => {
+        it("12hrs, more than maximium, expect throw error", () => {
             const startTime = moment("2020-02-02T08:00:00Z").toDate();
             const endTime = moment("2020-02-02T20:00:00Z").toDate();
 
             expect.assertions(1);
 
             expect(() => { bookingDurationHelper.checkMaximumDuration(startTime, endTime) }).toThrow("Booking cannot be more then 479 mins 59 secs");
+        });
+
+        it("7hrs, passed maximum requirement", () => {
+            const startTime = moment("2020-02-02T08:00:00Z").toDate();
+            const endTime = moment("2020-02-02T15:00:00Z").toDate();
+
+            expect.assertions(1);
+            expect(bookingDurationHelper.checkMaximumDuration(startTime, endTime)).toEqual(true);
         });
     });
 

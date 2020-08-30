@@ -6,7 +6,7 @@ const slotService = require("../../../src/slot/slot.service");
 const getOccupanciesHelper = require("../../../src/slot/getOccupancies_internal.helper");
 
 describe('Test slot.service', () => {
-    describe("testing getSlots", function () {
+    describe("testing getSlots", () => {
         input = {};
         user = {};
 

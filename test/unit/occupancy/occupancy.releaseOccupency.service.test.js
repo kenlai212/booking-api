@@ -10,7 +10,7 @@ describe('Test occupancy.releaseOccupancy()', () => {
     input = {};
     user = {};
 
-    it("no user authorization, should return 401", async () => {
+    it("no user authorization, reject!", () => {
 
         //fake gogowakeCommon.userAuthorization, returning false
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(false);
@@ -23,7 +23,7 @@ describe('Test occupancy.releaseOccupancy()', () => {
         });
     });
 
-    it("missing occupancyId, should return 400", async () => {
+    it("missing occupancyId, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -36,7 +36,7 @@ describe('Test occupancy.releaseOccupancy()', () => {
         });
     });
 
-    it("Invalid occupancyId, should return 404", async () => {
+    it("Invalid occupancyId, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -52,7 +52,7 @@ describe('Test occupancy.releaseOccupancy()', () => {
 
     });
 
-    it("Occupancy.findByIdAndDelete() error saving to db, should return 500", async () => {
+    it("Occupancy.findByIdAndDelete() error saving to db, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -60,7 +60,7 @@ describe('Test occupancy.releaseOccupancy()', () => {
         input.occupancyId = mongoose.Types.ObjectId().toHexString();
 
         //setup mock Occupancy.findByIdAndDelete(), reject
-        Occupancy.findByIdAndDelete = await jest.fn().mockRejectedValue(new Error("findByIdAndDelete db error"));
+        Occupancy.findByIdAndDelete = jest.fn().mockRejectedValue(new Error("findByIdAndDelete db error"));
 
         expect.assertions(1);
 
@@ -71,13 +71,13 @@ describe('Test occupancy.releaseOccupancy()', () => {
 
     });
 
-    it("success!", async () => {
+    it("success!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         //setup mock Occupancy.findByIdAndDelete(), resolve
-        Occupancy.findByIdAndDelete = await jest.fn().mockResolvedValue();
+        Occupancy.findByIdAndDelete = jest.fn().mockResolvedValue();
 
         expect.assertions(1);
 

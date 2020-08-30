@@ -4,7 +4,7 @@ const generateSlots = require("../../../src/slot/generateSlots.helper");
 const getSlotByStartTimeHelper = require("../../../src/slot/getSlotByStartTime.helper");
 
 describe('Test slot.getSlotByStartTime.helper', () => {
-    describe("testing getSlotByStartTime()", function () {
+    describe("testing getSlotByStartTime()", () => {
 
         it("startTime 08:00 - endTime 17:00, return 18 slots", () => {
 

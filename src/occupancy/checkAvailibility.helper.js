@@ -8,6 +8,6 @@ module.exports = function (startTime, endTime, occupancies) {
 			isAvailable = false;
 		}
 	});
-	console.log(isAvailable);
+	
 	return isAvailable;
 }

@@ -9,7 +9,7 @@ describe('Test occupancy.newCrew()', () => {
     input = {};
     user = {};
 
-    it("no user authorization, reject!", async () => {
+    it("no user authorization, reject!", () => {
         //fake gogowakeCommon.userAuthorization, returning false
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(false);
 
@@ -21,7 +21,7 @@ describe('Test occupancy.newCrew()', () => {
         });
     });
 
-    it("missing crewId, reject!", async () => {
+    it("missing crewId, reject!", () => {
         //fake gogowakeCommon.userAuthorization, returning false
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
@@ -33,7 +33,7 @@ describe('Test occupancy.newCrew()', () => {
         });
     });
 
-    it("invalid crewId, reject!", async () => {
+    it("invalid crewId, reject!", () => {
         //fake gogowakeCommon.userAuthorization, returning false
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
@@ -47,7 +47,7 @@ describe('Test occupancy.newCrew()', () => {
         });
     });
 
-    it("mock Crew.findById() fail, reject!", async () => {
+    it("mock Crew.findById() fail, reject!", () => {
         //fake gogowakeCommon.userAuthorization, returning false
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 

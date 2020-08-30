@@ -4,13 +4,14 @@ const moment = require("moment");
 
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
+
 const bookingCommon = require("./booking.common");
 const BookingDurationHelper = require("./bookingDuration.helper");
 const PricingHelper = require("./pricing_internal.helper");
 const OccupancyHelper = require("./occupancy_internal.helper");
 const NotificationHelper = require("./notification_external.helper");
+const customError = require("../errors/customError")
 const gogowakeCommon = require("gogowake-common");
-const logger = gogowakeCommon.logger;
 
 const UTC_OFFSET = 8;
 
@@ -233,7 +234,7 @@ async function fulfillBooking(input, user) {
 			targetBooking = result;
 		})
 		.catch(err => {
-			logger.error("Error while finding target booking, running Booking.findById() error : " + err);
+			winston.error("Error while finding target booking, running Booking.findById() error : " + err);
 			response.status = 500;
 			response.message = "Cancel Booking Service not available";
 			throw response;

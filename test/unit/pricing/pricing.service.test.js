@@ -3,7 +3,7 @@ const gogowakeCommon = require("gogowake-common");
 const pricingService = require("../../../src/pricing/pricing.service");
 
 describe('Test pricig.service', () => {
-    describe("testing calculateTotalAmount()", function () {
+    describe("testing calculateTotalAmount()", () => {
 
         input = {};
         user = {};

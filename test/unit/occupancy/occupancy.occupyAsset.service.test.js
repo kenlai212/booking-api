@@ -9,7 +9,7 @@ describe('Test occupancy.occupyAsset()', () => {
     input = {};
     user = {};
 
-    it("no user authorization, should return 401", async () => {
+    it("no user authorization, reject!", () => {
 
         //fake gogowakeCommon.userAuthorization, returning false
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(false);
@@ -22,7 +22,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("missing occupancyType, should return 400", async () => {
+    it("missing occupancyType, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -35,7 +35,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("invalid occupancyType, should return 400", async () => {
+    it("invalid occupancyType, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -50,7 +50,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("missing startTime, should return 400", async () => {
+    it("missing startTime, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -65,7 +65,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("invalid startTime, should return 400", async () => {
+    it("invalid startTime, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -80,7 +80,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("missing endTime, should return 400", async () => {
+    it("missing endTime, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -95,7 +95,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("invalid endTime, should return 400", async () => {
+    it("invalid endTime, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -110,7 +110,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("missing assetId, should return 400", async () => {
+    it("missing assetId, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -125,7 +125,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("invalid assetId, should return 400", async () => {
+    it("invalid assetId, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -140,7 +140,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("startTime grater then endTime, should return 400", async () => {
+    it("startTime grater then endTime, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -157,7 +157,7 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("Occupancy.find() internal error, should return 400", async () => {
+    it("Occupancy.find() internal error, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
@@ -166,23 +166,23 @@ describe('Test occupancy.occupyAsset()', () => {
         input.endTime = "2020-02-02T22:59:59Z";
 
         //setup mock Occupancy.find(), reject with internal error
-        Occupancy.find = await jest.fn().mockRejectedValue(new Error("occupancy.find error"));
+        Occupancy.find = jest.fn().mockRejectedValue(new Error("occupancy.find error"));
 
         expect.assertions(1);
 
-        await expect(occupancyService.occupyAsset(input, user)).rejects.toEqual({
+        return expect(occupancyService.occupyAsset(input, user)).rejects.toEqual({
             name: customError.INTERNAL_SERVER_ERROR,
             message: "Internal Server Error"
         });
     });
     
-    it("Timeslot not available, checkAvailability return false, should return 400", async () => {
+    it("Timeslot not available, checkAvailability return false, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         //setup mock Occupancy.find(), resolve one overlapping occupancy
-        Occupancy.find = await jest.fn().mockResolvedValue([
+        Occupancy.find = jest.fn().mockResolvedValue([
             {
                 startTime: moment("2020-02-02T22:30:00Z").toDate(),
                 endTime: moment("2020-02-02T23:30:00Z").toDate()
@@ -198,16 +198,16 @@ describe('Test occupancy.occupyAsset()', () => {
 
     });
     
-    it("occupancy.save() error saving to db, should return 500", async () => {
+    it("occupancy.save() error saving to db, reject!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         //setup mock Occupancy.find(), resolve zero occupancy
-        Occupancy.find = await jest.fn().mockResolvedValue([]);
+        Occupancy.find = jest.fn().mockResolvedValue([]);
 
         //setup mock occupancy.save, reject
-        Occupancy.prototype.save = await jest.fn().mockRejectedValue(new Error("occupancy.save db error"));
+        Occupancy.prototype.save = jest.fn().mockRejectedValue(new Error("occupancy.save db error"));
 
         expect.assertions(1);
 
@@ -218,20 +218,20 @@ describe('Test occupancy.occupyAsset()', () => {
 
     });
 
-    it("success, should return 200", async () => {
+    it("success!", () => {
 
         //setup mock gogowakeCommon.userAuthorization, returning true
         gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         //setup mock Occupancy.find(), resolve zero occupancy
-        Occupancy.find = await jest.fn().mockResolvedValue([]);
+        Occupancy.find = jest.fn().mockResolvedValue([]);
 
         //setup mock occupancy.save, reject
         var occupancy = {
             startTime: new Date(input.startTime),
             endTime: new Date(input.endTime)
         }
-        Occupancy.prototype.save = await jest.fn().mockResolvedValue(occupancy);
+        Occupancy.prototype.save = jest.fn().mockResolvedValue(occupancy);
 
         expect.assertions(1);
 
