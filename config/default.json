@@ -12,5 +12,18 @@
     "occupancy": "http://localhost",
     "notification": "http://localhost"
   },
-  "disclaimerURL": "http://admin.hebewake.com/disclaimer"
+  "booking": {
+    "minimumBookingDuration": 7199000,
+    "maximumBookingDuration": 28799000,
+    "earliestBooking":{
+      "hour": 8,
+      "minute": 0
+    },
+    "latestBooking":{
+      "hour": 16,
+      "minute": 30
+    },
+    "disclaimerURL": "http://admin.hebewake.com/disclaimer",
+  }
+  
 }

@@ -5,10 +5,12 @@ const moment = require("moment");
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
 const bookingCommon = require("./booking.common");
+const BookingDurationHelper = require("./bookingDuration.helper");
+const PricingHelper = require("./pricing_internal.helper");
+const OccupancyHelper = require("./occupancy_internal.helper");
+const NotificationHelper = require("./notification_external.helper");
 const gogowakeCommon = require("gogowake-common");
 const logger = gogowakeCommon.logger;
-
-const pricingService = require("../pricing/pricing.service");
 
 const DEFAULT_ASSET_ID = "MC_NXT20";
 
@@ -76,61 +78,19 @@ async function addNewBooking(input, user) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
 		}
 
-		//init booking object
-		var booking = new Booking();
-		booking.creationTime = gogowakeCommon.getNowUTCTimeStamp();
-		booking.createdBy = user.id;
-		booking.history = [{
-			transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
-			transactionDescription: "New booking",
-			userId: user.id,
-			userName: user.name
-		}]
-
 		//calculate duration in milliseconds
 		var diffMs;
 		diffMs = (endTime - startTime);
 
 		if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
-			//check minimum booking duration
-			const minMs = process.env.MINIMUM_BOOKING_TIME;
-			if (diffMs < minMs) {
-
-				var minutes = Math.floor(minMs / 60000);
-				var seconds = ((minMs % 60000) / 1000).toFixed(0);
-
-				reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be less then " + minutes + " mins " + seconds + " secs" });
-			}
-
-			//check maximum booking duration
-			if (process.env.CHECK_FOR_MAXIMUM_BOOKING_DURATION == true) {
-				const maxMs = process.env.MAXIMUM_BOOKING_TIME
-
-				if (diffMs > maxMs) {
-
-					var minutes = Math.floor(maxMs / 60000);
-					var seconds = ((maxMs % 60000) / 1000).toFixed(0);
-
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be more then " + minutes + " mins " + seconds + " secs" });
-				}
-			}
-
-			//check for earliest startTime
-			var earliestStartTime = new Date(startTime);
-			earliestStartTime.setUTCHours(process.env.EARLIEST_BOOKING_HOUR);
-			earliestStartTime.setUTCMinutes(0);
-
-			if (startTime < earliestStartTime) {
-				reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be earlier then 0" + process.env.EARLIEST_BOOKING_HOUR + ":00" });
-			}
-
-			//check for latest endTime
-			var latestEndTime = new Date(endTime);
-			latestEndTime.setUTCHours(process.env.LATEST_BOOKING_HOUR);
-			latestEndTime.setUTCMinutes(0);
-
-			if (endTime > latestEndTime) {
-				reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be later then " + process.env.LATEST_BOOKING_HOUR + ":00" });
+			//check minimum booking duration, maximum booking duration, earliest startTime
+			try{
+				BookingDurationHelper.checkMimumDuration(startTime,endTime);
+				BookingDurationHelper.checkMaximumDuration(startTime,endTime);
+				BookingDurationHelper.checkEarliestStartTime(startTime);
+				BookingDurationHelper.checkLatestEndTime(endTime);
+			}catch(err){
+				reject({ name: customError.BAD_REQUEST_ERROR, message: result});
 			}
 		}
 
@@ -159,20 +119,17 @@ async function addNewBooking(input, user) {
 			throw response;
 		}
 		*/
-
+		//init booking object
+		var booking = new Booking();
 		booking.startTime = startTime;
 		booking.endTime = endTime;
 
 		//calculate pricing & currency
-		const pricingTotalAmountInput = {
-			"startTime": input.startTime,
-			"endTime": input.endTime,
-			"bookingType": booking.bookingType
-		}
-		const totalAmountObj = pricingService.calculateTotalAmount(pricingTotalAmountInput, user);
+		const totalAmountObj = PricingHelper.calculateTotalAmount(booking.startTime, booking.endTime, booking.bookingType);
 		booking.totalAmount = totalAmountObj.totalAmount;
 		booking.currency = totalAmountObj.currency;
 		booking.paymentStatus = AWAITING_PAYMENT_STATUS;
+
 		booking.contactName = input.contactName;
 		booking.telephoneCountryCode = input.telephoneCountryCode;
 		booking.telephoneNumber = input.telephoneNumber;
@@ -192,127 +149,46 @@ async function addNewBooking(input, user) {
 		booking.guests = [firstGuest];
 
 		//add crew //TODO auto add crew based on schedule
-		booking.crews = new Array();
+		//booking.crews = new Array();
 
-		//call external occupancy API to save occupancy record
-		const url = process.env.OCCUPANCY_DOMAIN + OCCUPANCY_PATH;
-		const data = {
-			"occupancyType": CUSTOMER_BOOKING_TYPE,
-			"startTime": gogowakeCommon.dateToStandardString(booking.startTime),
-			"endTime": gogowakeCommon.dateToStandardString(booking.endTime),
-			"assetId": DEFAULT_ASSET_ID
-		}
-		const requestAttr = {
-			method: "POST",
-			headers: {
-				"content-Type": "application/json",
-				"Authorization": "Token " + user.accessToken
-			},
-			body: JSON.stringify(data)
-		}
+		booking.creationTime = moment().toDate();
+		booking.createdBy = user.id;
+		booking.history = [{
+			transactionTime: moment().toDate(),
+			transactionDescription: "New booking",
+			userId: user.id,
+			userName: user.name
+		}]
 
-		await gogowakeCommon.callAPI(url, requestAttr)
-			.then(result => {
-				booking.occupancyId = result.id;
-				logger.info("Successfully call occupancy api, and saved occupancy record : " + result.id);
+		//save occupancy record
+		OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, booking.assetId, booking.occupancyType)
+			.then(newOccupancy => {
+				return newOccupancy.id
+			})
+			.then(occupancyId => {
+				//save newBooking record
+				booking.occupancyId = occupancyId;
+				return booking.save();
+			})
+			.then(newBooking => {
+				//send notification to admin
+				NotificationHelper.newBookingNotificationToAdmin(newBooking);
+
+				return newBooking;
+			})
+			.then(newBooking => {
+				//send confirmation to customer
+				NotificationHelper.newBookingConfirmationToCustomer(newBooking);
+
+				return newBooking;
+			})
+			then(newBooking => {
+				resolve(bookingCommon.bookingToOutputObj(newBooking));
 			})
 			.catch(err => {
-				throw err;
+				winston.error("Internal Server Error", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
-
-		//save newBooking record
-		await booking.save()
-			.then(result => {
-				booking = result;
-				logger.info("Successfully saved new booking : " + booking.id);
-			})
-			.catch(err => {
-				logger.error("booking.save() error : " + err);
-				response.status = 500;
-				response.message = "Add new booking function not available";
-				throw response;
-			});
-
-		/*
-		//send notification to admin
-		if (process.env.SEND_NEW_BOOKING_ADMIN_NOTIFICATION_EMAIL == true) {
-			const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
-	
-			const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
-			var bodyHTML = "<html>";
-			bodyHTML += "<body>";
-			bodyHTML += "<div>New Booking recieved form " + booking.contactName + "</div>";
-			bodyHTML += "<div>" + booking.startTime + "&nbsp;to&nbsp;" + booking.endTime + "</div>";
-			bodyHTML += "<div>Go to details <a href=" + linkToThankyouPage +">here</a></div>";
-			bodyHTML += "</body>";
-			bodyHTML += "</html>";
-	
-			const data = {
-				"sender": "booking@hebewake.com",
-				"recipient": "gogowakehk@gmail.com",
-				"emailBody": bodyHTML
-			}
-	
-			const requestAttr = {
-				method: "POST",
-				headers: {
-					"content-Type": "application/json",
-					"Authorization": "Token " + global.accessToken
-				},
-				body: JSON.stringify(data)
-			}
-	
-			await common.callAPI(url, requestAttr)
-				.then(result => {
-					logger.info("Successfully sent notification email to admin, messageId : " + result.messageId);
-				})
-				.catch(err => {
-					logger.error("Failed to send new booking notification email to admin : " + JSON.stringify(err));
-				});
-		}
-	
-		//send confirmation to contact
-		//TODO add chinese language confirmation
-		if (process.env.SEND_NEW_BOOKING_CUSTOMER_CONFIRMATION_EMAIL == true && booking.emailAddress != null) {
-			const url = process.env.NOTIFICATION_DOMAIN + SEND_EMAIL_PATH;
-	
-			const linkToThankyouPage = "http://dev.www.hebewake.com/thank-you/" + booking.id;
-			var bodyHTML = "<html>";
-			bodyHTML += "<head>";
-			bodyHTML += "</head>";
-			bodyHTML += "<body>";
-			bodyHTML += "<div>Thank you for booking with us.</div>";
-			bodyHTML += "<div>You can view your booking details <a href=" + linkToThankyouPage +">here</a></div>";
-			bodyHTML += "</body>";
-			bodyHTML += "</html>";
-	
-			const data = {
-				"sender": "booking@hebewake.com",
-				"recipient": booking.emailAddress,
-				"emailBody": bodyHTML
-			}
-			const requestAttr = {
-				method: "POST",
-				headers: {
-					"content-Type": "application/json",
-					"Authorization": "Token " + global.accessToken
-				},
-				body: JSON.stringify(data)
-			}
-	
-			await common.callAPI(url, requestAttr)
-				.then(result => {
-					logger.info("Sucessfully sent new booking notification email to customer, messageId : " + result.messageId);
-				})
-				.catch(err => {
-					logger.error("Failed to send new booking notification email to customer : " + JSON.stringify(err));
-				});
-		}
-		*/
-
-		var outputObj = bookingCommon.bookingToOutputObj(booking);
-
-		return outputObj;
 	});
 }
 
