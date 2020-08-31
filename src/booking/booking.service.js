@@ -1,6 +1,7 @@
 "use strict";
 const mongoose = require("mongoose");
 const moment = require("moment");
+const Joi = require("joi");
 
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
@@ -19,7 +20,6 @@ const UTC_OFFSET = 8;
 //constants for booking types
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
 const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
-const VALID_BOOKING_TYPES = [CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE];
 
 //constants for booking status
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
@@ -64,7 +64,7 @@ function addNewBooking(input, user) {
 				.required(),
 			telephoneCountryCode: Joi
 				.string()
-				.valid(bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES)
+				.valid("852", "853", "86")
 				.required(),
 			telephoneNumber: Joi.string().required()
 		});
@@ -74,16 +74,15 @@ function addNewBooking(input, user) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
 
+		const startTime = moment(input.startTime).toDate();
+		const endTime = moment(input.endTime).toDate();
+
 		//check if endTime is earlier then startTime
 		if (startTime > endTime) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
 		}
 
-		//calculate duration in milliseconds
-		var diffMs;
-		diffMs = (endTime - startTime);
-
-		if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
+		if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
 			//check minimum booking duration, maximum booking duration, earliest startTime
 			try{
 				BookingDurationHelper.checkMimumDuration(startTime,endTime);
