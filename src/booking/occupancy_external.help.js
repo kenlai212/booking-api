@@ -1,4 +1,5 @@
 const OCCUPANCY_PATH = "/occupancy";
+const RELEASE_OCCUPANCY_PATH = "/occupancy";
 
 function occupyAsset(startTime, endTime, assetId){
     return new Promise((resolve, reject) => {
@@ -26,9 +27,34 @@ function occupyAsset(startTime, endTime, assetId){
                 reject(err);
             });
     });
+}
 
+function releaseOccupancy(occupancyId) {
+    return new Promise((resolve, reject) => {
+        const url = process.env.OCCUPANCY_DOMAIN + RELEASE_OCCUPANCY_PATH;
+        const data = {
+            "occupancyId": occupancyId
+        }
+        const requestAttr = {
+            method: "DELETE",
+            headers: {
+                "content-Type": "application/json",
+                "Authorization": "Token " + user.accessToken
+            },
+            body: JSON.stringify(data)
+        }
+
+        gogowakeCommon.callAPI(url, requestAttr)
+            .then(() => {
+                resolve();
+            })
+            .catch(err => {
+                reject(err);
+            });
+    });
 }
 
 module.exports = {
-    occupyAsset
+    occupyAsset,
+    releaseOccupancy
 }

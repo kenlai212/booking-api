@@ -30,8 +30,6 @@ const FULFILLED_STATUS = "FULFILLED"
 //constants for payment status
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 
-const OCCUPANCY_PATH = "/occupancy";
-const RELEASE_OCCUPANCY_PATH = "/occupancy";
 
 /**
  * By : Ken Lai
@@ -40,7 +38,7 @@ const RELEASE_OCCUPANCY_PATH = "/occupancy";
  * Add new booking record to database, then add a corrisponding
  * new occupancy record by calling occupancy service
  */
-async function addNewBooking(input, user) {
+function addNewBooking(input, user) {
 	return new Promise((resolve, reject) => {
 		const rightsGroup = [
 			bookingCommon.BOOKING_ADMIN_GROUP,
@@ -202,7 +200,7 @@ async function addNewBooking(input, user) {
  * fulfill the booking, by seting the fulfilledHours and setting the status to "FULFILLED"
  * add fulfill history record
  */
-async function fulfillBooking(input, user) {
+function fulfillBooking(input, user) {
 	return new Promise((resolve, reject) => {
 		const rightsGroup = [
 			bookingCommon.BOOKING_ADMIN_GROUP
@@ -277,273 +275,210 @@ async function fulfillBooking(input, user) {
  * 
  * delete booking from database, delete the corrisponding occupancy record by calling occupancy service.
  */
-async function cancelBooking(input, user) {
+function cancelBooking(input, user) {
 	return new Promise((resolve, reject) => {
+		const rightsGroup = [
+			bookingCommon.BOOKING_ADMIN_GROUP
+		]
 
-	});
-	var response = new Object;
+		//validate user
+		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+		}
 
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]
-
-	//validate user group
-	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	//validate bookingId
-	var targetBooking = await bookingCommon.validateBookingIdInput(input);
-	/*
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw(response);
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	var targetBooking;
-	await Booking.findById(input.bookingId)
-	.then(result => {
-		targetBooking = result;
-	})
-	.catch(err => {
-		logger.error("Error while finding target booking, running Booking.findById() error : " + err);
-		response.status = 500;
-		response.message = "Cancel Booking Service not available";
-		throw response;
-	});
-
-	if(targetBooking == null){
-		response.status = 400;
-		response.message = "Invalid booking ID";
-		throw response;
-	}
-	*/
-
-	//release occupancy
-	const url = process.env.OCCUPANCY_DOMAIN + RELEASE_OCCUPANCY_PATH;
-	const data = {
-		"occupancyId": targetBooking.occupancyId
-	}
-	const requestAttr = {
-		method: "DELETE",
-		headers: {
-			"content-Type": "application/json",
-			"Authorization": "Token " + user.accessToken
-		},
-		body: JSON.stringify(data)
-	}
-
-	await gogowakeCommon.callAPI(url, requestAttr)
-		.catch(err => {
-			throw err;
+		//validate input data
+		const schema = Joi.object({
+			bookingId: Joi
+				.string()
+				.required(),
+			fulfilledHours: Joi
+				.number()
+				.required()
 		});
 
-	//delete booking record from db
-	await Booking.findByIdAndDelete(targetBooking.id)
-	.then(() => {
-		logger.info("Deleted booking.id : " + targetBooking.id);
-	})
-	.catch(err => {
-		logger.error("Error while deleting booking, running Booking.findByIdAndDelete() error : " + err);
-		response.status = 500;
-		response.message = "Cancel Booking Service not available";
-		throw response;
-	});
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	//add new booking history
-	const bookingHistory = new BookingHistory();
-	bookingHistory.startTime = targetBooking.startTime;
-	bookingHistory.endTime = targetBooking.endTime;
-	bookingHistory.contactName = targetBooking.contactName;
-	bookingHistory.telephoneCountryCode = targetBooking.telephoneCountryCode;
-	bookingHistory.telephoneNumber = targetBooking.telephoneNumber;
-	bookingHistory.emailAddress = targetBooking.emailAddress;
-	bookingHistory.status = CANCELLED_STATUS;
-	
-	await bookingHistory.save()
-		.then(bookingHistory => {
-			logger.info("Saved new bookingHistory.id : " + bookingHistory._id);
-		})
-		.catch(err => {
-			logger.error("bookingHistoryModel.addNewBookingHistory() error : " + err);
-			response.status = 500;
-			response.message = "Cancel Booking Service not available";
-			throw response;
-		});
+		//validate bookingId
+		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
+		}
 
-	return {"status":"SUCCESS"};
+		Booking.findById(input.bookingId)
+			.then(targetBooking => {
+				if (targetBooking == null) {
+					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
+				}
+
+				return targetBooking;
+			})
+			.then(targetBooking => {
+				OccupancyHelper.releaseOccupancy(targetBooking.occupancyId);
+
+				return targetBooking
+			})
+			.then(targetBooking => {
+				Booking.findByIdAndDelete(targetBooking._id);
+
+				return targetBooking;
+			})
+			.then(targetBooking => {
+				//add new booking history
+				const bookingHistory = new BookingHistory();
+				bookingHistory.startTime = targetBooking.startTime;
+				bookingHistory.endTime = targetBooking.endTime;
+				bookingHistory.contactName = targetBooking.contactName;
+				bookingHistory.telephoneCountryCode = targetBooking.telephoneCountryCode;
+				bookingHistory.telephoneNumber = targetBooking.telephoneNumber;
+				bookingHistory.emailAddress = targetBooking.emailAddress;
+				bookingHistory.status = CANCELLED_STATUS;
+
+				bookingHistory.save();
+
+				resolve({ "status": "SUCCESS" });
+			})
+			.catch(err => {
+				logger.error("Internal Server Error", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});	
 }
 
 /**
  * By : Ken Lai
  * Date: Aug 03, 2020
  */
-async function reschedule(input, user) {
-	var response = new Object;
+function reschedule(input, user) {
+	return new Promise((resolve, reject) => {
+		const rightsGroup = [
+			bookingCommon.BOOKING_ADMIN_GROUP
+		]
 
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]
+		//validate user
+		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+		}
 
-	//validate user group
-	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw (response);
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	var targetBooking;
-	await Booking.findById(input.bookingId)
-		.then(result => {
-			targetBooking = result;
-		})
-		.catch(err => {
-			logger.error("Error while finding target booking, running Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Cancel Booking Service not available";
-			throw response;
+		//validate input data
+		const schema = Joi.object({
+			bookingId: Joi
+				.string()
+				.required()
 		});
 
-	if (targetBooking == null) {
-		response.status = 400;
-		response.message = "Invalid booking ID";
-		throw response;
-	}
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
+
+		//validate bookingId
+		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
+		}
+
+		Booking.findById(input.bookingId)
+			.then(targetBooking => {
+				if (targetBooking == null) {
+					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
+					response.message = "Invalid booking ID";
+					throw response;
+				}
+			})
+			.catch(err => {
+				logger.error("Internal Server Error", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+
+		//TODO......
+	});
 }
 
 /**
  * By : Ken Lai
  * Date : Jul 24, 2020
  */
-async function editContact(input, user) {
-	var response = new Object;
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP,
-		bookingCommon.BOOKING_USER_GROUP
-	]
+function editContact(input, user) {
+	return new Promise((resolve, reject) => {
+		const rightsGroup = [
+			bookingCommon.BOOKING_ADMIN_GROUP,
+			bookingCommon.BOOKING_USER_GROUP
+		]
 
-	//validate user group
-	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//find booking
-	var booking;
-	await Booking.findById(input.bookingId)
-		.exec()
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Booking.findById() is not available";
-			throw response;
-		});
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		response.status = 401;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	//validate contactName
-	if (input.contactName == null || input.contactName.length < 1) {
-		response.status = 400;
-		response.message = "contactName is mandatory";
-		throw response;
-	}
-	booking.contactName = input.contactName;
-
-	//validate country code
-	if (input.telephoneCountryCode == null || input.telephoneCountryCode.length < 1) {
-		response.status = 400;
-		response.message = "telephoneCountryCode is mandatory";
-		throw response;
-	}
-
-	if (bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES.includes(input.telephoneCountryCode) == false) {
-		response.status = 400;
-		response.message = "Invalid telephoneCountryCode";
-		throw response;
-	}
-	booking.telephoneCountryCode = input.telephoneCountryCode;
-
-	//validate telephone number
-	if (input.telephoneNumber == null || input.telephoneNumber.length < 1) {
-		response.status = 400;
-		response.message = "telephoneNumber is mandatory";
-		throw response;
-	}
-	booking.telephoneNumber = input.telephoneNumber;
-
-	//set emailAddress
-	if (input.emailAddress != null) {
-		if (input.emailAddress.length == 0) {
-			booking.emailAddress = null;
-		} else {
-			booking.emailAddress = input.emailAddress;
+		//validate user
+		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
-	}
 
-	//add transaction history
-	booking.history.push({
-		transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
-		transactionDescription: "Edited contact info",
-		userId: user.id,
-		userName: user.name
-	});
-
-	await booking.save()
-		.then(() => {
-			logger.info("Sucessfully edited guest in booking : " + booking.id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
+		//validate input data
+		const schema = Joi.object({
+			bookingId: Joi
+				.string()
+				.required(),
+			contactName: Joi
+				.string()
+				.require(),
+			telephoneCountryCode: Joi
+				.string()
+				.valid(bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES)
+				.require(),
+			telephoneNumber: Joi
+				.string()
+				.require()
 		});
 
-	return { "status": "SUCCESS" };
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
+
+		//validate bookingId
+		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
+		}
+
+		Booking.findById(input.bookingId)
+			.then(targetBooking => {
+				if (targetBooking == null) {
+					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
+					response.message = "Invalid booking ID";
+					throw response;
+				}
+
+				targetBooking.contactName = input.contactName;
+				targetBooking.telephoneCountryCode = input.telephoneCountryCode;
+				targetBooking.telephoneNumber = input.telephoneNumber;
+
+				//set emailAddress
+				if (input.emailAddress != null) {
+					if (input.emailAddress.length == 0) {
+						targetBooking.emailAddress = null;
+					} else {
+						targetBooking.emailAddress = input.emailAddress;
+					}
+				}
+
+				//add transaction history
+				targetBooking.history.push({
+					transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
+					transactionDescription: "Edited contact info",
+					userId: user.id,
+					userName: user.name
+				});
+
+				return targetBooking;
+			})
+			.then(targetBooking => {
+				targetBooking.save();
+
+				resolve(targetBooking);
+			})
+			.catch(err => {
+				logger.error("Internal Server Error", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
 /**
@@ -552,121 +487,93 @@ async function editContact(input, user) {
  * 
  * Returns all bookings withint a datetime range
  */
-async function viewBookings(input, user){
-	var response = new Object;
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]
+function viewBookings(input, user) {
+	return new Promise((resolve, reject) => {
+		const rightsGroup = [
+			bookingCommon.BOOKING_ADMIN_GROUP
+		]
 
-	//validate user group
-	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
+		//validate user
+		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+		}
 
-	//validate start and end time
-	if (input.startTime == null || input.startTime.length < 1) {
-		response.status = 400;
-		response.message = "startTime is mandatory";
-		throw response;	
-	}
-
-	var startTime;
-	try {
-		startTime = gogowakeCommon.standardStringToDate(input.startTime);
-	} catch (err) {
-		response.status = 400;
-		response.message = "Invalid startTime format";
-		throw response;	
-	}
-
-	if (input.endTime == null || input.endTime.length < 1) {
-		response.status = 400;
-		response.message = "endTime is mandatory";
-		throw response;	
-	}
-
-	var endTime;
-	try{
-		endTime = gogowakeCommon.standardStringToDate(input.endTime);
-	}catch(err){
-		response.status = 400;
-		response.message = "Invalid endTime format";
-		throw response;	
-	}
-
-	if(startTime > endTime){
-		response.status = 400;
-		response.message = "Invalid endTime";
-		throw response;
-	}
-
-	var bookings;
-	await Booking.find({
-		startTime: { $gte: startTime },
-		endTime: { $lt: endTime }
-	}).sort("startTime")
-		.then(result => {
-			bookings = result;
-		})
-		.catch(err => {
-			logger.error("bookingHistoryModel.addNewBookingHistory() error : " + err);
-			response.status = 500;
-			response.message = "Cancel Booking Service not available";
-			throw response;
+		//validate input data
+		const schema = Joi.object({
+			startTime: Joi.date().iso().required(),
+			endTime: Joi.date().iso().required(),
 		});
 
-	var outputObjs = [];
-	bookings.forEach((booking) => {
-		const outputObj = bookingCommon.bookingToOutputObj(booking);
-		outputObjs.push(outputObj);
-	});
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	return { "bookings" : outputObjs };
+		const startTime = moment(input.startTime).toDate();
+		const endTime = moment(input.endTime).toDate();
+
+		if (startTime > endTime) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be later then endTime" });
+		}
+
+		Booking.find(
+			{
+				startTime: { $gte: startTime },
+				endTime: { $lt: endTime }
+			})
+			.sort("startTime")
+			.then(bookings => {
+				var outputObjs = [];
+				bookings.forEach((booking) => {
+					const outputObj = bookingCommon.bookingToOutputObj(booking);
+					outputObjs.push(outputObj);
+				});
+
+				resolve({ "bookings": outputObjs });
+			})
+			.catch(err => {
+				logger.error("Internal Server Error", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
-async function findBookingById(input, user) {
-	var response = new Object;
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP,
-		bookingCommon.BOOKING_USER_GROUP
-	]
+function findBookingById(input, user) {
+	return new Promise((resolve, reject) => {
+		const rightsGroup = [
+			bookingCommon.BOOKING_ADMIN_GROUP,
+			bookingCommon.BOOKING_USER_GROUP
+		]
 
-	//validate user group
-	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
+		//validate user
+		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+		}
 
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw response;
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	var booking;
-	await Booking.findById(input.bookingId)
-		.then(result => {
-			booking = result;
-		})
-		.catch(err => {
-			logger.error("booking.findById error : " + err);
-			response.status = 500;
-			response.message = "Find Bookings Service not available";
-			throw response;
+		//validate input data
+		const schema = Joi.object({
+			bookingId: Joi.string().required()
 		});
 
-	const outputObj = bookingCommon.bookingToOutputObj(booking);
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	return outputObj;
+		//validate bookingId
+		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
+		}
+
+		Booking.findById(input.bookingId)
+			.then(booking => {
+				resolve(bookingCommon.bookingToOutputObj(booking));
+			})
+			.catch(err => {
+				logger.error("Internal Server Error", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
 module.exports = {
@@ -675,5 +582,6 @@ module.exports = {
 	fulfillBooking,
 	viewBookings,
 	findBookingById,
-	editContact
+	editContact,
+	reschedule
 }

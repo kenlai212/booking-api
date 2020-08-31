@@ -9,41 +9,6 @@ const BOOKING_USER_GROUP = "BOOKING_USER_GROUP";
 
 const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
 
-async function validateBookingIdInput(input) {
-	var response = new Object;
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length == 0) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw (response);
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	var targetBooking;
-	await Booking.findById(input.bookingId)
-		.then(result => {
-			targetBooking = result;
-		})
-		.catch(err => {
-			logger.error("Error while finding target booking, running Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Cancel Booking Service not available";
-			throw response;
-		});
-
-	if (targetBooking == null) {
-		response.status = 400;
-		response.message = "Invalid booking ID";
-		throw response;
-	}
-}
-
 function bookingToOutputObj(booking) {
 	var outputObj = new Object();
 	outputObj.id = booking._id;
@@ -76,6 +41,5 @@ module.exports = {
 	BOOKING_ADMIN_GROUP,
 	BOOKING_USER_GROUP,
 	ACCEPTED_TELEPHONE_COUNTRY_CODES,
-	validateBookingIdInput,
 	bookingToOutputObj
 }
