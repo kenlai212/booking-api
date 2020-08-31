@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const Booking = require("./booking.model").Booking;
 const bookingCommon = require("./booking.common");
 const gogowakeCommon = require("gogowake-common");
-const logger = gogowakeCommon.logger;
+const logger = require("../common/logger").logger;
 
 const PAID_STATUS = "PAID";
 
@@ -66,7 +66,7 @@ function makePayment(input, user) {
 				resolve(booking.save());
 			})
 			.catch(err => {
-				winston.error("Internal Server Error : ", err);
+				logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
@@ -110,8 +110,7 @@ function applyDiscount(input, user) {
 		}
 
 		//find booking
-		await Booking.findById(input.bookingId)
-			.exec()
+		Booking.findById(input.bookingId)
 			.then(booking => {
 				if (booking == null) {
 					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
@@ -127,10 +126,15 @@ function applyDiscount(input, user) {
 				transactionHistory.transactionDescription = "Gave discount. Final discounted amount : " + booking.discountedAmount;
 				booking.history.push(transactionHistory);
 
-				resolve(booking.save());
+				return booking;
+			})
+			.then(booking => {
+				booking.save();
+
+				resolve(booking);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error : ", err);
+				logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});

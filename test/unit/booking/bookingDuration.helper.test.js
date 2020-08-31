@@ -75,5 +75,25 @@ describe('Test bookingDuration.helper', () => {
 
             expect(bookingDurationHelper.checkLatestEndTime(endTime, 8)).toEqual(true);
         })
+    });
+
+    describe("testing checkFulfilledTime", () => {
+        it("fulfilled 2.5 hrs, longer then 2 hours booking duration, expect throw error", () => {
+            const startTime = moment("2020-02-02T08:00:00Z").toDate();
+            const endTime = moment("2020-02-02T10:00:00Z").toDate();
+
+            expect.assertions(1);
+
+            expect(() => { bookingDurationHelper.checkFulfilledTime(startTime, endTime, 2.5) }).toThrow("fulfilledHours cannot be greater then total duration hours");
+        })
+
+        it("fulfilled 1.5, pass", () => {
+            const startTime = moment("2020-02-02T08:00:00Z").toDate();
+            const endTime = moment("2020-02-02T10:00:00Z").toDate();
+
+            expect.assertions(1);
+
+            expect(bookingDurationHelper.checkLatestEndTime(startTime, endTime, 1.5)).toEqual(true);
+        })
     })
 });

@@ -3,7 +3,6 @@ const express = require("express");
 const pricingController = require("./pricing.controller");
 
 const logIncommingRequest = require("../middleware/logIncommingRequest");
-const logOutgoingResponse = require("../middleware/logOutgoingResponse");
 const authenticateAccessToken = require("../middleware/authenticateAccessToken");
 
 const router = express.Router();

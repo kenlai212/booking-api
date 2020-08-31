@@ -5,6 +5,7 @@ const moment = require("moment");
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
 
+const logger = require("../common/logger").logger;
 const bookingCommon = require("./booking.common");
 const BookingDurationHelper = require("./bookingDuration.helper");
 const PricingHelper = require("./pricing_internal.helper");
@@ -188,7 +189,7 @@ async function addNewBooking(input, user) {
 				resolve(bookingCommon.bookingToOutputObj(newBooking));
 			})
 			.catch(err => {
-				winston.error("Internal Server Error", err);
+				logger.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
@@ -202,90 +203,72 @@ async function addNewBooking(input, user) {
  * add fulfill history record
  */
 async function fulfillBooking(input, user) {
-	var response = new Object;
+	return new Promise((resolve, reject) => {
+		const rightsGroup = [
+			bookingCommon.BOOKING_ADMIN_GROUP
+		]
 
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]
+		//validate user
+		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+		}
 
-	//validate user group
-	if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
-		response.status = 401;
-		response.message = "Insufficient Rights";
-		throw response;
-	}
-
-	//validate bookingId
-	if (input.bookingId == null || input.bookingId.length < 1) {
-		response.status = 400;
-		response.message = "bookingId is mandatory";
-		throw (response);
-	}
-
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
-
-	var targetBooking;
-	await Booking.findById(input.bookingId)
-		.then(result => {
-			targetBooking = result;
-		})
-		.catch(err => {
-			winston.error("Error while finding target booking, running Booking.findById() error : " + err);
-			response.status = 500;
-			response.message = "Cancel Booking Service not available";
-			throw response;
+		//validate input data
+		const schema = Joi.object({
+			bookingId: Joi
+				.string()
+				.required(),
+			fulfilledHours: Joi
+				.number()
+				.required()
 		});
 
-	if (targetBooking == null) {
-		response.status = 400;
-		response.message = "Invalid bookingId";
-		throw response;
-	}
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	if (input.fulfilledHours == null) {
-		response.status = 400;
-		response.message = "fulfilledHours is mandatory";
-		throw response;
-	}
+		//validate bookingId
+		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
+		}
 
-	//calculate duration in hours
-	const diffTime = Math.abs(targetBooking.endTime - targetBooking.startTime);
-	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
-	const durationInHours = Math.ceil(durationInMinutes / 60);
+		Booking.findById(input.bookingId)
+			.then(targetBooking => {
+				if (targetBooking == null) {
+					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
+				}
 
-	if (input.fulfilledHours > durationInHours) {
-		response.status = 400;
-		response.message = "fulfillHours cannot be greater then total duration hours";
-		throw response;
-	}
+				//check fulfilledHours not longer booking duration
+				try {
+					BookingDurationHelper.checkFulfilledTime(targetBooking.startTime, targetBooking.endTime, input.fulfilledHours);
+				} catch (err) {
+					reject({ name: customError.BAD_REQUEST_ERROR, message: result });
+				}
 
-	targetBooking.fulfilledHours = input.fulfilledHours;
-	targetBooking.status = FULFILLED_STATUS;
+				targetBooking.fulfilledHours = input.fulfilledHours;
+				targetBooking.status = FULFILLED_STATUS;
 
-	const fulfilledHistory = {
-		transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
-		transactionDescription: "Fulfilled booking",
-		userId: user.id,
-		userName: user.name
-	}
-	targetBooking.history.push(fulfilledHistory);
+				const fulfilledHistory = {
+					transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
+					transactionDescription: "Fulfilled booking",
+					userId: user.id,
+					userName: user.name
+				}
+				targetBooking.history.push(fulfilledHistory);
 
-	await targetBooking.save()
-		.then(() => {
-			logger.info("Sucessfully fulfilled booking : " + targetBooking.id);
-		})
-		.catch(err => {
-			logger.error("Error while running booking.save() : " + err);
-			response.status = 500;
-			response.message = "booking.save() is not available";
-			throw response;
-		});
+				return targetBooking
+			})
+			.then(targetBooking => {
+				targetBooking.save();
 
-	return { "status": FULFILLED_STATUS };
+				resolve(targetBooking);
+			})
+			.catch(err => {
+				logger.error("Internal Server Error", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
 /**
@@ -294,7 +277,10 @@ async function fulfillBooking(input, user) {
  * 
  * delete booking from database, delete the corrisponding occupancy record by calling occupancy service.
  */
-async function cancelBooking(input, user){
+async function cancelBooking(input, user) {
+	return new Promise((resolve, reject) => {
+
+	});
 	var response = new Object;
 
 	const rightsGroup = [

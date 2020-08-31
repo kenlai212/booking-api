@@ -6,6 +6,7 @@ const mongoose = require("mongoose");
 const Booking = require("./booking.model").Booking;
 const bookingCommon = require("./booking.common");
 const gogowakeCommon = require("gogowake-common");
+const logger = require("../common/logger").logger;
 const sendDisclaimerNotificationHelper = require("./sendDisclaimerNotification_external.helper");
 
 function removeGuest(input, user) {
@@ -71,12 +72,15 @@ function removeGuest(input, user) {
 					userName: user.name
 				});
 
-				booking.save()
+				return booking;
+			})
+			.then(booking => {
+				booking.save();
 
 				resolve(booking);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error : ", err);
+				logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
@@ -121,7 +125,7 @@ function addGuest(input, user) {
 		}
 
 		//find booking
-		await Booking.findById(input.bookingId)
+		Booking.findById(input.bookingId)
 			.then(booking => {
 				//if no booking found, it's a bad bookingId,
 				if (booking == null) {
@@ -151,12 +155,15 @@ function addGuest(input, user) {
 					userName: user.name
 				});
 
+				return booking;
+			})
+			.then(booking => {
 				booking.save()
 
 				resolve(booking);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error", err);
+				logger.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
@@ -240,12 +247,15 @@ function editGuest(input, user) {
 					userName: user.name
 				});
 
+				return booking;
+			})
+			.then(booking => {
 				booking.save();
 
 				resolve(booking);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error", err);
+				logger.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});	
@@ -280,7 +290,7 @@ function signDisclaimer(input) {
 		}
 
 		//find booking
-		await Booking.findById(input.bookingId)
+		Booking.findById(input.bookingId)
 			.then(booking => {
 				//if no booking found, it's a bad bookingId,
 				if (booking == null) {
@@ -307,12 +317,15 @@ function signDisclaimer(input) {
 				transactionHistory.transactionDescription = "Guest signed disclaimer. GuestId : " + guestId;
 				booking.history.push(transactionHistory);
 
+				return booking;
+			})
+			.then(booking => {
 				booking.save();
 
 				resolve(booking);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error", err);
+				logger.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
@@ -322,7 +335,7 @@ function signDisclaimer(input) {
  * By : Ken Lai
  * Date: July 12, 2020
  */
-async function sendDisclaimer(input, user) {
+function sendDisclaimer(input, user) {
 	return new Promise((resolve, reject) => {
 		var response = new Object;
 		const rightsGroup = [
@@ -393,13 +406,14 @@ async function sendDisclaimer(input, user) {
 					bookingId: booking._id,
 					disclaimerId: disclaimerId,
 					telephoneNumber: guest.telephoneCountryCode + guest.telephoneNumber
+				}
 			})
 			.then(obj => {
 				//send sms
 				resolve(sendDisclaimerNotificationHelper.sendNotification(obj.bookingId, obj.disclaimerId, obj.telephoneNumber));
 			})
 			.catch(err => {
-				winston.error("Internal Server Error", err);
+				logger.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});

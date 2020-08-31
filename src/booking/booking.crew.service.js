@@ -1,7 +1,8 @@
 "use strict";
 const mongoose = require("mongoose");
-const Booking = require("./booking.model").Booking;
 
+const logger = require("../common/logger").logger;
+const Booking = require("./booking.model").Booking;
 const getCrewHelper = require("./getCrew_internal.helper");
 
 async function addCrew(input, user) {
@@ -78,7 +79,7 @@ async function addCrew(input, user) {
 				resolve(booking);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error : ", err);
+				logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});

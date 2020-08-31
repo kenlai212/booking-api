@@ -1,4 +1,4 @@
-const winston = require("winston");
+const logger = require("../common/logger").logger;
 
 const customError = require("../errors/customError");
 
@@ -7,12 +7,12 @@ module.exports = function (handler) {
 		try {
 			const response = await handler(req, res);
 
-			winston.info("Response Body : " + JSON.stringify(response));
+			logger.info("Response Body : " + JSON.stringify(response));
 			res.json(response);
 			res.status(200);
 
 		} catch (err) {
-			winston.info("Response Error : " + JSON.stringify(err));
+			logger.info("Response Error : " + JSON.stringify(err));
 
 			switch (err.name) {
 				case customError.UNAUTHORIZE_ERROR:

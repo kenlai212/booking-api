@@ -57,9 +57,19 @@ function checkLatestEndTime(endTime, utcOffset){
     return true;
 }
 
+function checkFulfilledTime(startTime, endTime, fulfilledHours) {
+    const diffTime = Math.abs(endTime - startTime);
+    const fulfilledTime = fulfilledHours * 60 * 60 * 1000;
+
+    if (fulfilledTime > diffTime) {
+        throw "fulfilledHours cannot be greater then total duration hours";
+    }
+}
+
 module.exports = {
     checkMimumDuration,
     checkMaximumDuration,
     checkEarliestStartTime,
-    checkLatestEndTime
+    checkLatestEndTime,
+    checkFulfilledTime
 }

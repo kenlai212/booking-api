@@ -124,11 +124,12 @@ describe('Test slot.service', () => {
                     }
                 ]});
 
-            expect.assertions(1);
+            expect.assertions(6);
 
             slotService.getSlots(input, user)
-                .then(finalSlots => {
-                    expect(finalSlots.length).toEqual(25);
+                .then(result => {
+                    const finalSlots = result.slots;
+                    expect(finalSlots.length).toEqual(31);
                     expect(finalSlots[9].available).toEqual(true);
                     expect(finalSlots[10].available).toEqual(false);
                     expect(finalSlots[11].available).toEqual(false);

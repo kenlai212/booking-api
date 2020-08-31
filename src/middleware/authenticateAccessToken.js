@@ -1,7 +1,5 @@
 const jwt = require("jsonwebtoken");
-const winston = require("winston");
-
-require('dotenv').config();
+const logger = require("../common/logger").logger;
 
 module.exports = function (req, res, next) {
 
@@ -14,7 +12,7 @@ module.exports = function (req, res, next) {
 
     jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, targetUser) => {
         if (err) {
-            winston.error("Error while verifying accessToken, running jwt.verify()", err);
+            logger.error("Error while verifying accessToken, running jwt.verify()", err);
             return res.sendStatus(403);
         } else {
             targetUser.accessToken = accessToken;

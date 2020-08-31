@@ -2,7 +2,7 @@
 const Joi = require("joi");
 const moment = require('moment');
 const mongoose = require("mongoose");
-const winston = require("winston");
+const logger = require("../common/logger").logger;
 
 const Occupancy = require("./occupancy.model").Occupancy;
 const checkAvailibility = require("./checkAvailibility.helper");
@@ -54,11 +54,11 @@ function releaseOccupancy(input, user) {
 		//delete target occupancy
 		Occupancy.findByIdAndDelete(input.occupancyId)
 			.then(() => {
-				winston.info("Successfully deleted Occupancy", input.occupancyId);
+				logger.info("Successfully deleted Occupancy", input.occupancyId);
 				resolve ({ "result": "SUCCESS" });
 			})
 			.catch(err => {
-				winston.error("Occupancy.findByIdAndDelete() error : ", err);
+				logger.error("Occupancy.findByIdAndDelete() error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Delete function not available" });
 			});
 	});
@@ -158,7 +158,7 @@ function occupyAsset(input, user) {
 				resolve(outputObj);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error", err);
+				logger.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});	
 	});
@@ -224,7 +224,7 @@ function getOccupancies(input, user) {
 				resolve({ "occupancies": outputObjs });
 			})
 			.catch(err => {
-				winston.error("Internal Server Error", err);
+				logger.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});

@@ -1,4 +1,4 @@
-const winston = require("winston");
+const logger = require("../common/logger").logger;
 
 module.exports = function (res) {
     const defaultWrite = res.write;
@@ -16,7 +16,7 @@ module.exports = function (res) {
         }
         const body = Buffer.concat(chunks).toString('utf8');
 
-        winston.info("Response : " + body);
+        logger.info("Response : " + body);
 
         defaultEnd.apply(res, restArgs);
     };

@@ -1,8 +1,8 @@
 "use strict";
 const Joi = require("joi");
-const winston = require("winston");
 const mongoose = require("mongoose");
 
+const logger = require("../common/logger").logger;
 const gogowakeCommon = require("gogowake-common");
 const customError = require("../errors/customError");
 const Crew = require("./crew.model").Crew;
@@ -53,7 +53,7 @@ async function findCrew(input, user) {
 				resolve(outputObj);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error : ", err);
+				logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
@@ -84,7 +84,7 @@ async function searchCrews(user) {
 				resolve({ "crews": outputObjs });
 			})
 			.catch(err => {
-				winston.error("Internal Server Error : ", err);
+				logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
@@ -141,7 +141,7 @@ async function newCrew(input, user) {
 				resolve(outputObj);
 			})
 			.catch(err => {
-				winston.error("Internal Server Error : ", err);
+				logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});

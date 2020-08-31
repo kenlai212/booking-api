@@ -1,9 +1,9 @@
 "use strict";
 const Joi = require("joi");
-const winston = require("winston");
 const moment = require("moment");
 const config = require("config");
 
+const logger = require("../common/logger").logger;
 const common = require("gogowake-common");
 
 const CUSTOMER_BOOKING = "CUSTOMER_BOOKING";
@@ -41,7 +41,7 @@ function calculateTotalAmount(input, user) {
 		startTime = moment(input.startTime).toDate();
 		endTime = moment(input.endTime).toDate();
 	} catch (err) {
-		winston.error("Error converting date iso string to date object", err);
+		logger.error("Error converting date iso string to date object", err);
 	}
 
 	//startTime cannot be later then endTime

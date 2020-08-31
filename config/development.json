@@ -1,0 +1,28 @@
+{
+  "bootstrap": {
+    "mongoDBName": "Development MongoDB"
+  },
+  "pricing": {
+    "unitPriceRegular": 1200,
+    "unitPriceDiscounted": 1000,
+    "unitPriceOwnerBooking": 300,
+    "unitCurrency": "HKD"
+  },
+  "domainURL": {
+    "occupancy": "http://localhost",
+    "notification": "http://localhost"
+  },
+  "booking": {
+    "minimumBookingDuration": 7199000,
+    "maximumBookingDuration": 28799000,
+    "earliestBooking":{
+      "hour": 8,
+      "minute": 0
+    },
+    "latestBooking":{
+      "hour": 16,
+      "minute": 30
+    },
+    "disclaimerURL": "http://admin.hebewake.com/disclaimer"
+  }
+}

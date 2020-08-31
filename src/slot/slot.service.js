@@ -1,9 +1,8 @@
 "use strict";
-const winston = require("winston");
 const moment = require("moment");
 const Joi = require("joi");
-const config = require("config");
 
+const logger = require("../common/logger").logger;
 const calculateTotalAmountHelper = require("../slot/calculateTotalAmount_internal.helper");
 const generateSlots = require("./generateSlots.helper");
 const getOccupanciesHelper = require("./getOccupancies_internal.helper");
@@ -96,10 +95,10 @@ function getSlots(input, user) {
 			.catch(err => {
 				switch (err.name) {
 					case customError.JWT_ERROR:
-						winston.error("Error while verifying accessToken, running jwt.verify()", err);
+						logger.error("Error while verifying accessToken, running jwt.verify()", err);
 						break;
 					default:
-						winston.error("Internal Server Error", err);
+						logger.error("Internal Server Error", err);
 				}
 				
 				reject(err);
@@ -187,7 +186,7 @@ function getEndSlots(input, user) {
 				resolve({ "endSlots": endSlots });
 			})
 			.catch(err => {
-				winston.error("Internal Server Error", err);
+				logger.error("Internal Server Error", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
