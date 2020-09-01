@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 
 const occupancyService = require("../occupancy/occupancy.service");
-const customError = require("../errors/customError");
+const customError = require("../common/customError");
 
 function getOccupancies(startTime, endTime, assetId) {
 	return new Promise((resolve, reject) => {

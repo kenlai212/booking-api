@@ -1,6 +1,7 @@
-const winston = require("winston/lib/winston/config");
+const logger = require("../common/logger").logger;
+const customError = require("../common/customError");
 
-const customError = require("../errors/customError");
+const SEND_EMAIL_PATH = "/email"
 
 function newBookingNotificationToAdmin(booking){
     return new Promise((resolve, reject) => {
@@ -35,7 +36,7 @@ function newBookingNotificationToAdmin(booking){
                 resolve({messageId: result.messageId});
             })
             .catch(err => {
-                winston.error("External Email Notification Error", err);
+                logger.error("External Email Notification Error", err);
                 reject({name: customError.INTERNAL_SERVER_ERROR, message: "External Email Notification Error"});
             });
     });
@@ -77,7 +78,7 @@ function newBookingConfirmationToCustomer(booking){
                     resolve({ messageId: result.messageId });
 				})
 				.catch(err => {
-                    winston.error("External Email Notification Error", err);
+                    logger.error("External Email Notification Error", err);
                     reject({name: customError.INTERNAL_SERVER_ERROR, message: "External Email Notification Error"});
 				});
 		}

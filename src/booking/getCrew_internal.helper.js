@@ -1,7 +1,7 @@
 const jwt = require("jsonwebtoken");
 
 const crewService = require("../crew/crew.service");
-const customError = require("../errors/customError");
+const customError = require("../common/customError");
 
 function getCrew(crewId) {
     var user = new Object();

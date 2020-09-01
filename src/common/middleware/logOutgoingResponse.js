@@ -1,4 +1,4 @@
-const logger = require("../common/logger").logger;
+const logger = require("../logger").logger;
 
 module.exports = function (res) {
     const defaultWrite = res.write;

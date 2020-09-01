@@ -2,6 +2,7 @@
 const mongoose = require("mongoose");
 
 const logger = require("../common/logger").logger;
+const userAuthorization = require("../common/middleware/userAuthorization");
 const Booking = require("./booking.model").Booking;
 const getCrewHelper = require("./getCrew_internal.helper");
 
@@ -12,7 +13,7 @@ async function addCrew(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 

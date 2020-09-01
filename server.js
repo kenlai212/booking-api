@@ -1,9 +1,10 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const jwt = require("jsonwebtoken");
 const config = require("config");
+require("dotenv").config();
 
 const logger = require("./src/common/logger").logger;
+const bookingAPIUser = require("./src/common/bookingAPIUser")
 const bookingRoutes = require("./src/booking/booking.routes");
 const pricingRoutes = require("./src/pricing/pricing.routes");
 const slotRoutes = require("./src/slot/slot.routes");
@@ -45,21 +46,9 @@ mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useN
 		});
 	})
 	.then(() => {
-
 		//generate access token for booking api
-		const bookingAPIUser = {
-			groups: [
-				"OCCUPANCY_ADMIN_GROUP",
-				"NOTIFICATION_USER_GROUP"]
-		}
-
-		try {
-			global.accessToken = jwt.sign(bookingAPIUser, process.env.ACCESS_TOKEN_SECRET);
-			logger.info("bookingAPIUser accessToken : " + global.accessToken);
-		} catch (err) {
-			logger.error("Error while generating access token", err);
-			throw err;
-		}
+		global.accessToken = bookingAPIUser.getAccessToken();
+		logger.info("bookingAPIUser accessToken : " + global.accessToken);
 	})
 	.catch(err => {
 		logger.error("Bootup Error", err);

@@ -1,16 +1,10 @@
+const logger = require("../common/logger").logger;
+
+const bookingAPIUser = require("../common/bookingAPIUser");
 const occupancyService = require("../occupancy/occupancy.service");
 
 function occupyAsset(startTime, endTime, assetId, occupancyType){
     return new Promise((resolve, reject) => {
-        var user = new Object();
-        jwt.verify(global.accessToken, process.env.ACCESS_TOKEN_SECRET, (err, targetUser) => {
-            if (err) {
-                throw { name: customError.JWT_ERROR, message: err.message };
-            } else {
-                user = targetUser;
-            }
-        });
-
         input = {
             startTime: startTime,
             endTime: endTime,
@@ -18,11 +12,12 @@ function occupyAsset(startTime, endTime, assetId, occupancyType){
             occupancyType: occupancyType
         }
 
-        occupancyService.occupyAsset(input, user)
+        occupancyService.occupyAsset(input, bookingAPIUser.userObject)
             .then(result => {
                 resolve(result);
             })
             .catch(err => {
+                logger.error("Error while call occupancyService.occupyAsset : ", err);
                 reject(err);
             });
     });
@@ -30,24 +25,16 @@ function occupyAsset(startTime, endTime, assetId, occupancyType){
 
 function releaseOccupancy(occupancyId) {
     return new Promise((resolve, reject) => {
-        var user = new Object();
-        jwt.verify(global.accessToken, process.env.ACCESS_TOKEN_SECRET, (err, targetUser) => {
-            if (err) {
-                throw { name: customError.JWT_ERROR, message: err.message };
-            } else {
-                user = targetUser;
-            }
-        });
-
         input = {
             occupancyId: occupancyId
         }
 
-        occupancyService.releaseOccupancy(input, user)
+        occupancyService.releaseOccupancy(input, bookingAPIUser.userObject)
             .then(result => {
                 resolve(result);
             })
             .catch(err => {
+                logger.error("Error while call occupancyService.releaseOccupancy : ", err);
                 reject(err);
             });
     });

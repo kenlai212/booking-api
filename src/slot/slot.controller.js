@@ -1,7 +1,7 @@
 "use strict";
 const url = require("url");
 
-const asyncMiddleware = require("../middleware/asyncMiddleware");
+const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const slotService = require("./slot.service");
 
 const slots = asyncMiddleware(async (req, res) => {

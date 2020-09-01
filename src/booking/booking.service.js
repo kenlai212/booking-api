@@ -3,17 +3,17 @@ const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
 
-const Booking = require("./booking.model").Booking;
-const BookingHistory = require("./booking-history.model").BookingHistory;
-
+const customError = require("../common/customError")
+const userAuthorization = require("../common/middleware/userAuthorization");
 const logger = require("../common/logger").logger;
 const bookingCommon = require("./booking.common");
+const Booking = require("./booking.model").Booking;
+const BookingHistory = require("./booking-history.model").BookingHistory;
 const BookingDurationHelper = require("./bookingDuration.helper");
 const PricingHelper = require("./pricing_internal.helper");
 const OccupancyHelper = require("./occupancy_internal.helper");
 const NotificationHelper = require("./notification_external.helper");
-const customError = require("../errors/customError")
-const gogowakeCommon = require("gogowake-common");
+
 
 const UTC_OFFSET = 8;
 
@@ -30,6 +30,7 @@ const FULFILLED_STATUS = "FULFILLED"
 //constants for payment status
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 
+const DEFAULT_ASSET_ID = "MC_NXT20";
 
 /**
  * By : Ken Lai
@@ -46,7 +47,7 @@ function addNewBooking(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -54,7 +55,6 @@ function addNewBooking(input, user) {
 		const schema = Joi.object({
 			startTime: Joi.date().iso().required(),
 			endTime: Joi.date().iso().required(),
-			assetId: Joi.string().required(),
 			bookingType: Joi
 				.string()
 				.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
@@ -73,7 +73,7 @@ function addNewBooking(input, user) {
 		if (result.error) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
-
+		
 		const startTime = moment(input.startTime).toDate();
 		const endTime = moment(input.endTime).toDate();
 
@@ -90,46 +90,37 @@ function addNewBooking(input, user) {
 				BookingDurationHelper.checkEarliestStartTime(startTime, UTC_OFFSET);
 				BookingDurationHelper.checkLatestEndTime(endTime, UTC_OFFSET);
 			}catch(err){
-				reject({ name: customError.BAD_REQUEST_ERROR, message: result});
+				reject({ name: customError.BAD_REQUEST_ERROR, message: err});
 			}
 		}
 
-		//set booking status
-		if (booking.bookingType == CUSTOMER_BOOKING_TYPE) {
-			booking.status = AWAITING_CONFIRMATION_STATUS;
-		} else {
-			booking.status = CONFIRMED_BOOKING_STATUS;
-		}
-
 		//check for retro booking (booing before current time)
-		if (endTime < moment().toDate()) {
+		if (startTime < moment().toDate() || endTime < moment().toDate()) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be in the past" });
 		}
 
-		/*
-		//check for minimum booking notice
-		var latestAdvanceBooking = new Date(startTime);
-		latestAdvanceBooking.setUTCHours(latestAdvanceBooking.getHours() - 12);
-		latestAdvanceBooking.setUTCMinutes(0);
-		var now = new Date();
-		now.setHours(now.getHours() + 8);
-		if (now > latestAdvanceBooking) {
-			response.status = 400;
-			response.message = "Must book 12 hours in advanced";
-			throw response;
-		}
-		*/
 		//init booking object
 		var booking = new Booking();
 		booking.startTime = startTime;
 		booking.endTime = endTime;
 
+		//set booking status
+		if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
+			booking.status = AWAITING_CONFIRMATION_STATUS;
+		} else {
+			booking.status = CONFIRMED_BOOKING_STATUS;
+		}
+
+		//set bookingType
+		//TODO validate if user can do OWNER_BOOKING
+		booking.bookingType = input.bookingType;
+		
 		//calculate pricing & currency
 		const totalAmountObj = PricingHelper.calculateTotalAmount(booking.startTime, booking.endTime, booking.bookingType);
 		booking.totalAmount = totalAmountObj.totalAmount;
 		booking.currency = totalAmountObj.currency;
 		booking.paymentStatus = AWAITING_PAYMENT_STATUS;
-
+		
 		booking.contactName = input.contactName;
 		booking.telephoneCountryCode = input.telephoneCountryCode;
 		booking.telephoneNumber = input.telephoneNumber;
@@ -160,8 +151,16 @@ function addNewBooking(input, user) {
 			userName: user.name
 		}]
 
+		//set assetId
+		if (input.assetId == null) {
+			booking.assetId = DEFAULT_ASSET_ID;
+		} else {
+			//TODO add assetId validation
+			booking.assetId = input.assetId;
+		}
+		
 		//save occupancy record
-		OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, booking.assetId, booking.occupancyType)
+		OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, booking.assetId, booking.bookingType)
 			.then(newOccupancy => {
 				return newOccupancy.id
 			})
@@ -172,17 +171,17 @@ function addNewBooking(input, user) {
 			})
 			.then(newBooking => {
 				//send notification to admin
-				NotificationHelper.newBookingNotificationToAdmin(newBooking);
+				//NotificationHelper.newBookingNotificationToAdmin(newBooking);
 
 				return newBooking;
 			})
 			.then(newBooking => {
 				//send confirmation to customer
-				NotificationHelper.newBookingConfirmationToCustomer(newBooking);
-
+				//NotificationHelper.newBookingConfirmationToCustomer(newBooking);
+				
 				return newBooking;
 			})
-			then(newBooking => {
+			.then(newBooking => {
 				resolve(bookingCommon.bookingToOutputObj(newBooking));
 			})
 			.catch(err => {
@@ -206,7 +205,7 @@ function fulfillBooking(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -247,7 +246,7 @@ function fulfillBooking(input, user) {
 				targetBooking.status = FULFILLED_STATUS;
 
 				const fulfilledHistory = {
-					transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
+					transactionTime: moment().toDate(),
 					transactionDescription: "Fulfilled booking",
 					userId: user.id,
 					userName: user.name
@@ -281,7 +280,7 @@ function cancelBooking(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -289,9 +288,6 @@ function cancelBooking(input, user) {
 		const schema = Joi.object({
 			bookingId: Joi
 				.string()
-				.required(),
-			fulfilledHours: Joi
-				.number()
 				.required()
 		});
 
@@ -319,7 +315,8 @@ function cancelBooking(input, user) {
 				return targetBooking
 			})
 			.then(targetBooking => {
-				Booking.findByIdAndDelete(targetBooking._id);
+				console.log(targetBooking);
+				Booking.findByIdAndDelete(targetBooking._id.toString());
 
 				return targetBooking;
 			})
@@ -356,7 +353,7 @@ function reschedule(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -406,7 +403,7 @@ function editContact(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -460,7 +457,7 @@ function editContact(input, user) {
 
 				//add transaction history
 				targetBooking.history.push({
-					transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
+					transactionTime: moment().toDate(),
 					transactionDescription: "Edited contact info",
 					userId: user.id,
 					userName: user.name
@@ -493,7 +490,7 @@ function viewBookings(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -545,7 +542,7 @@ function findBookingById(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 

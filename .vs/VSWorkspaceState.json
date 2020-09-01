@@ -1,9 +1,13 @@
 {
   "ExpandedNodes": [
     "",
-    "\\config",
     "\\src",
     "\\src\\booking",
+    "\\src\\common",
+    "\\src\\crew",
+    "\\src\\occupancy",
+    "\\src\\pricing",
+    "\\src\\slot",
     "\\test",
     "\\test\\unit",
     "\\test\\unit\\booking"

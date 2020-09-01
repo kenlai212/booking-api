@@ -2,12 +2,12 @@
 const Joi = require("joi");
 const moment = require('moment');
 const mongoose = require("mongoose");
-const logger = require("../common/logger").logger;
 
+const logger = require("../common/logger").logger;
+const customError = require("../common/customError");
+const userAuthorization = require("../common/middleware/userAuthorization");
 const Occupancy = require("./occupancy.model").Occupancy;
 const checkAvailibility = require("./checkAvailibility.helper");
-const gogowakeCommon = require("gogowake-common");
-const customError = require("../errors/customError");
 
 const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
 const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER_GROUP";
@@ -30,7 +30,7 @@ function releaseOccupancy(input, user) {
 		]
 
 		//validate user group
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -82,7 +82,7 @@ function occupyAsset(input, user) {
 		]
 		
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -107,7 +107,7 @@ function occupyAsset(input, user) {
 		
 		const startTime = moment(input.startTime).toDate();
 		const endTime = moment(input.endTime).toDate();
-
+		
 		//startTime cannot be later then endTime
 		if (startTime > endTime) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
@@ -138,10 +138,10 @@ function occupyAsset(input, user) {
 				occupancy.endTime = endTime;
 				occupancy.assetId = input.assetId;
 				occupancy.createdBy = user.id;
-				occupancy.createdTime = gogowakeCommon.getNowUTCTimeStamp();
+				occupancy.createdTime = moment().toDate();
 				occupancy.history = [
 					{
-						transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
+						transactionTime: moment().toDate(),
 						transactionDescription: "New Occupancy Record",
 						userId: user.id,
 						userName: user.name
@@ -182,7 +182,7 @@ function getOccupancies(input, user) {
 		]
 
 		//validate user group
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights"});
 		}
 
@@ -234,8 +234,8 @@ function occupancyToOutputObj(occupancy) {
 	var outputObj = new Object();
 	outputObj.id = occupancy._id;
 	outputObj.occupancyType = occupancy.occupancyType;
-	outputObj.startTime = gogowakeCommon.dateToStandardString(occupancy.startTime);
-	outputObj.endTime = gogowakeCommon.dateToStandardString(occupancy.endTime);
+	outputObj.startTime = moment(occupancy.startTime).toISOString();
+	outputObj.endTime = moment(occupancy.endTime).toISOString();
 	outputObj.assetId = occupancy.assetId;
 
 	if (occupancy.history != null) {
@@ -243,7 +243,7 @@ function occupancyToOutputObj(occupancy) {
 
 		occupancy.history.forEach(item => {
 			var historyOutputObj = new Object();
-			historyOutputObj.transactionTime = gogowakeCommon.dateToStandardString(item.transactionTime);
+			historyOutputObj.transactionTime = moment(item.transactionTime).toISOString();
 			historyOutputObj.transactionDescription = item.transactionDescription;
 			historyOutputObj.userId = item.userId;
 			historyOutputObj.userName = item.userName;

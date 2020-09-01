@@ -1,25 +1,26 @@
 "use strict";
 const guestService = require("./booking.guest.service");
+const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 
-const removeGuest = async (req) => {
+const removeGuest = asyncMiddleware(async (req) => {
 	return await guestService.removeGuest(req.body, req.user);
-}
+});
 
-const addGuest = async (req) => {
+const addGuest = asyncMiddleware(async (req) => {
 	return await guestService.addGuest(req.body, req.user);
-}
+});
 
-const editGuest = async (req) => {
+const editGuest = asyncMiddleware(async (req) => {
 	return await guestService.editGuest(req.body, req.user);
-}
+});
 
-const sendDisclaimer = async (req) => {
+const sendDisclaimer = asyncMiddleware(async (req) => {
 	return await guestService.sendDisclaimer(req.body, req.user);
-}
+});
 
-const signDisclaimer = async (req) => {
+const signDisclaimer = asyncMiddleware(async (req) => {
 	return await guestService.signDisclaimer(req.body);
-}
+});
 
 module.exports = {
 	addGuest,

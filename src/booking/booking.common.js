@@ -1,7 +1,5 @@
 "use strict";
-const mongoose = require("mongoose");
-const gogowakeCommon = require("gogowake-common");
-const Booking = require("./booking.model").Booking;
+const moment = require("moment");
 
 //constants for user groups
 const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN_GROUP";
@@ -16,8 +14,8 @@ function bookingToOutputObj(booking) {
 	outputObj.creationTime = booking.creationTime;
 	outputObj.createdBy = booking.createdBy;
 	outputObj.occupancyId = booking.occupancyId;
-	outputObj.startTime = gogowakeCommon.dateToStandardString(booking.startTime);
-	outputObj.endTime = gogowakeCommon.dateToStandardString(booking.endTime);
+	outputObj.startTime = moment(booking.startTime).toISOString();
+	outputObj.endTime = moment(booking.endTime).toISOString();
 	outputObj.totalAmount = booking.totalAmount;
 	outputObj.discountedAmount = booking.discountedAmount;
 	outputObj.collectedAmount = booking.collectedAmount;

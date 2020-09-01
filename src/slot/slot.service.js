@@ -2,15 +2,15 @@
 const moment = require("moment");
 const Joi = require("joi");
 
+const customError = require("../common/customError");
 const logger = require("../common/logger").logger;
+const userAuthorization = require("../common/middleware/userAuthorization");
 const calculateTotalAmountHelper = require("../slot/calculateTotalAmount_internal.helper");
 const generateSlots = require("./generateSlots.helper");
 const getOccupanciesHelper = require("./getOccupancies_internal.helper");
 const setSlotsAvailibilities = require("./setSlotsAvailibilities.helper");
 const getSlotByStartTimeHelper = require("./getSlotByStartTime.helper");
 const slotMapper = require("./slotMapper.helper");
-const common = require("gogowake-common");
-const customError = require("../errors/customError");
 
 const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
@@ -34,7 +34,7 @@ function getSlots(input, user) {
 			"BOOKING_USER_GROUP"
 		]
 
-		if (common.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 		
@@ -119,7 +119,7 @@ function getEndSlots(input, user) {
 			"BOOKING_USER_GROUP"
 		]
 
-		if (common.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 

@@ -1,14 +1,8 @@
+const logger = require("../common/logger").logger;
+const bookingAPIUser = require("../common/bookingAPIUser");
 const pricingService = require("../pricing/pricing.service");
 
 function calculateTotalAmount(startTime, endTime, bookingType){
-    var user = new Object();
-    jwt.verify(global.accessToken, process.env.ACCESS_TOKEN_SECRET, (err, targetUser) => {
-        if (err) {
-            throw { name: customError.JWT_ERROR, message: err.message };
-        } else {
-            user = targetUser;
-        }
-    });
     
     const pricingTotalAmountInput = {
         "startTime": startTime,
@@ -16,7 +10,13 @@ function calculateTotalAmount(startTime, endTime, bookingType){
         "bookingType": bookingType
     }
 
-    return pricingService.calculateTotalAmount(pricingTotalAmountInput, user);
+    try {
+        return pricingService.calculateTotalAmount(pricingTotalAmountInput, bookingAPIUser.userObject);
+    } catch (err) {
+        logger.error("Error while calling pricingService.calculateTotalAmount : ", err);
+        throw err;
+    }
+    
 }
 
 module.exports = {

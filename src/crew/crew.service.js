@@ -1,16 +1,17 @@
 "use strict";
 const Joi = require("joi");
 const mongoose = require("mongoose");
+const moment = require("moment");
 
 const logger = require("../common/logger").logger;
-const gogowakeCommon = require("gogowake-common");
-const customError = require("../errors/customError");
+const userAuthorization = require("../common/middleware/userAuthorization");
+const customError = require("../common/customError");
 const Crew = require("./crew.model").Crew;
 
 const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
 const OCCUPANCY_USER_GROUP = "OCCUPANCY_USER_GROUP";
 
-async function findCrew(input, user) {
+function findCrew(input, user) {
 	return new Promise((resolve, reject) => {
 		const rightsGroup = [
 			OCCUPANCY_ADMIN_GROUP,
@@ -18,7 +19,7 @@ async function findCrew(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -63,14 +64,14 @@ async function findCrew(input, user) {
  * By : Ken Lai
  * Date: Jun 1, 2020
  */
-async function searchCrews(user) {
+function searchCrews(user) {
 	return new Promise((resolve, reject) => {
 		const rightsGroup = [
 			OCCUPANCY_ADMIN_GROUP
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -90,14 +91,14 @@ async function searchCrews(user) {
 	});
 }
 
-async function newCrew(input, user) {
+function newCrew(input, user) {
 	return new Promise((resolve, reject) => {
 		const rightsGroup = [
 			OCCUPANCY_ADMIN_GROUP
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -122,12 +123,12 @@ async function newCrew(input, user) {
 		var crew = new Crew();
 		crew.crewName = input.crewName;
 		crew.createdBy = user.id;
-		crew.createdTime = gogowakeCommon.getNowUTCTimeStamp();
+		crew.createdTime = moment().toDate();
 		crew.telephoneCountryCode = input.telephoneCountryCode;
 		crew.telephoneNumber = input.telephoneNumber;
 		crew.history = [
 			{
-				transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
+				transactionTime: moment().toDate(),
 				transactionDescription: "New Crew Record",
 				userId: user.id,
 				userName: user.name

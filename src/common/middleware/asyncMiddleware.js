@@ -1,6 +1,5 @@
-const logger = require("../common/logger").logger;
-
-const customError = require("../errors/customError");
+const logger = require("../logger").logger;
+const customError = require("../customError");
 
 module.exports = function (handler) {
 	return async (req, res, next) => {

@@ -5,7 +5,7 @@ const mongoose = require("mongoose");
 
 const Booking = require("./booking.model").Booking;
 const bookingCommon = require("./booking.common");
-const gogowakeCommon = require("gogowake-common");
+const userAuthorization = require("../common/middleware/userAuthorization");
 const logger = require("../common/logger").logger;
 const sendDisclaimerNotificationHelper = require("./sendDisclaimerNotification_external.helper");
 
@@ -18,7 +18,7 @@ function removeGuest(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 

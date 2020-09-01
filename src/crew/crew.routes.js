@@ -1,8 +1,8 @@
 "use strict";
 const express = require("express");
 
-const logIncommingRequest = require("../middleware/logIncommingRequest");
-const authenticateAccessToken = require("../middleware/authenticateAccessToken");
+const logIncommingRequest = require("../common/middleware/logIncommingRequest");
+const authenticateAccessToken = require("../common/middleware/authenticateAccessToken");
 const crewController = require("./crew.controller");
 
 const router = express.Router();

@@ -1,8 +1,9 @@
 "use strict";
 const mongoose = require("mongoose");
+const moment = require("moment");
+
 const Booking = require("./booking.model").Booking;
 const bookingCommon = require("./booking.common");
-const gogowakeCommon = require("gogowake-common");
 const logger = require("../common/logger").logger;
 
 const PAID_STATUS = "PAID";
@@ -19,7 +20,7 @@ function makePayment(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -57,7 +58,7 @@ function makePayment(input, user) {
 
 				//add transaction history
 				var transactionHistory = new Object();
-				transactionHistory.transactionTime = gogowakeCommon.getNowUTCTimeStamp();
+				transactionHistory.transactionTime = moment().toDate();
 				transactionHistory.userId = user.id;
 				transactionHistory.userName = user.name;
 				transactionHistory.transactionDescription = "Payment status made changed to PAID";
@@ -85,7 +86,7 @@ function applyDiscount(input, user) {
 		]
 
 		//validate user
-		if (gogowakeCommon.userAuthorization(user.groups, rightsGroup) == false) {
+		if (userAuthorization(user.groups, rightsGroup) == false) {
 			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 		}
 
@@ -120,7 +121,7 @@ function applyDiscount(input, user) {
 
 				//add transaction history
 				var transactionHistory = new Object();
-				transactionHistory.transactionTime = gogowakeCommon.getNowUTCTimeStamp();
+				transactionHistory.transactionTime = mament().toDate();
 				transactionHistory.userId = user.id;
 				transactionHistory.userName = user.name;
 				transactionHistory.transactionDescription = "Gave discount. Final discounted amount : " + booking.discountedAmount;

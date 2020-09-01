@@ -2,7 +2,7 @@ const moment = require("moment");
 const jwt = require("jsonwebtoken");
 
 const pricingService = require("../pricing/pricing.service");
-const customError = require("../errors/customError");
+const customError = require("../common/customError");
 
 function calculateTotalAmount(startTime, endTime) {
     var user = new Object();

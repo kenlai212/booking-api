@@ -1,7 +1,5 @@
 const config = require("config");
 
-const gogowakeCommon = require("gogowake-common");
-
 const SEND_SMS_PATH = "/sms";
 
 function sendNotification(bookingId, disclaimerId, telephoneNumber) {
