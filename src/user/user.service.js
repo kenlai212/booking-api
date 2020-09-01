@@ -1,11 +1,11 @@
 "use strict";
 const uuid = require("uuid");
 const jwt = require("jsonwebtoken");
-const common = require("gogowake-common");
-const logger = common.logger;
-const User = require("./user.model").User;
+const Joi = require("joi");
 
-require('dotenv').config();
+const logger = require("../common/logger").logger;
+const customError = require("../common/customError");
+const User = require("./user.model").User;
 
 const EMAIL_PATH = "/email";
 
@@ -28,320 +28,231 @@ const LOGIN_ID_PATH = "/loginId";
 const CREDENTIALS_PATH = "/credentials";
 const LOGOUT_PATH = "/logout";
 
-async function seedRootUser() {
-	var rootUser = new User();
+function register(input){
+	return new Promise(async (resolve, reject) => {
+		var newUser = new User();
 
-	rootUser.provider = "GOGOWAKE";
-	rootUser.name = "Admin Root User";
-	rootUser.userType = "PERSON_USER";
-	rootUser.status = ACTIVE_STATUS;
-	rootUser.registrationTime = common.getNowUTCTimeStamp();
-	rootUser.groups = [
-		USER_ADMIN_GROUP,
-		AUTHENTICATION_ADMIN_GROUP
-	];
-	rootUser.history = [
-		{
-			transactionTime: common.getNowUTCTimeStamp(),
-			transactionDescription: "Root User registered"
+		//set provider
+		const validProviders = ["FACEBOOK", "GOOGLE", "GOGOWAKE"];
+		if (input.provider != null) {
+			if (validProviders.includes(input.provider)) {
+				newUser.provider = input.provider
+			} else {
+				reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid provider" });
+			}
+		} else {
+			newUser.provider = "GOGOWAKE";
 		}
-	];
 
-	//save rootUser record to db
-	await rootUser.save()
-		.then(result => {
-			rootUser = result;
-		})
-		.catch(err => {
-			logger.error("rootUser.save() error : " + err);
-			throw err;
-		});
+		//set providerUserId, if external provider
+		if (newUser.provider != "GOGOWAKE") {
+			if (input.providerUserId == null || input.providerUserId.length < 1) {
+				reject({ name: customError.BAD_REQUEST_ERROR, message: "providerUserId is mandatory" });
+			}
 
-	const rootUserObj = userToOutputObj(rootUser);
+			newUser.providerUserId = input.providerUserId;
 
-	//set and save credentials
-	const url = process.env.AUTHENTICATION_DOMAIN + CREDENTIALS_PATH;
-	const requestAttr = {
-		method: "POST",
-		headers: {
-			"content-Type": "application/json"
-		},
-		body: JSON.stringify({
-			loginId: "ROOT",
-			password: "PASSWORD",
-			userId: rootUserObj.id
-		})
-	}
-
-	await common.callAPI(url, requestAttr)
-		.then(() => {
-			logger.info("Successfully save credentials : ROOT");
-		})
-		.catch(err => {
-			logger.error("Error while calling new credentials api : " + err);
-
-			//credentials.save had failed roll back newUser record
-			User.findByIdAndDelete(rootUser.id)
-				.exec()
+			//check if providerUserId already exist
+			await User.findOne(
+				{
+					provider: input.provider,
+					providerUserId: input.providerUserId
+				})
+				.then(existingSocialUser => {
+					if (existingSocialUser != null) {
+						reject({ name: customError.BAD_REQUEST_ERROR, message: "providerUserId already exist" });
+					}
+				})
 				.catch(err => {
-					logger.error("Errror while rolling back newUser record : " + err);
+					logger.error("Occupancy.findOne() error : ", err);
+					reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Delete function not available" });
+				});
+		}
+
+		//validate email
+		if(input.emailAddress==null || input.emailAddress.length == 0){
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "emailAddress is mandatory" });
+		}
+		newUser.emailAddress = input.emailAddress;
+
+		//set telephone
+		const validTelephoneCountryCode = ["852", "853", "86"];
+		if (input.telephoneCountryCode != null && input.telephoneCountryCode.length > 1) {
+
+			if (validTelephoneCountryCode.includes(input.telephoneCountryCode) == false) {
+				reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid telephoneCountryCode" });
+			}
+			newUser.telephoneCountryCode = input.telephoneCountryCode;
+
+			//telephoneNumber is mandatory if countryCode not null
+			if (input.telephoneNumber == null || input.telephoneNumber.length == 0) {
+				reject({ name: customError.BAD_REQUEST_ERROR, message: "telephoneNumber is mandatory" });
+			}
+
+			input.telephoneNumber = input.telephoneNumber.replace(/[^\w\s]/gi, '');
+			newUser.telephoneNumber = input.telephoneNumber;
+		}
+
+		//validate name
+		if (input.name == null || input.name.length < 1) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "name is mandatory" });
+		}
+		newUser.name = input.name;
+
+		//default userType to be PERSON_USER
+		if (input.userType == null || input.userType.length < 1) {
+			input.userType = "PERSON_USER";
+		}
+
+		const validUserTypes = ["SYSTEM_USER", "PERSON_USER"]
+		if (validUserTypes.includes(input.userType) == false) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid userType" });
+		}
+		newUser.userType = input.userType;
+
+		//TODO validate groups
+		if (input.groups != null) {
+			newUser.groups = input.groups;
+		}
+
+		newUser.status = AWAITING_ACTIVATION_STATUS;
+		newUser.registrationTime = common.getNowUTCTimeStamp();
+		newUser.activationKey = uuid.v4();
+		newUser.history = [
+			{
+				transactionTime: common.getNowUTCTimeStamp(),
+				transactionDescription: "New User registered"
+			}
+		];
+		
+		//save newUser record to db
+		await newUser.save()
+			.then(result => {
+				newUser = result;
+			})
+			.catch(err => {
+				logger.error("Occupancy.findOne() error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Delete function not available" });
+			});
+
+		//if provider is GOGOWAKE, validate and set loginId & password
+		if (newUser.provider == "GOGOWAKE") {
+
+			//validate loginId
+			if (input.loginId == null || input.loginId.length == 0) {
+				response.status = 400;
+				response.message = "loginId is mandatory";
+				throw response;
+			}
+
+			//validate password
+			if (input.password == null || input.password.length == 0) {
+				response.status = 400;
+				response.message = "password is mandatory";
+				throw response;
+			}
+
+			//look for existing credentials with same loginId by calling loginId API,
+			//if found, throw 400 error
+			var url = process.env.AUTHENTICATION_DOMAIN + LOGIN_ID_PATH + "?loginId=" + input.loginId;
+			var requestAttr = {
+				method: "GET",
+				headers: {
+					"content-Type": "application/json",
+					"Authorization": "Token " + global.accessToken
+				}
+			}
+
+			var isAvailable
+			await common.callAPI(url, requestAttr)
+				.then(result => {
+					isAvailable = result.isAvailable;
+				})
+				.catch(() => {
+					response.status = 500;
+					response.message = "loginId availability api is not available";
+					throw response;
 				});
 
-			throw err;
-		});
-
-	return rootUserObj;
-}
-
-async function register(input){
-
-	var response = new Object();
-	var newUser = new User();
-
-	//set provider
-	const validProviders = ["FACEBOOK", "GOOGLE", "GOGOWAKE"];
-	if (input.provider != null) {
-		if (validProviders.includes(input.provider)) {
-			newUser.provider = input.provider
-		} else {
-			response.status = 400;
-			response.message = "Invalid provider";
-			throw response;
-		}
-	} else {
-		newUser.provider = "GOGOWAKE";
-	}
-
-	//set providerUserId, if external provider
-	if (newUser.provider != "GOGOWAKE") {
-		if (input.providerUserId == null || input.providerUserId.length < 1) {
-			response.status = 400;
-			response.message = "providerUserId is mandatory";
-			throw response;
-		}
-
-		newUser.providerUserId = input.providerUserId;
-
-		//check if providerUserId already exist
-		var existingSocialUser
-		await User.findOne({
-			provider: input.provider,
-			providerUserId: input.providerUserId
-		})
-			.exec()
-			.then(result => {
-				existingSocialUser = result;
-			})
-			.catch(err => {
-				logger.error("Error while running User.find() : " + err);
-				response.status = 500;
-				response.message = "User.find() is not available";
+			if (isAvailable == false) {
+				response.status = 400;
+				response.message = "LoginId already taken";
 				throw response;
-			});
-
-		if (existingSocialUser != null) {
-			response.status = 400;
-			response.message = "providerUserId already exist";
-			throw response;
-		}
-	}
-
-	//validate email
-	if(input.emailAddress==null || input.emailAddress.length == 0){
-		response.status = 400;
-		response.message = "emailAddress is mandatory";
-		throw response;
-	}
-	newUser.emailAddress = input.emailAddress;
-
-	//set telephone
-	const validTelephoneCountryCode = ["852", "853", "86"];
-	if (input.telephoneCountryCode != null && input.telephoneCountryCode.length > 1) {
-
-		if (validTelephoneCountryCode.includes(input.telephoneCountryCode) == false) {
-			response.status = 400;
-			response.message = "Invalid telephoneCountryCode";
-			throw response;
-		}
-
-		newUser.telephoneCountryCode = input.telephoneCountryCode;
-
-		//telephoneNumber is mandatory if countryCode not null
-		if (input.telephoneNumber == null || input.telephoneNumber.length == 0) {
-			response.status = 400;
-			response.message = "telephoneNumber is mandatory";
-			throw response;
-		}
-
-		input.telephoneNumber = input.telephoneNumber.replace(/[^\w\s]/gi, '');
-		newUser.telephoneNumber = input.telephoneNumber;
-	}
-
-	//validate name
-	if (input.name == null || input.name.length < 1) {
-		response.status = 400;
-		response.message = "name is mandatory";
-		throw response;
-	}
-	newUser.name = input.name;
-
-	//default userType to be PERSON_USER
-	if (input.userType == null || input.userType.length < 1) {
-		input.userType = "PERSON_USER";
-	}
-
-	const validUserTypes = ["SYSTEM_USER", "PERSON_USER"]
-	if (validUserTypes.includes(input.userType) == false) {
-		response.status = 400;
-		response.message = "Invalid userType";
-		throw response;
-	}
-	newUser.userType = input.userType;
-
-	//TODO validate groups
-	if (input.groups != null) {
-		newUser.groups = input.groups;
-	}
-
-	newUser.status = AWAITING_ACTIVATION_STATUS;
-	newUser.registrationTime = common.getNowUTCTimeStamp();
-	newUser.activationKey = uuid.v4();
-	newUser.history = [
-		{
-			transactionTime: common.getNowUTCTimeStamp(),
-			transactionDescription: "New User registered"
-		}
-	];
-	
-	//save newUser record to db
-	await newUser.save()
-		.then(result => {
-			newUser = result;
-		})
-		.catch(err => {
-			logger.error("newUser.save() error : " + err);
-			response.status = 500;
-			response.message = "newUser.save() is not available";
-			throw response;
-		});
-
-	//if provider is GOGOWAKE, validate and set loginId & password
-	if (newUser.provider == "GOGOWAKE") {
-
-		//validate loginId
-		if (input.loginId == null || input.loginId.length == 0) {
-			response.status = 400;
-			response.message = "loginId is mandatory";
-			throw response;
-		}
-
-		//validate password
-		if (input.password == null || input.password.length == 0) {
-			response.status = 400;
-			response.message = "password is mandatory";
-			throw response;
-		}
-
-		//look for existing credentials with same loginId by calling loginId API,
-		//if found, throw 400 error
-		var url = process.env.AUTHENTICATION_DOMAIN + LOGIN_ID_PATH + "?loginId=" + input.loginId;
-		var requestAttr = {
-			method: "GET",
-			headers: {
-				"content-Type": "application/json",
-				"Authorization": "Token " + global.accessToken
 			}
+
+			//set and save credentials
+			url = process.env.AUTHENTICATION_DOMAIN + CREDENTIALS_PATH;
+			requestAttr = {
+				method: "POST",
+				headers: {
+					"content-Type": "application/json",
+					"Authorization": "Token " + global.accessToken
+				},
+				body: JSON.stringify({
+					loginId: input.loginId,
+					password: input.password,
+					userId: newUser.id
+				})
+			}
+
+			await common.callAPI(url, requestAttr)
+				.then(() => {
+					logger.info("Successfully save credentials : " + input.loginId);
+				})
+				.catch(err => {
+					logger.error("Error while calling new credentials api : " + err);
+
+					//credentials.save had failed roll back newUser record
+					User.findByIdAndDelete(newUser.id)
+						.exec()
+						.catch(err => {
+							logger.error("Errror while rolling back newUser record : " + err);
+						});
+
+					response.status = 500;
+					response.message = "save credentials api is not available";
+					throw response;
+				});
+		}
+		
+		//set sendActivationEmail input flag, default to false if not provided
+		if (input.sendActivationEmail == null) {
+			input.sendActivationEmail = false;
 		}
 
-		var isAvailable
-		await common.callAPI(url, requestAttr)
-			.then(result => {
-				isAvailable = result.isAvailable;
-			})
-			.catch(() => {
-				response.status = 500;
-				response.message = "loginId availability api is not available";
-				throw response;
-			});
+		//send activation email only if both system flag and input flag is true 
+		if (process.env.SEND_ACTIVATION_EMAIL == true & input.sendActivationEmail == true) {
 
-		if (isAvailable == false) {
-			response.status = 400;
-			response.message = "LoginId already taken";
-			throw response;
+			await sendActivationEmail(newUser.activationKey, newUser.emailAddress)
+				.then(result => {
+					const historyItem = {
+						transactionTime: common.getNowUTCTimeStamp(),
+						transactionDescription: "Sent activation email to user. MessageID : " + result.messageId
+					}
+					newUser.history.push(historyItem);
+				})
+				.catch(() => {
+					const historyItem = {
+						transactionTime: common.getNowUTCTimeStamp(),
+						transactionDescription: "Failed to send activation email to user"
+					}
+					newUser.history.push(historyItem);
+				});
+
+			await newUser.save()
+				.then(() => {
+					logger.info("Successfully updated user.history with activation email status");
+				})
+				.catch(err => {
+					logger.error("Error while running newUser.save() : " + err);
+				})
 		}
-
-		//set and save credentials
-		url = process.env.AUTHENTICATION_DOMAIN + CREDENTIALS_PATH;
-		requestAttr = {
-			method: "POST",
-			headers: {
-				"content-Type": "application/json",
-				"Authorization": "Token " + global.accessToken
-			},
-			body: JSON.stringify({
-				loginId: input.loginId,
-				password: input.password,
-				userId: newUser.id
-			})
-		}
-
-		await common.callAPI(url, requestAttr)
-			.then(() => {
-				logger.info("Successfully save credentials : " + input.loginId);
-			})
-			.catch(err => {
-				logger.error("Error while calling new credentials api : " + err);
-
-				//credentials.save had failed roll back newUser record
-				User.findByIdAndDelete(newUser.id)
-					.exec()
-					.catch(err => {
-						logger.error("Errror while rolling back newUser record : " + err);
-					});
-
-				response.status = 500;
-				response.message = "save credentials api is not available";
-				throw response;
-			});
-	}
-	
-	//set sendActivationEmail input flag, default to false if not provided
-	if (input.sendActivationEmail == null) {
-		input.sendActivationEmail = false;
-	}
-
-	//send activation email only if both system flag and input flag is true 
-	if (process.env.SEND_ACTIVATION_EMAIL == true & input.sendActivationEmail == true) {
-
-		await sendActivationEmail(newUser.activationKey, newUser.emailAddress)
-			.then(result => {
-				const historyItem = {
-					transactionTime: common.getNowUTCTimeStamp(),
-					transactionDescription: "Sent activation email to user. MessageID : " + result.messageId
-				}
-				newUser.history.push(historyItem);
-			})
-			.catch(() => {
-				const historyItem = {
-					transactionTime: common.getNowUTCTimeStamp(),
-					transactionDescription: "Failed to send activation email to user"
-				}
-				newUser.history.push(historyItem);
-			});
-
-		await newUser.save()
-			.then(() => {
-				logger.info("Successfully updated user.history with activation email status");
-			})
-			.catch(err => {
-				logger.error("Error while running newUser.save() : " + err);
-			})
-	}
-	
-	var outputObj = userToOutputObj(newUser);
-	outputObj.activationKey = newUser.activationKey;
-	
-	return outputObj;
+		
+		var outputObj = userToOutputObj(newUser);
+		outputObj.activationKey = newUser.activationKey;
+		
+		return outputObj;
+	});
 }
 
 /**

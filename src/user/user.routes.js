@@ -1,24 +1,21 @@
 "use strict";
 const express = require("express");
+
+const logIncommingRequest = require("../common/middleware/logIncommingRequest");
+const authenticateAccessToken = require("../common/middleware/authenticateAccessToken");
 const userController = require("./user.controller");
-const common = require("gogowake-common");
 
 const router = express.Router();
-router.put("/activate", userController.activate);
-router.post("/register", userController.register);
+router.put("/activate", logIncommingRequest, userController.activate);
+router.post("/register", logIncommingRequest, userController.register);
 
-router.put("/deactivate", authenticateAccessToken, userController.deactivate);
-router.put("/admin-activate", authenticateAccessToken, userController.adminActivate);
+router.put("/deactivate", authenticateAccessToken, logIncommingRequest, userController.deactivate);
+router.put("/admin-activate", authenticateAccessToken, logIncommingRequest, userController.adminActivate);
 
-router.post("/activation-email", authenticateAccessToken, userController.activateEmail);
-router.get("/users", authenticateAccessToken, userController.searchUsers);
-router.get("/user", authenticateAccessToken, userController.findUser);
-router.put("/email-address", authenticateAccessToken, userController.updateEmailAddress);
-router.put("/groups", authenticateAccessToken, userController.assignGroup);
+router.post("/activation-email", authenticateAccessToken, logIncommingRequest, userController.activateEmail);
+router.get("/users", authenticateAccessToken, logIncommingRequest, userController.searchUsers);
+router.get("/user", authenticateAccessToken, logIncommingRequest, userController.findUser);
+router.put("/email-address", authenticateAccessToken, logIncommingRequest, userController.updateEmailAddress);
+router.put("/groups", authenticateAccessToken, logIncommingRequest, userController.assignGroup);
 
 module.exports = router;
-
-function authenticateAccessToken(req, res, next) {
-    req.user = common.authenticateAccessToken(req, res);
-    next();
-}
