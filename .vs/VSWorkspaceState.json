@@ -2,16 +2,15 @@
   "ExpandedNodes": [
     "",
     "\\src",
+    "\\src\\authentication",
     "\\src\\booking",
-    "\\src\\common",
-    "\\src\\crew",
-    "\\src\\occupancy",
     "\\src\\pricing",
     "\\src\\slot",
+    "\\src\\user",
     "\\test",
     "\\test\\unit",
     "\\test\\unit\\booking"
   ],
-  "SelectedNode": "\\src\\booking\\booking.service.js",
+  "SelectedNode": "\\src\\user\\user.service.js",
   "PreviewInSolutionExplorer": false
 }

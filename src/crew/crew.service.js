@@ -4,8 +4,8 @@ const mongoose = require("mongoose");
 const moment = require("moment");
 
 const logger = require("../common/logger").logger;
-const userAuthorization = require("../common/middleware/userAuthorization");
 const customError = require("../common/customError");
+const userAuthorization = require("../common/middleware/userAuthorization");
 const Crew = require("./crew.model").Crew;
 
 const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
