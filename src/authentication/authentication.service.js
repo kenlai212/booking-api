@@ -7,8 +7,7 @@ const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const Credentials = require("./credentials.model").Credentials;
 
-const PERSON_ACCESS_TOKEN_EXPIRES = "1h";
-const SYSTEM_ACCESS_TOKEN_EXPIRES = "90d";
+const ACCESS_TOKEN_EXPIRES = "1h";
 const PASSWORD_HASH_STRENGTH = 10;
 
 const USER_PATH = "/user";
@@ -116,7 +115,7 @@ function socialLogin(input) {
 
 		var url = process.env.AUTHENTICATION_DOMAIN + USER_PATH + "?provider=" + input.provider + "&providerUserId=" + input.providerUserId;
 
-
+		//////////////////////////////////TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 	});
 }
 
@@ -144,169 +143,50 @@ function login(input){
 					reject({ name: customError.UNAUTHORIZED_ERROR, message: "Login failed" });
 				}
 
-				//compare password
-				return bcrypt.compare(input.password, credentials.hashedPassword);
+				return credentials;
 			})
-			.then(passwordCompareResult => {
-				if (passwordCompareResult == false) {
+			.then(async credentials => {
+				try{
+					const matchedPassword = await bcrypt.compare(input.password, credentials.hashedPassword);
+
+					if (passwordCompareResult == false) {
+						reject({ name: customError.UNAUTHORIZED_ERROR, message: "Login failed" });
+					}
+				}catch(err){
+					reject({name: customerError.INTERNAL_SERVER_ERROR, message: "Internal Server Error"});
+				}
+				
+				return credentials;
+			})
+			.then(credentials => {
+				const input = {
+					userId: credentials.userId
+				}
+
+				return userService.findUser(input);
+			})
+			.then(user => {
+				if (user == null) {
 					reject({ name: customError.UNAUTHORIZED_ERROR, message: "Login failed" });
 				}
 
-				url = process.env.AUTHENTICATION_DOMAIN + USER_PATH + "?userId=" + credentials.userId;
+				return user;
+			})
+			.then(user => {
+				accessTokenStr = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
+
+				resolve(accessToken);
 			})
 			.catch(err => {
 				logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
-
-		var user;
-
-		//get user
-		const requestAttr = {
-			method: "GET",
-			headers: {
-				"content-Type": "application/json",
-				"Authorization": "Token " + global.accessToken
-			}
-		}
-		await common.callAPI(url, requestAttr)
-			.then(result => {
-				user = result;
-			})
-			.catch(err => {
-				if (err.status = "404") {
-					user = null;
-				} else {
-					logger.error("error while calling external user api : " + err);
-					throw err;
-				}
-			});
-
-		if (user == null) {
-			logger.warn("Cannot find corrisponding user record");
-			response.status = 400;
-			response.message = "Login failed";
-			throw response;
-		}
-
-		//generate access token
-		var accessTokenStr;
-		try {
-
-			//set access token expires only for userType = PERSON_USER
-			if (user.userType == "PERSON_USER") {
-				accessTokenStr = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: PERSON_ACCESS_TOKEN_EXPIRES });
-			} else if (user.userType == "SYSTEM_USER") {
-				accessTokenStr = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: SYSTEM_ACCESS_TOKEN_EXPIRES });
-			}
-
-		} catch (err) {
-			logger.error("Error while signing accessToken, running jwt.sign() : " + err);
-			response.status = 500;
-			response.message = "jwt.sign() not available";
-			throw response;
-		}
-
-		
-
-		
-
-		return { accessToken: accessTokenStr};
-
 	});
-}
-
-async function logout(input){
-	
-	var response = new Object();
-
-	//validate refresh token
-	if(input.userId==null){
-		response.status = 400;
-		response.message = "userId is mandatory";
-		throw response;
-	}
-
-	var targetRefreshToken;
-	await RefreshToken.findOne({ "userId": input.userId })
-		.then(result => {
-			targetRefreshToken = result;
-		})
-		.catch(err => {
-			logger.error("Error while running RefreshToken.findOne() : " + err);
-			response.status = 500;
-			response.message = "RefreshToken.findOne() not available";
-			throw response;
-		});
-	
-
-	if(targetRefreshToken==null){
-		response.status = 401;
-		response.message = "Invalid userId";
-		throw response;
-	}
-
-	//async delete refresh token
-	await RefreshToken.findByIdAndDelete(targetRefreshToken._id)
-		.exec()
-		.then(() => {
-			logger.info("Successfully deleted refreshToken for credentials : " + targetRefreshToken.userId);
-		})
-		.catch(err => {
-			response.status = 500;
-			response.message = "refreshTokenModel.deleteToken() not available";
-			throw response;
-		});
-
-	return;
 }
 
 module.exports = {
 	checkLoginIdAvailability,
 	addNewCredentials,
 	login,
-	getNewAccessToken,
-	logout
-}
-
-function resetPassword(input) {
-
-	var response = new Object();
-
-	//validate userId
-	if (input.userId == null || input.userId.length == 0) {
-		response.status = 400;
-		response.message = "userId is mandatory";
-		throw response;
-	}
-
-	//validate oldPassword
-	if (input.oldPassword == null || input.oldPassword.length == 0) {
-		response.status = 400;
-		response.message = "Old Password is mandatory";
-		throw response;
-	}
-
-	//validate newPassword
-	if (input.newPassword == null || input.newPassword.length == 0) {
-		response.status = 400;
-		response.message = "New Password is mandatory";
-		throw response;
-	}
-
-	//validate newPassword
-	if (input.confirmNewPassword == null || input.confirmNewPassword.length == 0) {
-		response.status = 400;
-		response.message = "Confirm New Password is mandatory";
-		throw response;
-	}
-
-	if (input.newPassword != input.confirmNewPassword) {
-		response.status = 400;
-		response.message = "Confirm New Password error";
-		throw response;
-	}
-
-
-	//TODO
+	socialLogin
 }
