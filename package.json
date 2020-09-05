@@ -21,7 +21,9 @@
     "mongoose": "^5.9.22",
     "uuid": "^3.4.0",
     "winston": "^3.3.3",
-    "winston-mongodb": "^5.0.1"
+    "winston-mongodb": "^5.0.1",
+    "nodemailer": "^6.4.10",
+    "aws-sdk": "^2.712.0"
   },
   "devDependencies": {
     "jest": "^26.2.2"

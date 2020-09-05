@@ -20,6 +20,10 @@ const register =asyncMiddleware( async (req) => {
 	return await userService.register(req.body);
 });
 
+const socialRegister = asyncMiddleware(async (req) => {
+	return await userService.socialRegister(req.body);
+});
+
 const activateEmail = asyncMiddleware(async (req) => {
 	return await userService.sendActivationEmail(req.body);
 });
@@ -45,6 +49,7 @@ module.exports = {
 	deactivate,
 	activate,
 	adminActivate,
+	socialRegister,
 	register,
 	activateEmail,
 	searchUsers,

@@ -1,14 +1,9 @@
 {
   "ExpandedNodes": [
     "",
+    "\\config",
     "\\src",
-    "\\src\\authentication",
-    "\\src\\booking",
-    "\\src\\pricing",
-    "\\src\\slot",
     "\\src\\user",
-    "\\test",
-    "\\test\\unit",
     "\\test\\unit\\booking"
   ],
   "SelectedNode": "\\src\\user\\user.service.js",

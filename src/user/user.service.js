@@ -7,12 +7,10 @@ const customError = require("../common/customError");
 const User = require("./user.model").User;
 const authenticationService = require("../authentication/authentication.service");
 const activationEmailService = require("./activationEmail.service");
+const userObjectMapper = require("./userObjectMapper.helper");
 
 const ACTIVE_STATUS = "ACTIVE";
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
-
-const LOGIN_ID_PATH = "/loginId";
-const CREDENTIALS_PATH = "/credentials";
 
 function socialRegister(input){
 	return new Promise(async (resolve, reject) => {
@@ -105,13 +103,6 @@ function register(input){
 				emailAddress: Joi
 					.string()
 					.required(),
-				telephoneCountryCode: Joi
-					.string()
-					.valid("852", "853", "86")
-					.required(),
-				telephoneNumber: Joi
-					.string()
-					.required(),
 				name: Joi
 					.string()
 					.required()
@@ -121,23 +112,19 @@ function register(input){
 		if (result.error) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
-		
-		var newUser = new User();
 
 		authenticationService.checkLoginIdAvailability({loginId: loginId})
 			.then(isAvailable => {
 				if (isAvailable == false) {
-					reject({ name: customError.INTERNAL_SERVER_ERROR, message: "LoginId already taken" });
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "LoginId already taken" });
 				}
 
 				return;
 			})
 			.then(() => {
 				//save new user
+				var newUser = new User();
 				newUser.emailAddress = input.emailAddress;
-				newUser.telephoneCountryCode = input.telephoneCountryCode;
-				input.telephoneNumber = input.telephoneNumber.replace(/[^\w\s]/gi, '');
-				newUser.telephoneNumber = input.telephoneNumber;
 				newUser.name = input.name;
 
 				newUser.status = AWAITING_ACTIVATION_STATUS;
@@ -160,16 +147,12 @@ function register(input){
 					userId: newUser.id
 				});
 
-				return;
+				return newUser;
 			})
-			.then(() => {
+			.then(newUser => {
 				//set sendActivationEmail input flag, default to false if not provided
-				if (input.sendActivationEmail == null) {
-					input.sendActivationEmail = false;
-				}
-
-				if(sendActivationEmail == false){
-					var outputObj = userToOutputObj(newUser);
+				if (input.sendActivationEmail != true) {
+					var outputObj = userObjectMapper.toOutputObj(newUser)
 					outputObj.activationKey = newUser.activationKey;
 		
 					resolve(outputObj);
@@ -194,208 +177,211 @@ function register(input){
 			})
 			.catch(err => {
 				//TODO check for fail send email
-				logger.error("Occupancy.findOne() error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Delete function not available" });
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
 	});
 }
 
-function activateUser(input){
-	
-	var response = new Object();
+function activateUser(input, user){
+	return new Promise(async (resolve, reject) => {
+		//TODO validate user either admin or self
 
-	if (input.activationKey == null || input.activationKey.length < 1) {
-		response.status = 400;
-		response.message = "activationKey is mandatory";
-		throw response;
-	}
-
-	//find user
-	var user;
-	await User.findOne({
-		"activationKey": input.activationKey
-	})
-		.exec()
-		.then(result => {
-			user = result;
-		})
-		.catch(err => {
-			logger.error("User.findOne() error : " + err);
-			response.status = 500;
-			response.message = "User.findOne() is not available";
-			throw response;
+		//validate input data
+		const schema = Joi.object({
+			activationKey: Joi
+				.string()
+				.required()
 		});
 
-	//if no user found using the activation key,
-	//it's a bad key
-	if(user == null){
-		response.status = 401;
-		response.message = "Invalid activationKey";
-		throw response;
-	}
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	//set user status to ACTIVE
-	//set new lastUpdateTime
-	//delete activationKey
-	user.status = ACTIVE_STATUS;
-	user.lastUpdateTime = new Date();
-	user.activationKey = null;
-
-	const histroyItem = {
-		transactionTime: common.getNowUTCTimeStamp(),
-		transactionDescription: "User activated"
-	}
-	user.history.push(histroyItem);
-
-	await user.save()
-		.then(result => {
-			logger.info("Sucessfully updated ACTIVE status for user : " + user.id);
+		//find user
+		User.findOne({
+			"activationKey": input.activationKey
 		})
-		.catch(err => {
-			logger.error("Error while running user.save() : " + err);
-			response.status = 500;
-			response.message = "user.save() is not available";
-			throw response;
-		});
+			.then(user => {
+				//if no user found using the activation key,
+				//it's a bad key
+				if (user == null) {
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" });
+				}
 
-	return {"status" : ACTIVE_STATUS};
+				//set user status to ACTIVE
+				//set new lastUpdateTime
+				//delete activationKey
+				user.status = ACTIVE_STATUS;
+				user.lastUpdateTime = new Date();
+				user.activationKey = null;
+
+				const histroyItem = {
+					transactionTime: common.getNowUTCTimeStamp(),
+					transactionDescription: "User activated"
+				}
+				user.history.push(histroyItem);
+
+				return user;
+			})
+			.then(user => {
+				resolve(user.save());
+			})
+			.catch(err => {
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
 function forgetPassword(input){
-
-	var response = new Object();
-
-	//validate userId
-	if(input.userId == null || input.userId.length == 0){
-		response.status = 401;
-		response.message = "userId is mandatory";
-		throw response;
-	}
-
-	//find targetUser
-	var user;
-	User.findById(input.userId)
-		.exec()
-		.then(result => {
-			user = result;
-		})
-		.catch(err => {
-			logger.error("Error while running User.findById() : " + err);
-			response.status = 500;
-			response.message = "User.findById() is not available";
-			throw response;
+	return new Promise(async (resolve, reject) => {
+		//validate input data
+		const schema = Joi.object({
+			userId: Joi
+				.string()
+				.required()
 		});
 
-	if(user == null){
-		response.status = 400;
-		response.message = "invalid userId";
-		throw response;
-	}
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	//set resetPasswordKey in db
-	user.resetPassordKey = uuid.v4();
-	await user.save()
-		.then(result => {
-			logger.info("Successfully assigned resetPasswordKey for user : " + user.id);
-		})
-		.catch(err => {
-			logger.error("Error while running user.save() : " + err);
-			response.status = 500;
-			response.message = "user.save() is not available";
-			throw response;
-		});
+		//find targetUser
+		User.findById(input.userId)
+			.then(user => {
+				if (user == null) {
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "invalid userId" });
+				}
 
-	//set email of "one time use" reset password link
-	await helper.sendforgetPasswordEmail(resetPassordKey, targetUser.emailAddress)
-		.catch(err => {
-			response.status = 500;
-			response.message = "helper.sendforgetPasswordEmail() is not available";
-			throw response;
-		});
+				//set resetPasswordKey
+				user.resetPassordKey = uuid.v4();
 
-	return;
+				return user;
+			})
+			.the(user => {
+				return user.save();
+			})
+			.the(user => {
+				//TODO write(or find) this fucntion
+				sendforgetPasswordEmail(user);
+
+				resolve();
+			})
+			.catch(err => {
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
-function updateEmailAddress(input) {
-	var response = new Object();
+function updateEmailAddress(input, user) {
+	return new Promise(async (resolve, reject) => {
+		//TODO validate user either admin or self
 
-	//validate userId
-	if (input.userId == null || input.userId.length == 0) {
-		response.status = 401;
-		response.message = "userId is mandatory";
-		throw response;
-	}
-
-	var user;
-	await User.findById(input.userId)
-		.exec()
-		.then(result => {
-			user = result;
-		})
-		.catch(err => {
-			logger.error("Error while running User.findById() : " + err);
-			response.status = 500;
-			response.message = "User.findById() is not available";
-			throw response;
+		//validate input data
+		const schema = Joi.object({
+			userId: Joi
+				.string()
+				.required(),
+			emailAddress: Joi
+				.string()
+				.required()
+			//TODO validate email address format
 		});
 
-	if (user == null) {
-		response.status = 400;
-		response.message = "Invalid userId";
-		throw response;
-	}
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	//validate emailAddress
-	if (input.emailAddress == null || input.emailAddress.length == 0) {
-		response.status = 401;
-		response.message = "emailAddress is mandatory";
-		throw response;
-	}
+		User.findById(input.userId)
+			.then(user => {
+				if (user == null) {
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "invalid userId" });
+				}
 
-	//TODO validate email address format
+				//update emailAddress in user record
+				user.emailAddress = input.emailAddress;
 
-	//update emailAddress in user record
-	user.emailAddress = input.emailAddress;
-	user.save()
-		.then(result => {
-			logger.info("Successfully updated emailAddress for user : " + user.id);
-		})
-		.catch(err => {
-			logger.error("Error while running user.save() : " + err);
-			response.status = 500;
-			response.message = "user.save() is not available";
-			throw response;
-		});
+				//set history
+				const historyItem = {
+					transactionTime: moment().toDate(),
+					transactionDescription: "Updated email address"
+				}
+				user.history.push(historyItem);
 
-	return;
+				return user;
+			})
+			.then(user => {
+				resolve(user.save());
+			})
+			.catch(err => {
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
-function userToOutputObj(user) {
-	var outputObj = new Object();
-	outputObj.id = user.id;
-	outputObj.emailAddress = user.emailAddress;
-	outputObj.status = user.status;
-	outputObj.registrationTime = user.registrationTime;
-	outputObj.groups = user.groups;
-	outputObj.name = user.name;
-	outputObj.provider = user.provider;
-	outputObj.providerUserId = user.providerUserId;
-	outputObj.history = user.history;
-	outputObj.userType = user.userType;
-	outputObj.telephoneCountryCode = user.telephoneCountryCode;
-	outputObj.telephoneNumber = user.telephoneNumber;
+function updateTelephoneNumber(input, user) {
+	return new Promise(async (resolve, reject) => {
+		//TODO validate user either admin or self
 
-	return outputObj;
+		//validate input data
+		const schema = Joi.object({
+			userId: Joi
+				.string()
+				.required(),
+			telephoneCountryCode: Joi
+				.string()
+				.validate("852", "853", "86")
+				.required(),
+			telephoneNumber: Joi
+				.string()
+				.required()
+		});
+
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
+
+		User.findById(input.userId)
+			.then(user => {
+				if (user == null) {
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "invalid userId" });
+				}
+
+				//update telephoneCountry and telephoneNumber and  in user record
+				user.telephoneCountryCode = input.telephoneCountryCode;
+				user.telephoneNumber = input.telephoneNumber;
+
+				//set history
+				const historyItem = {
+					transactionTime: moment().toDate(),
+					transactionDescription: "Updated telephone number"
+				}
+				user.history.push(historyItem);
+
+				return user;
+			})
+			.then(user => {
+				resolve(user.save());
+			})
+			.catch(err => {
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
 module.exports = {
-	forgetPassword,
-	deactivateUser,
 	activateUser,
-	adminActivateUser,
+	socialRegister,
 	register,
-	findUser,
-	fetchAllUsers,
+	forgetPassword,
 	updateEmailAddress,
-	assignGroup
+	updateTelephoneNumber
 }

@@ -8,6 +8,7 @@ const userController = require("./user.controller");
 const router = express.Router();
 router.put("/activate", logIncommingRequest, userController.activate);
 router.post("/register", logIncommingRequest, userController.register);
+router.post("/social-register", logIncommingRequest, userController.register);
 
 router.put("/deactivate", authenticateAccessToken, logIncommingRequest, userController.deactivate);
 router.put("/admin-activate", authenticateAccessToken, logIncommingRequest, userController.adminActivate);

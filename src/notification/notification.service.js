@@ -1,17 +1,20 @@
 "use strict";
 const nodemailer = require("nodemailer");
 const AWS = require("aws-sdk");
+const Joi = require("joi");
+const moment = require("moment");
+const config = require("config");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 
-/****************************************************************
+/**
 By : Ken Lai
 Date : Mar 18, 2020
 
 send email using aws ses service
-*****************************************************************/
+**/
 function sendEmail(input, user){
 	return new Promise((resolve, reject) => {
 		const rightsGroup = [
@@ -54,8 +57,8 @@ function sendEmail(input, user){
 	
 		//set email
 		var transporter = nodemailer.createTransport({
-			host: process.env.EMAIL_SERVICE,
-			port: 465,
+			host: config.get("notification.email.provider"),
+			port: config.get("notification.email.port"),
 			auth: {
 				user: process.env.EMAIL_SERVICE_USER,
 				pass: process.env.EMAIL_SERVICE_PASSWORD
@@ -88,13 +91,13 @@ function sendEmail(input, user){
 	});	
 }
 
-/****************************************************************
+/**
 By : Ken Lai
 Date : Apr 08, 2020
 
 send sms using aws sns service
-*****************************************************************/
-async function sendSMS(input, user) {
+**/
+function sendSMS(input, user) {
 	return new Promise((resolve, reject) => {
 		const rightsGroup = [
 			"NOTIFICATION_ADMIN_GROUP",
@@ -127,7 +130,6 @@ async function sendSMS(input, user) {
 			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
 	
-		
 		var sendParams = {
 			Message: input.message,
 			PhoneNumber: '+' + input.number
@@ -159,8 +161,8 @@ async function sendSMS(input, user) {
 				logger.info("Amazon SNS Message ID : " + data.MessageId);
 
 				resolve({
-					messageId = data.MessageId,
-					sentTime = moment().toISOString()
+					messageId: data.MessageId,
+					sentTime: moment().toISOString()
 				});
 			})
 			.catch(err => {

@@ -1,5 +1,14 @@
-function deactivateUser(input){
-    return new Promise(async (resolve, reject) => {
+function deactivateUser(input, user){
+	return new Promise(async (resolve, reject) => {
+		//validate user group rights
+		const rightsGroup = [
+			"USER_ADMIN_GROUP"
+		]
+
+		if (userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+		}
+
         //validate input data
 		const schema = Joi.object({
 			userId: Joi
@@ -35,7 +44,7 @@ function deactivateUser(input){
                 resolve(user);
             })
             .catch(err => {
-                logger.error("Occupancy.findOne() error : ", err);
+                logger.error("Internal Server Error : ", err);
 				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
             });
     });
@@ -48,104 +57,140 @@ function deactivateUser(input){
 * adminstartive active user. No activation email necessary
 * only callable by admin
 */
-async function adminActivateUser(input) {
-	var response = new Object();
+function adminActivateUser(input, user) {
+	return new Promise(async (resolve, reject) => {
+		//validate user group rights
+		const rightsGroup = [
+			"USER_ADMIN_GROUP"
+		]
 
-	//TODO!!!!! set admin authentication
+		if (userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
 
-	if (input.userId == null || input.userId.length < 1) {
-		response.status = 400;
-		response.message = "userId is mandatory";
-		throw response;
-	}
-
-	//get user
-	var user;
-	await User.findById(input.userId)
-		.exec()
-		.then(result => {
-			user = result;
-		})
-		.catch(err => {
-			logger.error("Error while running User.findById() : " + err);
-			response.status = 500;
-			response.message = "User.findById() is not available";
-			throw response;
+		}
+		
+		//validate input data
+		const schema = Joi.object({
+			userId: Joi
+				.string()
+				.required()
 		});
 
-	if(user == null){
-		response.status = 400;
-		response.message = "Invalid User ID";
-		throw response;
-	}
-	
-	//update user status
-	user.status = ACTIVE_STATUS;
-	user.lastUpdateTime = new Date();
-	user.activationKey = null;
-	user.save()
-		.then(result => {
-			logger.info("Successfully activated user : " + user.id);
-		})
-		.catch(err => {
-			response.status = 400;
-			response.message = "userModel.activateUser() is not available";
-			throw response;
-		});
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	return {"status" : ACTIVE_STATUS};
+		//get user
+		User.findById(input.userId)
+			.then(user => {
+				if (user == null) {
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" });
+				}
+
+				//update user status
+				user.status = ACTIVE_STATUS;
+				user.lastUpdateTime = new Date();
+				user.activationKey = null;
+
+				return user;
+			})
+			.then(user => {
+				resolve(user.save());
+			})
+			.catch(err => {
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
-async function assignGroup(input) {
-	var response = new Object();
-	
-	//validate userId
-	if (input.userId == null || input.userId.length == 0) {
-		response.status = 400;
-		response.message = "userId is mandatory";
-		throw response;
-	}
+function assignGroup(input, user) {
+	return new Promise(async (resolve, reject) => {
+		//validate user group rights
+		const rightsGroup = [
+			"USER_ADMIN_GROUP"
+		]
 
-	var user;
-	await User.findById(input.userId)
-		.exec()
-		.then(result => {
-			user = result;
-		})
-		.catch(err => {
-			logger.error("Error while running User.findById() : " + err);
-			response.status = 500;
-			response.message = "User.findById() is not available";
-			throw response;
+		if (userAuthorization(user.groups, rightsGroup) == false) {
+			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+
+		}
+
+		//validate input data
+		const schema = Joi.object({
+			userId: Joi
+				.string()
+				.required(),
+			groupId: Joi
+				.string()
+				.validate("BOOKING_ADMIN_GROUP","USER_ADMIN_GROUP")
+				.required()
+			//TODO add more valid groups
 		});
 
-	if (user == null) {
-		response.status = 400;
-		response.message = "invalid userId";
-		throw response;
-	}
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
 
-	//validate groupId
-	if (input.groupId == null || input.groupId.length == 0) {
-		response.status = 400;
-		response.message = "groupId is mandatory";
-		throw response;
-	}
+		User.findById(input.userId)
+			.then(user => {
+				if (user == null) {
+					reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" });
+				}
 
-	user.groups.push(input.groupId);
+				user.groups.push(input.groupId);
 
-	await user.save()
-		.then(() => {
-			logger.info("Successfully updated groups for user : " + user.id);
-		})
-		.catch(err => {
-			logger.error("Error while running user.save() : " + err);
-			response.status = 500;
-			response.message = "user.save() is not available";
-			throw response;
+				return user;
+			})
+			.then(user => {
+				resolve(user.save())s;
+			})
+			.catch(err => {
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
+}
+
+function socialUser(input) {
+	return new Promise(async (resolve, reject) => {
+		//validate input data
+		const schema = Joi.object({
+			provider: Joi
+				.string()
+				.required(),
+			providerUserId: Joi
+				.string()
+				.required()
 		});
 
-	return {"status":"SUCCESS"};
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+		}
+
+		//find user with provider and providerUserId
+		User.findOne({
+			provider: input.provider,
+			providerUserId: input.providerUserId
+		})
+			.then(user => {
+				if (user == null) {
+					reject({ name: customError.RESOURCE_NOT_FOUND, message: "No user found" });
+				}
+
+				var outputObj
+				outputObj = userToOutputObj(user);
+
+				resolve(outputObj);
+			})
+			.catch(err => {
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
+	});
 }
 
 /**
@@ -154,82 +199,36 @@ async function assignGroup(input) {
  * 
  * find user by id or by accessToken, or provider with providerUserId
  */
-async function findUser(input){
-	var response = new Object();
-	var userId;
-	var user;
+function findUser(input) {
+	return new Promise(async (resolve, reject) => {
+		//validate input data
+		const schema = Joi.object({
+			userId: Joi
+				.string()
+				.required()
+		});
 
-	if (input.provider != null) {
-		//has provider, must user provideUserId
-		if (input.providerUserId == null || input.providerUserId.length < 1) {
-			response.status = 400;
-			response.message = "providerUserId is mandatory";
-			throw response;
-		}
-		
-		//find user with provider and providerUserId
-		await User.findOne({
-			provider: input.provider,
-			providerUserId: input.providerUserId
-		})
-			.exec()
-			.then(result => {
-				user = result;
-			})
-			.catch(err => {
-				logger.error("Error while running User.find() : " + err);
-				response.status = 500;
-				response.message = "User.find() is not available";
-				throw response;
-			});
-
-	} else {
-		//no provider, must use userId or accessToken
-
-		if ((input.userId == null || input.userId.length < 1) && (input.accessToken == null || input.accessToken.length < 1)) {
-			response.status = 400;
-			response.message = "must provide userId or accessToken";
-			throw response;
+		const result = schema.validate(input);
+		if (result.error) {
+			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
 		}
 
-		if (input.userId != null) {
-			userId = input.userId;
-		} else {
-			jwt.verify(input.accessToken, process.env.ACCESS_TOKEN_SECRET, (err, user) => {
-				if (err) {
-					logger.error("Error while running jwt.verify() : " + err);
-					response.status = 500;
-					response.message = "jwt.verify() is not available";
-					throw response;
+		User.findById(userId)
+			.then(user => {
+				if (user == null) {
+					reject({ name: customError.RESOURCE_NOT_FOUND, message: "No user found" });
 				}
 
-				userId = user.id;
-			});
-		}
+				var outputObj
+				outputObj = userToOutputObj(user);
 
-		await User.findById(userId)
-			.exec()
-			.then(result => {
-				user = result;
+				resolve(outputObj);
 			})
 			.catch(err => {
-				logger.error("Error while running User.findById() : " + err);
-				response.status = 500;
-				response.message = "User.findById() is not available";
-				throw response;
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 			});
-	}
-
-	if (user == null) {
-		response.status = 404;
-		response.message = "No user found";
-		throw response;
-	}
-
-	var outputObj
-	outputObj = userToOutputObj(user);
-
-	return outputObj;
+	});
 }
 
 /**
@@ -239,29 +238,24 @@ async function findUser(input){
 * fetch all users, paginated
 * only callable for admin group
 */
-async function fetchAllUsers() {
-	var response = new Object();
+function searchUsers() {
+	return new Promise(async (resolve, reject) => {
+		//TODO!!!! add paginateion
+		//TODO!!!! add admin group authorization
 
-	//TODO!!!! add paginateion
-	//TODO!!!! add admin group authorization
+		User.find()
+			.then(users => {
+				var outputObjs = [];
+				users.forEach(function (user, index) {
+					var outputObj = userToOutputObj(user);
+					outputObjs.push(outputObj);
+				});
 
-	var users;
-	await User.find()
-		.then(result => {
-			users = result;
-		})
-		.catch(err => {
-			logger.error("Error while running User.find() : " + err);
-			response.status = 500;
-			response.message = "User.find() is not available";
-			throw response;
-		});
-
-	var outputObjs = [];
-	users.forEach(function (user, index) {
-		var outputObj = userToOutputObj(user);
-		outputObjs.push(outputObj);
+				resolve({ "users": outputObjs });
+			})
+			.catch(err => {
+				logger.error("Internal Server Error : ", err);
+				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+			});
 	});
-
-	return { "users" : outputObjs };
 }

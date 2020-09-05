@@ -10,6 +10,9 @@ const pricingRoutes = require("./src/pricing/pricing.routes");
 const slotRoutes = require("./src/slot/slot.routes");
 const occupancyRoutes = require("./src/occupancy/occupancy.routes");
 const crewRoutes = require("./src/crew/crew.routes");
+const userRoutes = require("./src/user/user.routes");
+const authenticationRoutes = require("./src/authentication/authentication.routes");
+const notificationRoutes = require("./src/notification/notification.routes");
 
 const app = express();
 
@@ -20,6 +23,9 @@ app.use("/", pricingRoutes);
 app.use("/", bookingRoutes);
 app.use("/", slotRoutes);
 app.use("/", crewRoutes);
+app.use("/", userRoutes);
+app.use("/", authenticationRoutes);
+app.use("/", notificationRoutes);
 
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {

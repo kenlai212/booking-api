@@ -15,14 +15,20 @@
   "booking": {
     "minimumBookingDuration": 7199000,
     "maximumBookingDuration": 28799000,
-    "earliestBooking":{
+    "earliestBooking": {
       "hour": 8,
       "minute": 0
     },
-    "latestBooking":{
+    "latestBooking": {
       "hour": 16,
       "minute": 30
     },
     "disclaimerURL": "http://admin.hebewake.com/disclaimer"
+  },
+  "notification": {
+    "email": {
+      "provider": "email-smtp.us-west-2.amazonaws.com",
+      "port": 465
+    }
   }
 }
