@@ -1,53 +1,54 @@
-function deactivateUser(input, user){
-	return new Promise(async (resolve, reject) => {
-		//validate user group rights
-		const rightsGroup = [
-			"USER_ADMIN_GROUP"
-		]
+async function deactivateUser(input, user){
+	//validate user group rights
+	const rightsGroup = [
+		"USER_ADMIN_GROUP"
+	]
 
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-        //validate input data
-		const schema = Joi.object({
-			userId: Joi
-				.string()
-				.required()
-		});
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required()
+	});
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-        }
-        
-        //find targetUser
-        User.findById(input.userId)
-            .then(user => {
-                if(user == null){
-                    reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" });
-                }
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
 
-                //update user status to db
-                user.status = INACTIVE_STATUS;
-                user.lastUpdateTime = new Date();
+	//find targetUser
+	let targetUser;
+	try {
+		targetUser = await User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+	}
 
-                const historyItem = {
-                    transactionTime: common.getNowUTCTimeStamp(),
-                    transactionDescription: "User Deactived"
-                }
-                user.history.push(historyItem);
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
 
-                return user.save()
-            })
-            .then(user => {
-                resolve(user);
-            })
-            .catch(err => {
-                logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-            });
-    });
+	//update user status to db
+	targetUser.status = INACTIVE_STATUS;
+	targetUser.lastUpdateTime = new Date();
+
+	const historyItem = {
+		transactionTime: common.getNowUTCTimeStamp(),
+		transactionDescription: "User Deactived"
+	}
+	targetUser.history.push(historyItem);
+
+	try {
+		return await targetUser.save();
+	} catch (err) {
+		logger.error("user.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 }
 
 /*
@@ -57,140 +58,139 @@ function deactivateUser(input, user){
 * adminstartive active user. No activation email necessary
 * only callable by admin
 */
-function adminActivateUser(input, user) {
-	return new Promise(async (resolve, reject) => {
-		//validate user group rights
-		const rightsGroup = [
-			"USER_ADMIN_GROUP"
-		]
+async function adminActivateUser(input, user) {
+	//validate user group rights
+	const rightsGroup = [
+		"USER_ADMIN_GROUP"
+	]
 
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 
-		}
-		
-		//validate input data
-		const schema = Joi.object({
-			userId: Joi
-				.string()
-				.required()
-		});
+	}
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		//get user
-		User.findById(input.userId)
-			.then(user => {
-				if (user == null) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" });
-				}
-
-				//update user status
-				user.status = ACTIVE_STATUS;
-				user.lastUpdateTime = new Date();
-				user.activationKey = null;
-
-				return user;
-			})
-			.then(user => {
-				resolve(user.save());
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//get target user
+	let targetUser;
+	try {
+		targetUser = await User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//update user status
+	targetUser.status = ACTIVE_STATUS;
+	targetUser.lastUpdateTime = new Date();
+	targetUser.activationKey = null;
+
+	try {
+		return targetUser.save();
+	} catch (err) {
+		logger.error("user.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 }
 
-function assignGroup(input, user) {
-	return new Promise(async (resolve, reject) => {
-		//validate user group rights
-		const rightsGroup = [
-			"USER_ADMIN_GROUP"
-		]
+async function assignGroup(input, user) {
+	//validate user group rights
+	const rightsGroup = [
+		"USER_ADMIN_GROUP"
+	]
 
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 
-		}
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			userId: Joi
-				.string()
-				.required(),
-			groupId: Joi
-				.string()
-				.validate("BOOKING_ADMIN_GROUP","USER_ADMIN_GROUP")
-				.required()
-			//TODO add more valid groups
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		User.findById(input.userId)
-			.then(user => {
-				if (user == null) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" });
-				}
-
-				user.groups.push(input.groupId);
-
-				return user;
-			})
-			.then(user => {
-				resolve(user.save())s;
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required(),
+		groupId: Joi
+			.string()
+			.validate("BOOKING_ADMIN_GROUP", "USER_ADMIN_GROUP")
+			.required()
+		//TODO add more valid groups
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	let targetUser;
+	try {
+		targetUser = User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//add groupId to target.groups
+	targetUser.groups.push(input.groupId);
+
+	try {
+		return await user.save();
+	} catch (err) {
+		logger.error("Internal Server Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+    }
 }
 
-function socialUser(input) {
-	return new Promise(async (resolve, reject) => {
-		//validate input data
-		const schema = Joi.object({
-			provider: Joi
-				.string()
-				.required(),
-			providerUserId: Joi
-				.string()
-				.required()
-		});
+async function findSocialUser(input) {
+	//validate input data
+	const schema = Joi.object({
+		provider: Joi
+			.string()
+			.required(),
+		providerUserId: Joi
+			.string()
+			.required()
+	});
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
 
-		//find user with provider and providerUserId
-		User.findOne({
+	//find user with provider and providerUserId
+	let user;
+	try {
+	user = await User.findOne({
 			provider: input.provider,
 			providerUserId: input.providerUserId
 		})
-			.then(user => {
-				if (user == null) {
-					reject({ name: customError.RESOURCE_NOT_FOUND, message: "No user found" });
-				}
+	} catch (err) {
+		logger.error("User.findOne() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-				var outputObj
-				outputObj = userToOutputObj(user);
+	if (user == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND, message: "No user found" };
+	}
 
-				resolve(outputObj);
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
-	});
+	return userToOutputObj(user);
 }
 
 /**
@@ -199,36 +199,32 @@ function socialUser(input) {
  * 
  * find user by id or by accessToken, or provider with providerUserId
  */
-function findUser(input) {
-	return new Promise(async (resolve, reject) => {
-		//validate input data
-		const schema = Joi.object({
-			userId: Joi
-				.string()
-				.required()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		User.findById(userId)
-			.then(user => {
-				if (user == null) {
-					reject({ name: customError.RESOURCE_NOT_FOUND, message: "No user found" });
-				}
-
-				var outputObj
-				outputObj = userToOutputObj(user);
-
-				resolve(outputObj);
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+async function findUser(input) {
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+	}
+
+	let user;
+	try {
+		user = await User.findById(userId);
+	} catch (err) {
+		logger.error("User.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (user == null) {
+		reject({ name: customError.RESOURCE_NOT_FOUND, message: "No user found" });
+	}
+
+	return userToOutputObj(user);
 }
 
 /**
@@ -238,24 +234,23 @@ function findUser(input) {
 * fetch all users, paginated
 * only callable for admin group
 */
-function searchUsers() {
-	return new Promise(async (resolve, reject) => {
-		//TODO!!!! add paginateion
-		//TODO!!!! add admin group authorization
+async function searchUsers() {
+	//TODO!!!! add paginateion
+	//TODO!!!! add admin group authorization
 
-		User.find()
-			.then(users => {
-				var outputObjs = [];
-				users.forEach(function (user, index) {
-					var outputObj = userToOutputObj(user);
-					outputObjs.push(outputObj);
-				});
+	let users;
+	try {
+		users = await User.find();
+	} catch (err) {
+		logger.error("User.find() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-				resolve({ "users": outputObjs });
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	let outputObjs = [];
+	users.forEach(function (user, index) {
+		var outputObj = userToOutputObj(user);
+		outputObjs.push(outputObj);
 	});
+
+	return outputObjs;
 }

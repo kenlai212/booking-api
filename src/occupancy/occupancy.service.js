@@ -7,7 +7,7 @@ const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 const Occupancy = require("./occupancy.model").Occupancy;
-const checkAvailibility = require("./checkAvailibility.helper");
+const occupancyHelper = require("./occupancy.helper");
 
 const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
 const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER_GROUP";
@@ -71,98 +71,97 @@ Date : Aug 16, 2020
 
 Create occupancy record in database
 *********************************************************/
-function occupyAsset(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			OCCUPANCY_ADMIN_GROUP,
-			OCCUPANCY_POWER_USER_GROUP,
-			OCCUPANCY_USER_GROUP,
-			BOOKING_ADMIN_GROUP,
-			BOOKING_USER_GROUP
-		]
-		
-		//validate user
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+async function occupyAsset(input, user) {
+	const rightsGroup = [
+		OCCUPANCY_ADMIN_GROUP,
+		OCCUPANCY_POWER_USER_GROUP,
+		OCCUPANCY_USER_GROUP,
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
+	]
 
-		//validate input data
-		const schema = Joi.object({
-			occupancyType: Joi
-				.string()
-				.valid("CUSTOMER_BOOKING", "OWNER_BOOKING", "MAINTAINANCE")
-				.required(),
-			startTime: Joi.date().iso().required(),
-			endTime: Joi.date().iso().required(),
-			assetId: Joi
-				.string()
-				.required()
-				.valid("A001", "MC_NXT20")
-		});
-		
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-		
-		const startTime = moment(input.startTime).toDate();
-		const endTime = moment(input.endTime).toDate();
-		
-		//startTime cannot be later then endTime
-		if (startTime > endTime) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
-		}
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//find all occupancies with in search start and end time
-		//expand search range to -1 day from startTime and +1 from endTime 
-		const searchTimeRangeStart = moment(startTime).subtract(1, 'days');
-		const searchTimeRangeEnd = moment(endTime).add(1, 'days');
-		Occupancy.find(
+	//validate input data
+	const schema = Joi.object({
+		occupancyType: Joi
+			.string()
+			.valid("CUSTOMER_BOOKING", "OWNER_BOOKING", "MAINTAINANCE")
+			.required(),
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		assetId: Joi
+			.string()
+			.required()
+			.valid("A001", "MC_NXT20")
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	const startTime = moment(input.startTime).toDate();
+	const endTime = moment(input.endTime).toDate();
+
+	//startTime cannot be later then endTime
+	if (startTime > endTime) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
+	}
+
+	//find all occupancies with in search start and end time
+	//expand search range to -1 day from startTime and +1 from endTime 
+	const searchTimeRangeStart = moment(startTime).subtract(1, 'days');
+	const searchTimeRangeEnd = moment(endTime).add(1, 'days');
+
+	let occupancies;
+	try {
+		occupancies = await Occupancy.find(
 			{
 				startTime: { $gte: searchTimeRangeStart },
 				endTime: { $lt: searchTimeRangeEnd },
 				assetId: input.assetId
 			})
-			.then(occupancies => {
-				//check availibility, if false, reject
-				const isAvailable = checkAvailibility(startTime, endTime, occupancies);
+	} catch (err) {
+		logger.error("Occupancy.find Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-				if (isAvailable == false) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" });
-				}
+	//check availibility, if false, reject
+	const isAvailable = checkAvailibility(startTime, endTime, occupancies);
 
-				//set up occupancy object for saving
-				var occupancy = new Occupancy();
-				occupancy.occupancyType = input.occupancyType;
-				occupancy.startTime = startTime;
-				occupancy.endTime = endTime;
-				occupancy.assetId = input.assetId;
-				occupancy.createdBy = user.id;
-				occupancy.createdTime = moment().toDate();
-				occupancy.history = [
-					{
-						transactionTime: moment().toDate(),
-						transactionDescription: "New Occupancy Record",
-						userId: user.id,
-						userName: user.name
-					}
-				]
+	if (isAvailable == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" };
+	}
 
-				//save to db
-				return occupancy.save();
-			})
-			.then(occupancy => {
-				//set output object
-				var outputObj = occupancyToOutputObj(occupancy);
+	//set up occupancy object for saving
+	var occupancy = new Occupancy();
+	occupancy.occupancyType = input.occupancyType;
+	occupancy.startTime = startTime;
+	occupancy.endTime = endTime;
+	occupancy.assetId = input.assetId;
+	occupancy.createdBy = user.id;
+	occupancy.createdTime = moment().toDate();
+	occupancy.history = [
+		{
+			transactionTime: moment().toDate(),
+			transactionDescription: "New Occupancy Record",
+			userId: user.id,
+			userName: user.name
+		}
+	]
 
-				resolve(outputObj);
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});	
-	});
-	
+	try {
+		occupancy = await occupancy.save();
+	} catch (err) {
+		logger.error("occupancy.save Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return occupancyToOutputObj(occupancy);
 }
 
 /*******************************************************
@@ -172,62 +171,61 @@ Get all occupancies with in startTime and endTime of
 target asset
 ********************************************************/
 function getOccupancies(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			OCCUPANCY_ADMIN_GROUP,
-			OCCUPANCY_POWER_USER_GROUP,
-			OCCUPANCY_USER_GROUP,
-			BOOKING_ADMIN_GROUP,
-			BOOKING_USER_GROUP
-		]
+	const rightsGroup = [
+		OCCUPANCY_ADMIN_GROUP,
+		OCCUPANCY_POWER_USER_GROUP,
+		OCCUPANCY_USER_GROUP,
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
+	]
 
-		//validate user group
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights"});
-		}
+	//validate user group
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			startTime: Joi.date().iso().required(),
-			endTime: Joi.date().iso().required(),
-			assetId: Joi
-				.string()
-				.required()
-				.valid("A001", "MC_NXT20")
-		});
+	//validate input data
+	const schema = Joi.object({
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		assetId: Joi
+			.string()
+			.required()
+			.valid("A001", "MC_NXT20")
+	});
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
 
-		const startTime = moment(input.startTime).toDate();
-		const endTime = moment(input.endTime).toDate();
+	const startTime = moment(input.startTime).toDate();
+	const endTime = moment(input.endTime).toDate();
 
-		if (startTime > endTime) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
-		}
+	if (startTime > endTime) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
+	}
 
-		Occupancy.find({
+	let occupancies;
+	try {
+		occupancies = await Occupancy.find({
 			startTime: { $gte: startTime },
 			endTime: { $lt: endTime },
 			assetId: input.assetId
 		})
-			.then(occupancies => {
+	} catch (err) {
+		logger.error("Internal Server Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-				//set outputObjs
-				var outputObjs = [];
-				occupancies.forEach((item) => {
-					outputObjs.push(occupancyToOutputObj(item));
-				});
+	//set outputObjs
+	var outputObjs = [];
+	occupancies.forEach((item) => {
+		outputObjs.push(occupancyToOutputObj(item));
 
-				resolve({ "occupancies": outputObjs });
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
 	});
+
+	return { "occupancies": outputObjs };
 }
 
 function occupancyToOutputObj(occupancy) {

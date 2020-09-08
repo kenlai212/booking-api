@@ -1,7 +1,15 @@
-const userService = require("../user/user.service");
+const userService = require("../user/admin.service");
+const bookingAPIUser = require("../common/bookingAPIUser");
 
-function getUser() {
-    userService.findUser(input)
+async function getUser(userId) {
+    const sysUser = bookingAPIUser.userObject;
+
+    try {
+        return await userService.findUser({ "userId": userId }, sysUser);
+    } catch (err) {
+        logger.error("userService.findUser() error", err);
+        throw err
+    }
 }
 
 module.exports = {

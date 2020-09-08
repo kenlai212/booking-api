@@ -1,4 +1,4 @@
-module.exports = function (startTime, endTime, occupancies) {
+function checkAvailability(startTime, endTime, occupancies) {
 	var isAvailable = true;
 
 	occupancies.forEach((item) => {
@@ -10,4 +10,8 @@ module.exports = function (startTime, endTime, occupancies) {
 	});
 	
 	return isAvailable;
+}
+
+module.exprts = {
+	checkAvailability
 }

@@ -1,380 +1,384 @@
 "use strict";
 const uuid = require("uuid");
 const Joi = require("joi");
+const moment = require("moment");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const User = require("./user.model").User;
-const authenticationService = require("../authentication/authentication.service");
+const authenticationHelper = require("./authentication_internal.helper");
 const activationEmailService = require("./activationEmail.service");
 const userObjectMapper = require("./userObjectMapper.helper");
 
 const ACTIVE_STATUS = "ACTIVE";
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
 
-function socialRegister(input){
-	return new Promise(async (resolve, reject) => {
-		//validate input data
-		const schema = Joi.object({
-			provider: Joi
-				.string()
-				.valid("FACEBOOK", "GOOGLE", "GOGOWAKE")
-				.required(),
-			providerUserId: Joi
-				.string()
-				.required(),
-			emailAddress: Joi
-				.string()
-				.required(),
-			telephoneCountryCode: Joi
-				.string()
-				.valid("852", "853", "86")
-				.required(),
-			telephoneNumber: Joi
-				.string()
-				.required(),
-			name: Joi
-				.string()
-				.required()
-		});
+async function socialRegister(input){
+	//validate input data
+	const schema = Joi.object({
+		provider: Joi
+			.string()
+			.valid("FACEBOOK", "GOOGLE", "GOGOWAKE")
+			.required(),
+		providerUserId: Joi
+			.string()
+			.required(),
+		emailAddress: Joi
+			.string()
+			.required(),
+		name: Joi
+			.string()
+			.required()
+	});
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
 
-		var newUser = new User();
-		newUser.providerUserId = input.providerUserId;
-
-		User.findOne(
+	try {
+		let existingSocialUser = User.findOne(
 			{
 				provider: input.provider,
 				providerUserId: input.providerUserId
-			})
-			.then(existingSocialUser => {
-				if (existingSocialUser != null) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "providerUserId already exist" });
-				}
-			})
-			.catch(err => {
-				logger.error("Occupancy.findOne() error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Delete function not available" });
 			});
 
+		if (existingSocialUser != null) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: "providerUserId already exist" };
+		}
+	} catch (err) {
+		logger.error("User.findOne() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-		newUser.emailAddress = input.emailAddress;
-		newUser.telephoneCountryCode = input.telephoneCountryCode;
-		input.telephoneNumber = input.telephoneNumber.replace(/[^\w\s]/gi, '');
-		newUser.telephoneNumber = input.telephoneNumber;
-		newUser.name = input.name;
+	var newUser = new User();
+	newUser.providerId = input.providerId;
+	newUser.providerUserId = input.providerUserId;
+	newUser.emailAddress = input.emailAddress;
+	newUser.name = input.name;
 
-		newUser.status = AWAITING_ACTIVATION_STATUS;
-		newUser.registrationTime = common.getNowUTCTimeStamp();
-		newUser.activationKey = uuid.v4();
-		newUser.history = [
-			{
+	newUser.status = AWAITING_ACTIVATION_STATUS;
+	newUser.registrationTime = common.getNowUTCTimeStamp();
+	newUser.activationKey = uuid.v4();
+	newUser.history = [
+		{
+			transactionTime: common.getNowUTCTimeStamp(),
+			transactionDescription: "New User registered"
+		}
+	];
+
+	//save newUser record to db
+	try {
+		return await newUser.save();
+	} catch (err) {
+		logger.error("newUser.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+}
+
+async function register(input){
+	//validate input data
+	const schema = Joi.object({
+		loginId: Joi
+			.string()
+			.required(),
+		password: Joi
+			.string()
+			.required(),
+		emailAddress: Joi
+			.string()
+			.required(),
+		name: Joi
+			.string()
+			.required()
+	});
+	
+	const result = schema.validate(input);
+	if (result.error) {
+		throw{ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+	
+	//check loginId availibility
+	try {
+		let isAvailable = await authenticationHelper.checkLoginIdAvailability(input.loginId);
+		
+		if (isAvailable == false) {
+			throw{ name: customError.BAD_REQUEST_ERROR, message: "LoginId already taken" };
+		}
+	} catch (err) {
+		logger.error("authenticationHelper.checkLoginAvailability() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
+	//save new user
+	var newUser = new User();
+	newUser.emailAddress = input.emailAddress;
+	newUser.name = input.name;
+
+	newUser.status = AWAITING_ACTIVATION_STATUS;
+	newUser.registrationTime = moment().toDate();
+	newUser.activationKey = uuid.v4();
+	newUser.history = [
+		{
+			transactionTime: moment().toDate(),
+			transactionDescription: "New User registered"
+		}
+	];
+
+	try {
+		newUser = await newUser.save();
+	} catch (err) {
+		logger.error("newUser.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
+	//save credential
+	try {
+		await authenticationHelper.addNewCredentials(input.loginId, input.password, newUser.id);
+	} catch (err) {
+		logger.error("Rolling back newUser.save()", err);
+		//TODO roll back newUser.save();
+
+		logger.error("authenticationHelper.addNewCredentials error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//if input.sendActivationEmail is not ture, then resolve immediately
+	if (input.sendActivationEmail == true) {
+		try {
+			let sentActivationEmailResult = await activationEmailService.sendActivationEmail(newUser.activationKey, newUser.emailAddress);
+
+			//set histroy to reflect activation email sent
+			const historyItem = {
 				transactionTime: common.getNowUTCTimeStamp(),
-				transactionDescription: "New User registered"
+				transactionDescription: "Sent activation email to user. MessageID : " + sentActivationEmailResult.messageId
 			}
-		];
-		
-		//save newUser record to db
-		newUser.save()
-			.then(result => {
-				newUser = result;
-			})
-			.catch(err => {
-				logger.error("Occupancy.findOne() error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Delete function not available" });
-			});
-	});
+			newUser.history.push(historyItem);
+
+			//update newUser record with history
+			try {
+				newUser.save();
+			} catch (err) {
+				logger.error("update newUser history error : ", err);
+				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+			}
+		} catch (err) {
+			logger.error("authenticationHelper.addNewCredentials error : ", err);
+
+			//set history to reflect activation email failed
+			const historyItem = {
+				transactionTime: common.getNowUTCTimeStamp(),
+				transactionDescription: "Sent activation email to user. MessageID : " + sentActivationEmailResult.messageId
+			}
+			newUser.history.push(historyItem);
+
+			//update newUser record with history
+			try {
+				newUser.save();
+			} catch (err) {
+				logger.error("update newUser history error : ", err);
+				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+			}
+
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
+	}
+
+	//map to output obj
+	let outputObj = userObjectMapper.toOutputObj(newUser);
+	outputObj.activationKey = newUser.activationKey;
+
+	return outputObj;
 }
 
-function register(input){
-	return new Promise(async (resolve, reject) => {
-		//validate input data
-		const schema = Joi.object({
-				loginId: Joi
-					.string()
-					.required(),
-				password: Joi
-					.string()
-					.required(),
-				emailAddress: Joi
-					.string()
-					.required(),
-				name: Joi
-					.string()
-					.required()
-		});
+async function activateUser(input, user){
+	//TODO validate user either admin or self
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		authenticationService.checkLoginIdAvailability({loginId: loginId})
-			.then(isAvailable => {
-				if (isAvailable == false) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "LoginId already taken" });
-				}
-
-				return;
-			})
-			.then(() => {
-				//save new user
-				var newUser = new User();
-				newUser.emailAddress = input.emailAddress;
-				newUser.name = input.name;
-
-				newUser.status = AWAITING_ACTIVATION_STATUS;
-				newUser.registrationTime = moment().toDate();
-				newUser.activationKey = uuid.v4();
-				newUser.history = [
-					{
-						transactionTime: moment().toDate(),
-						transactionDescription: "New User registered"
-					}
-				];
-
-				return newUser.save();
-			})
-			.then(newUser => {
-				//save credential
-				authenticationService.addNewCredentials({
-					loginId: input.loginId,
-					password: input.password,
-					userId: newUser.id
-				});
-
-				return newUser;
-			})
-			.then(newUser => {
-				//set sendActivationEmail input flag, default to false if not provided
-				if (input.sendActivationEmail != true) {
-					var outputObj = userObjectMapper.toOutputObj(newUser)
-					outputObj.activationKey = newUser.activationKey;
-		
-					resolve(outputObj);
-				}
-				
-				return activationEmailService.sendActivationEmail(newUser.activationKey, newUser.emailAddress);
-			})
-			.then(result=> {
-				const historyItem = {
-					transactionTime: common.getNowUTCTimeStamp(),
-					transactionDescription: "Sent activation email to user. MessageID : " + result.messageId
-				}
-				newUser.history.push(historyItem);
-
-				return newUser.save();
-			})
-			.then(newUser => {
-				var outputObj = userToOutputObj(newUser);
-				outputObj.activationKey = newUser.activationKey;
-		
-				resolve(outputObj);
-			})
-			.catch(err => {
-				//TODO check for fail send email
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		activationKey: Joi
+			.string()
+			.required()
 	});
-}
 
-function activateUser(input, user){
-	return new Promise(async (resolve, reject) => {
-		//TODO validate user either admin or self
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			activationKey: Joi
-				.string()
-				.required()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		//find user
-		User.findOne({
+	//find target user
+	let targetUser;
+	try {
+		targetUser = await User.findOne({
 			"activationKey": input.activationKey
-		})
-			.then(user => {
-				//if no user found using the activation key,
-				//it's a bad key
-				if (user == null) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" });
-				}
+		});
+	} catch (err) {
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-				//set user status to ACTIVE
-				//set new lastUpdateTime
-				//delete activationKey
-				user.status = ACTIVE_STATUS;
-				user.lastUpdateTime = new Date();
-				user.activationKey = null;
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
+	}
 
-				const histroyItem = {
-					transactionTime: common.getNowUTCTimeStamp(),
-					transactionDescription: "User activated"
-				}
-				user.history.push(histroyItem);
+	//set user status to ACTIVE
+	//set new lastUpdateTime
+	//delete activationKey
+	targetUser.status = ACTIVE_STATUS;
+	targetUser.lastUpdateTime = new Date();
+	targetUser.activationKey = null;
 
-				return user;
-			})
-			.then(user => {
-				resolve(user.save());
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
-	});
+	const histroyItem = {
+		transactionTime: common.getNowUTCTimeStamp(),
+		transactionDescription: "User activated"
+	}
+	targetUser.history.push(histroyItem);
+
+	try {
+		return await targetUser.save();
+	} catch (err) {
+		logger.error("user.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	} 
 }
 
-function forgetPassword(input){
-	return new Promise(async (resolve, reject) => {
-		//validate input data
-		const schema = Joi.object({
-			userId: Joi
-				.string()
-				.required()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		//find targetUser
-		User.findById(input.userId)
-			.then(user => {
-				if (user == null) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "invalid userId" });
-				}
-
-				//set resetPasswordKey
-				user.resetPassordKey = uuid.v4();
-
-				return user;
-			})
-			.the(user => {
-				return user.save();
-			})
-			.the(user => {
-				//TODO write(or find) this fucntion
-				sendforgetPasswordEmail(user);
-
-				resolve();
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+async function forgetPassword(input){
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//find targetUser
+	let user;
+	try {
+		user = await User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (user == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
+	}
+
+	//set resetPasswordKey
+	user.resetPassordKey = uuid.v4();
+
+	try {
+		return await user.save();
+	} catch (err) {
+		logger.error("user.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 }
 
-function updateEmailAddress(input, user) {
-	return new Promise(async (resolve, reject) => {
-		//TODO validate user either admin or self
+async function updateEmailAddress(input, user) {
+	//TODO validate user either admin or self
 
-		//validate input data
-		const schema = Joi.object({
-			userId: Joi
-				.string()
-				.required(),
-			emailAddress: Joi
-				.string()
-				.required()
-			//TODO validate email address format
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		User.findById(input.userId)
-			.then(user => {
-				if (user == null) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "invalid userId" });
-				}
-
-				//update emailAddress in user record
-				user.emailAddress = input.emailAddress;
-
-				//set history
-				const historyItem = {
-					transactionTime: moment().toDate(),
-					transactionDescription: "Updated email address"
-				}
-				user.history.push(historyItem);
-
-				return user;
-			})
-			.then(user => {
-				resolve(user.save());
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required(),
+		emailAddress: Joi
+			.string()
+			.required()
+		//TODO validate email address format
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	let targetUser;
+	try {
+		targetUser = await User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
+	}
+
+	//update emailAddress in user record
+	targetUser.emailAddress = input.emailAddress;
+
+	//set history
+	const historyItem = {
+		transactionTime: moment().toDate(),
+		transactionDescription: "Updated email address"
+	}
+	targetUser.history.push(historyItem);
+
+	try {
+		return await targetUser.save();
+	} catch (err) {
+		logger.error("user.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 }
 
-function updateTelephoneNumber(input, user) {
-	return new Promise(async (resolve, reject) => {
-		//TODO validate user either admin or self
+async function updateTelephoneNumber(input, user) {
+	//TODO validate user either admin or self
 
-		//validate input data
-		const schema = Joi.object({
-			userId: Joi
-				.string()
-				.required(),
-			telephoneCountryCode: Joi
-				.string()
-				.validate("852", "853", "86")
-				.required(),
-			telephoneNumber: Joi
-				.string()
-				.required()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		User.findById(input.userId)
-			.then(user => {
-				if (user == null) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: "invalid userId" });
-				}
-
-				//update telephoneCountry and telephoneNumber and  in user record
-				user.telephoneCountryCode = input.telephoneCountryCode;
-				user.telephoneNumber = input.telephoneNumber;
-
-				//set history
-				const historyItem = {
-					transactionTime: moment().toDate(),
-					transactionDescription: "Updated telephone number"
-				}
-				user.history.push(historyItem);
-
-				return user;
-			})
-			.then(user => {
-				resolve(user.save());
-			})
-			.catch(err => {
-				logger.error("Internal Server Error : ", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required(),
+		telephoneCountryCode: Joi
+			.string()
+			.validate("852", "853", "86")
+			.required(),
+		telephoneNumber: Joi
+			.string()
+			.required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+	}
+
+	let targetUser;
+	try {
+		targetUser = await User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
+	}
+
+	//update telephoneCountry and telephoneNumber and  in user record
+	targetUser.telephoneCountryCode = input.telephoneCountryCode;
+	targetUser.telephoneNumber = input.telephoneNumber;
+
+	//set history
+	const historyItem = {
+		transactionTime: moment().toDate(),
+		transactionDescription: "Updated telephone number"
+	}
+	targetUser.history.push(historyItem);
+
+	try {
+		return await targetUser.save();
+	} catch (err) {
+		logger.error("user.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 }
 
 module.exports = {

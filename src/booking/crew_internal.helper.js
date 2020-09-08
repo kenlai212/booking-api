@@ -1,10 +1,9 @@
-const moment = require("moment");
 const jwt = require("jsonwebtoken");
 
-const pricingService = require("../pricing/pricing.service");
+const crewService = require("../crew/crew.service");
 const customError = require("../common/customError");
 
-function calculateTotalAmount(startTime, endTime) {
+async function getCrew(crewId) {
     var user = new Object();
     jwt.verify(global.accessToken, process.env.ACCESS_TOKEN_SECRET, (err, targetUser) => {
         if (err) {
@@ -14,18 +13,14 @@ function calculateTotalAmount(startTime, endTime) {
         }
     });
 
-    const input = {
-        "startTime": moment(startTime).toISOString(),
-        "endTime": moment(endTime).toISOString()
-    }
-
     try {
-        return pricingService.calculateTotalAmount(input, user);
+        return await crewService.findCrew({ "crewId": crewId }, user);
     } catch (err) {
+        logger.error("crewService.findCrew error : ", err);
         throw err
     }
 }
 
 module.exports = {
-    calculateTotalAmount
+    getCrew
 }

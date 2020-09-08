@@ -15,80 +15,79 @@ Date : Mar 18, 2020
 
 send email using aws ses service
 **/
-function sendEmail(input, user){
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			"NOTIFICATION_ADMIN_GROUP",
-			"NOTIFICATION_POWER_USER_GROUP",
-			"NOTIFICATION_USER_GROUP",
-			"BOOKING_ADMIN_GROUP",
-			"BOOKING_USER_GROUP"
-		]
-	
-		//validate user group
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+async function sendEmail(input, user){
+	const rightsGroup = [
+		"NOTIFICATION_ADMIN_GROUP",
+		"NOTIFICATION_POWER_USER_GROUP",
+		"NOTIFICATION_USER_GROUP",
+		"BOOKING_ADMIN_GROUP",
+		"BOOKING_USER_GROUP"
+	]
 
-		//validate input data
-		const schema = Joi.object({
-			sender: Joi
-				.string()
-				.valid("booking@hebewake.com",
+	//validate user group
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//validate input data
+	const schema = Joi.object({
+		sender: Joi
+			.string()
+			.valid("booking@hebewake.com",
 				"registration@hebewake.com",
 				"booking@gogowake.com",
 				"registration@gogowake.com")
-				.required(),
-			recipient: Joi
-				.string()
-				.required(),
-			emailBody: Joi
-				.string()
-				.required(),
-			subject: Joi
-				.string()
-				.required()
-		});
+			.required(),
+		recipient: Joi
+			.string()
+			.required(),
+		emailBody: Joi
+			.string()
+			.required(),
+		subject: Joi
+			.string()
+			.required()
+	});
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//set email
+	var transporter = nodemailer.createTransport({
+		host: config.get("notification.email.provider"),
+		port: config.get("notification.email.port"),
+		auth: {
+			user: process.env.EMAIL_SERVICE_USER,
+			pass: process.env.EMAIL_SERVICE_PASSWORD
 		}
-	
-		//set email
-		var transporter = nodemailer.createTransport({
-			host: config.get("notification.email.provider"),
-			port: config.get("notification.email.port"),
-			auth: {
-				user: process.env.EMAIL_SERVICE_USER,
-				pass: process.env.EMAIL_SERVICE_PASSWORD
-			}
-		});
-	
-		const bodyHTML = input.emailBody;
-	
-		var mailOptions = {
-			from: input.sender,
-			to: input.recipient,
-			subject: input.subject,
-			html: bodyHTML
-		};
-	
-		transporter.sendMail(mailOptions)
-			.then(info => {
-				logger.info("Email sent: " + info.response);
-				logger.info("Amzon SES messageId : " + info.messageId);
+	});
 
-				resolve({
-					messageId: info.messageId,
-					sentTime: moment().toISOString()
-				})
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			})
-	});	
+	const bodyHTML = input.emailBody;
+
+	var mailOptions = {
+		from: input.sender,
+		to: input.recipient,
+		subject: input.subject,
+		html: bodyHTML
+	};
+
+	try {
+		const info = await transporter.sendMail(mailOptions);
+
+		logger.info("Email sent: " + info.response);
+		logger.info("Amazon SES messageId : " + info.messageId);
+
+		return {
+			messageId: info.messageId,
+			sentTime: moment().toISOString()
+		}
+
+	} catch (err) {
+		logger.error("transporter.sendMail Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}	
 }
 
 /**
@@ -97,79 +96,79 @@ Date : Apr 08, 2020
 
 send sms using aws sns service
 **/
-function sendSMS(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			"NOTIFICATION_ADMIN_GROUP",
-			"NOTIFICATION_POWER_USER_GROUP",
-			"NOTIFICATION_USER_GROUP",
-			"BOOKING_ADMIN_GROUP",
-			"BOOKING_USER_GROUP"
-		]
-	
-		//validate user group
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+async function sendSMS(input, user) {
+	const rightsGroup = [
+		"NOTIFICATION_ADMIN_GROUP",
+		"NOTIFICATION_POWER_USER_GROUP",
+		"NOTIFICATION_USER_GROUP",
+		"BOOKING_ADMIN_GROUP",
+		"BOOKING_USER_GROUP"
+	]
 
-		//validate input data
-		const schema = Joi.object({
-			message: Joi
-				.string()
-				.required(),
-			number: Joi
-				.string()
-				.required(),
-			subject: Joi
-				.string()
-				.required()
-		});
+	//validate user group
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-	
-		var sendParams = {
-			Message: input.message,
-			PhoneNumber: '+' + input.number
-		}
-
-		var smsParams = {
-			attributes: {
-				"DefaultSMSType": "Transactional"
-			}
-		};
-		var setSMSTypePromise = new AWS.SNS({ apiVersion: '2010-03-31' }).setSMSAttributes(smsParams).promise();
-		var publishTextPromise = new AWS.SNS({ apiVersion: '2010-03-31' }).publish(sendParams).promise();
-
-		//set sms type to transactional
-		setSMSTypePromise
-			.then(data => {
-				logger.info("successfully set sms type to 'transactional'");
-				logger.info("Amazon SNS Request ID : " + data.ResponseMetadata.RequestId);
-
-				return;
-			})
-			.then(() => {
-				//publish the message
-				return publishTextPromise;
-			})
-			.then(data => {
-				logger.info("successfully sent sms message");
-				logger.info("Amazon SNS Request ID : " + data.ResponseMetadata.RequestId);
-				logger.info("Amazon SNS Message ID : " + data.MessageId);
-
-				resolve({
-					messageId: data.MessageId,
-					sentTime: moment().toISOString()
-				});
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		message: Joi
+			.string()
+			.required(),
+		number: Joi
+			.string()
+			.required(),
+		subject: Joi
+			.string()
+			.required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	const sendParams = {
+		Message: input.message,
+		PhoneNumber: '+' + input.number
+	}
+
+	const smsParams = {
+		attributes: {
+			"DefaultSMSType": "Transactional"
+		}
+	};
+
+	const setSMSTypePromise = new AWS.SNS({ apiVersion: '2010-03-31' }).setSMSAttributes(smsParams).promise();
+	const publishTextPromise = new AWS.SNS({ apiVersion: '2010-03-31' }).publish(sendParams).promise();
+
+	//set sms type to transactional
+	try {
+		const data = await setSMSTypePromise;
+
+		logger.info("successfully set sms type to 'transactional'");
+		logger.info("Amazon SNS Request ID : " + data.ResponseMetadata.RequestId);
+	} catch (err) {
+		logger.error("setSMSTypePromise Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//publish the message
+	try {
+		const data = await publishTextPromise;
+
+		logger.info("successfully sent sms message");
+		logger.info("Amazon SNS Request ID : " + data.ResponseMetadata.RequestId);
+		logger.info("Amazon SNS Message ID : " + data.MessageId);
+
+		resolve({
+			messageId: data.MessageId,
+			sentTime: moment().toISOString()
+		});
+	} catch (err) {
+		logger.error("publishTextPromise Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 }
 
 module.exports = {

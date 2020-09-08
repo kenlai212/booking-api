@@ -39,156 +39,160 @@ const DEFAULT_ASSET_ID = "MC_NXT20";
  * Add new booking record to database, then add a corrisponding
  * new occupancy record by calling occupancy service
  */
-function addNewBooking(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			bookingCommon.BOOKING_ADMIN_GROUP,
-			bookingCommon.BOOKING_USER_GROUP
-		]
+async function addNewBooking(input, user) {
+	const rightsGroup = [
+		bookingCommon.BOOKING_ADMIN_GROUP,
+		bookingCommon.BOOKING_USER_GROUP
+	]
 
-		//validate user
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			startTime: Joi.date().iso().required(),
-			endTime: Joi.date().iso().required(),
-			bookingType: Joi
-				.string()
-				.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
-				.required(),
-			contactName: Joi
-				.string()
-				.required(),
-			telephoneCountryCode: Joi
-				.string()
-				.valid("852", "853", "86")
-				.required(),
-			telephoneNumber: Joi.string().required()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-		
-		const startTime = moment(input.startTime).toDate();
-		const endTime = moment(input.endTime).toDate();
-
-		//check if endTime is earlier then startTime
-		if (startTime > endTime) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" });
-		}
-
-		if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
-			//check minimum booking duration, maximum booking duration, earliest startTime
-			try{
-				BookingDurationHelper.checkMimumDuration(startTime,endTime);
-				BookingDurationHelper.checkMaximumDuration(startTime,endTime);
-				BookingDurationHelper.checkEarliestStartTime(startTime, UTC_OFFSET);
-				BookingDurationHelper.checkLatestEndTime(endTime, UTC_OFFSET);
-			}catch(err){
-				reject({ name: customError.BAD_REQUEST_ERROR, message: err});
-			}
-		}
-
-		//check for retro booking (booing before current time)
-		if (startTime < moment().toDate() || endTime < moment().toDate()) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be in the past" });
-		}
-
-		//init booking object
-		var booking = new Booking();
-		booking.startTime = startTime;
-		booking.endTime = endTime;
-
-		//set booking status
-		if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
-			booking.status = AWAITING_CONFIRMATION_STATUS;
-		} else {
-			booking.status = CONFIRMED_BOOKING_STATUS;
-		}
-
-		//set bookingType
-		//TODO validate if user can do OWNER_BOOKING
-		booking.bookingType = input.bookingType;
-		
-		//calculate pricing & currency
-		const totalAmountObj = PricingHelper.calculateTotalAmount(booking.startTime, booking.endTime, booking.bookingType);
-		booking.totalAmount = totalAmountObj.totalAmount;
-		booking.currency = totalAmountObj.currency;
-		booking.paymentStatus = AWAITING_PAYMENT_STATUS;
-		
-		booking.contactName = input.contactName;
-		booking.telephoneCountryCode = input.telephoneCountryCode;
-		booking.telephoneNumber = input.telephoneNumber;
-
-		//set email address if not null
-		if (input.emailAddress != null) {
-			booking.emailAddress = input.emailAddress;
-		}
-
-		//set first guest as contact
-		const firstGuest = {
-			guestName: booking.contactName,
-			telephoneCountryCode: booking.telephoneCountryCode,
-			telephoneNumber: booking.telephoneNumber,
-			emailAddress: booking.emailAddress
-		}
-		booking.guests = [firstGuest];
-
-		//add crew //TODO auto add crew based on schedule
-		//booking.crews = new Array();
-
-		booking.creationTime = moment().toDate();
-		booking.createdBy = user.id;
-		booking.history = [{
-			transactionTime: moment().toDate(),
-			transactionDescription: "New booking",
-			userId: user.id,
-			userName: user.name
-		}]
-
-		//set assetId
-		if (input.assetId == null) {
-			booking.assetId = DEFAULT_ASSET_ID;
-		} else {
-			//TODO add assetId validation
-			booking.assetId = input.assetId;
-		}
-		
-		//save occupancy record
-		OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, booking.assetId, booking.bookingType)
-			.then(newOccupancy => {
-				return newOccupancy.id
-			})
-			.then(occupancyId => {
-				//save newBooking record
-				booking.occupancyId = occupancyId;
-				return booking.save();
-			})
-			.then(newBooking => {
-				//send notification to admin
-				//NotificationHelper.newBookingNotificationToAdmin(newBooking);
-
-				return newBooking;
-			})
-			.then(newBooking => {
-				//send confirmation to customer
-				//NotificationHelper.newBookingConfirmationToCustomer(newBooking);
-				
-				return newBooking;
-			})
-			.then(newBooking => {
-				resolve(bookingCommon.bookingToOutputObj(newBooking));
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		bookingType: Joi
+			.string()
+			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
+			.required(),
+		contactName: Joi
+			.string()
+			.required(),
+		telephoneCountryCode: Joi
+			.string()
+			.valid("852", "853", "86")
+			.required(),
+		telephoneNumber: Joi.string().required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	const startTime = moment(input.startTime).toDate();
+	const endTime = moment(input.endTime).toDate();
+
+	//check if endTime is earlier then startTime
+	if (startTime > endTime) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
+	}
+
+	if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
+		//check minimum booking duration, maximum booking duration, earliest startTime
+		try {
+			BookingDurationHelper.checkMimumDuration(startTime, endTime);
+			BookingDurationHelper.checkMaximumDuration(startTime, endTime);
+			BookingDurationHelper.checkEarliestStartTime(startTime, UTC_OFFSET);
+			BookingDurationHelper.checkLatestEndTime(endTime, UTC_OFFSET);
+		} catch (err) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: err };
+		}
+	}
+
+	//check for retro booking (booing before current time)
+	if (startTime < moment().toDate() || endTime < moment().toDate()) {
+		throw{ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be in the past" };
+	}
+
+	//init booking object
+	var booking = new Booking();
+	booking.startTime = startTime;
+	booking.endTime = endTime;
+
+	//set booking status
+	if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
+		booking.status = AWAITING_CONFIRMATION_STATUS;
+	} else {
+		booking.status = CONFIRMED_BOOKING_STATUS;
+	}
+
+	//set bookingType
+	//TODO validate if user can do OWNER_BOOKING
+	booking.bookingType = input.bookingType;
+
+	//calculate pricing & currency
+	const totalAmountObj = PricingHelper.calculateTotalAmount(booking.startTime, booking.endTime, booking.bookingType);
+	booking.totalAmount = totalAmountObj.totalAmount;
+	booking.currency = totalAmountObj.currency;
+	booking.paymentStatus = AWAITING_PAYMENT_STATUS;
+
+	booking.contactName = input.contactName;
+	booking.telephoneCountryCode = input.telephoneCountryCode;
+	booking.telephoneNumber = input.telephoneNumber;
+
+	//set email address if not null
+	if (input.emailAddress != null) {
+		booking.emailAddress = input.emailAddress;
+	}
+
+	//set first guest as contact
+	const firstGuest = {
+		guestName: booking.contactName,
+		telephoneCountryCode: booking.telephoneCountryCode,
+		telephoneNumber: booking.telephoneNumber,
+		emailAddress: booking.emailAddress
+	}
+	booking.guests = [firstGuest];
+
+	//add crew //TODO auto add crew based on schedule
+	//booking.crews = new Array();
+
+	booking.creationTime = moment().toDate();
+	booking.createdBy = user.id;
+	booking.history = [{
+		transactionTime: moment().toDate(),
+		transactionDescription: "New booking",
+		userId: user.id,
+		userName: user.name
+	}]
+
+	//set assetId
+	if (input.assetId == null) {
+		booking.assetId = DEFAULT_ASSET_ID;
+	} else {
+		//TODO add assetId validation
+		booking.assetId = input.assetId;
+	}
+
+	//save occupancy record
+	let occupancy;
+	try {
+		occupancy = await OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, booking.assetId, booking.bookingType);
+	} catch (err) {
+		logger.error("OccupancyHelper.occupyAsset Error", err);
+		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+	}
+
+	//save booking
+	booking.occupancyId = occupancy.id;
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error", err);
+		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+	}
+
+	//send notification to admin
+	try {
+		//await NotificationHelper.newBookingNotificationToAdmin(booking);
+	} catch (err) {
+		logger.error("NotificationHelper.newBookingNotificationToAdmin Error", err);
+		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+	}
+			
+	//send confirmation to customer
+	try {
+		//await NotificationHelper.newBookingConfirmationToCustomer(booking);
+	} catch (err) {
+		logger.error("NotificationHelper.newBookingConfirmationToCustomer Error", err);
+		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+	}
+
+	return bookingCommon.bookingToOutputObj(newBooking);
 }
 
 /**
@@ -198,73 +202,75 @@ function addNewBooking(input, user) {
  * fulfill the booking, by seting the fulfilledHours and setting the status to "FULFILLED"
  * add fulfill history record
  */
-function fulfillBooking(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			bookingCommon.BOOKING_ADMIN_GROUP
-		]
+async function fulfillBooking(input, user) {
+	const rightsGroup = [
+		bookingCommon.BOOKING_ADMIN_GROUP
+	]
 
-		//validate user
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			bookingId: Joi
-				.string()
-				.required(),
-			fulfilledHours: Joi
-				.number()
-				.required()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		//validate bookingId
-		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
-		}
-
-		Booking.findById(input.bookingId)
-			.then(targetBooking => {
-				if (targetBooking == null) {
-					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
-				}
-
-				//check fulfilledHours not longer booking duration
-				try {
-					BookingDurationHelper.checkFulfilledTime(targetBooking.startTime, targetBooking.endTime, input.fulfilledHours);
-				} catch (err) {
-					reject({ name: customError.BAD_REQUEST_ERROR, message: result });
-				}
-
-				targetBooking.fulfilledHours = input.fulfilledHours;
-				targetBooking.status = FULFILLED_STATUS;
-
-				const fulfilledHistory = {
-					transactionTime: moment().toDate(),
-					transactionDescription: "Fulfilled booking",
-					userId: user.id,
-					userName: user.name
-				}
-				targetBooking.history.push(fulfilledHistory);
-
-				return targetBooking
-			})
-			.then(targetBooking => {
-				targetBooking.save();
-
-				resolve(targetBooking);
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi
+			.string()
+			.required(),
+		fulfilledHours: Joi
+			.number()
+			.required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate bookingId
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+	}
+
+	//find booking
+	let booking;
+	try {
+		booking = await Booking.findById(input.bookingId);
+	} catch (err) {
+		logger.error("Booking.findById Error", err);
+		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+	}
+
+	if (booking == null) {
+		reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
+	}
+
+	//check fulfilledHours not longer booking duration
+	try {
+		BookingDurationHelper.checkFulfilledTime(targetBooking.startTime, targetBooking.endTime, input.fulfilledHours);
+	} catch (err) {
+		reject({ name: customError.BAD_REQUEST_ERROR, message: result });
+	}
+
+	booking.fulfilledHours = input.fulfilledHours;
+	booking.status = FULFILLED_STATUS;
+
+	const fulfilledHistory = {
+		transactionTime: moment().toDate(),
+		transactionDescription: "Fulfilled booking",
+		userId: user.id,
+		userName: user.name
+	}
+	booking.history.push(fulfilledHistory);
+
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error", err);
+		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+	}
+
+	return bookingCommon.bookingToOutputObj(newBooking);
 }
 
 /**
@@ -273,208 +279,208 @@ function fulfillBooking(input, user) {
  * 
  * delete booking from database, delete the corrisponding occupancy record by calling occupancy service.
  */
-function cancelBooking(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			bookingCommon.BOOKING_ADMIN_GROUP
-		]
+async function cancelBooking(input, user) {
+	const rightsGroup = [
+		bookingCommon.BOOKING_ADMIN_GROUP
+	]
 
-		//validate user
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			bookingId: Joi
-				.string()
-				.required()
-		});
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi
+			.string()
+			.required()
+	});
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
 
-		//validate bookingId
-		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
-		}
+	//validate bookingId
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+	}
 
-		Booking.findById(input.bookingId)
-			.then(targetBooking => {
-				if (targetBooking == null) {
-					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
-				}
+	//find booking
+	let booking;
+	try {
+		booking = await Booking.findById(input.bookingId);
+	} catch (err) {
+		logger.error("Booking.findById Error", err);
+		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+	}
 
-				return targetBooking;
-			})
-			.then(targetBooking => {
-				OccupancyHelper.releaseOccupancy(targetBooking.occupancyId);
+	if (booking == null) {
+		reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
+	}
 
-				return targetBooking
-			})
-			.then(targetBooking => {
-				console.log(targetBooking);
-				Booking.findByIdAndDelete(targetBooking._id.toString());
+	//release occupancy
+	try {
+		await OccupancyHelper.releaseOccupancy(booking.occupancyId);
+	} catch (err) {
+		logger.error("OccupancyHelper.releaseOccupancy Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-				return targetBooking;
-			})
-			.then(targetBooking => {
-				//add new booking history
-				const bookingHistory = new BookingHistory();
-				bookingHistory.startTime = targetBooking.startTime;
-				bookingHistory.endTime = targetBooking.endTime;
-				bookingHistory.contactName = targetBooking.contactName;
-				bookingHistory.telephoneCountryCode = targetBooking.telephoneCountryCode;
-				bookingHistory.telephoneNumber = targetBooking.telephoneNumber;
-				bookingHistory.emailAddress = targetBooking.emailAddress;
-				bookingHistory.status = CANCELLED_STATUS;
+	//delete booking record
+	await Booking.findByIdAndDelete(targetBooking._id.toString());
 
-				bookingHistory.save();
+	//save into bookingHistory
+	const bookingHistory = new BookingHistory();
+	bookingHistory.startTime = targetBooking.startTime;
+	bookingHistory.endTime = targetBooking.endTime;
+	bookingHistory.contactName = targetBooking.contactName;
+	bookingHistory.telephoneCountryCode = targetBooking.telephoneCountryCode;
+	bookingHistory.telephoneNumber = targetBooking.telephoneNumber;
+	bookingHistory.emailAddress = targetBooking.emailAddress;
+	bookingHistory.status = CANCELLED_STATUS;
 
-				resolve({ "status": "SUCCESS" });
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
-	});	
+	try {
+		await bookingHistory.save();
+	} catch (err) {
+		logger.error("bookingHistory.save Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
+	retrun { "status": "SUCCESS" };
 }
 
 /**
  * By : Ken Lai
  * Date: Aug 03, 2020
  */
-function reschedule(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			bookingCommon.BOOKING_ADMIN_GROUP
-		]
+async function reschedule(input, user) {
+	const rightsGroup = [
+		bookingCommon.BOOKING_ADMIN_GROUP
+	]
 
-		//validate user
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			bookingId: Joi
-				.string()
-				.required()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		//validate bookingId
-		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
-		}
-
-		Booking.findById(input.bookingId)
-			.then(targetBooking => {
-				if (targetBooking == null) {
-					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
-					response.message = "Invalid booking ID";
-					throw response;
-				}
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
-
-		//TODO......
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi
+			.string()
+			.required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate bookingId
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+	}
+
+	//find booking
+	let booking;
+	try {
+		booking = await Booking.findById(input.bookingId)
+	} catch (err) {
+		logger.error("Internal Server Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (booking == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	}
+
+	//TODO......
 }
 
 /**
  * By : Ken Lai
  * Date : Jul 24, 2020
  */
-function editContact(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			bookingCommon.BOOKING_ADMIN_GROUP,
-			bookingCommon.BOOKING_USER_GROUP
-		]
+async function editContact(input, user) {
+	const rightsGroup = [
+		bookingCommon.BOOKING_ADMIN_GROUP,
+		bookingCommon.BOOKING_USER_GROUP
+	]
 
-		//validate user
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			bookingId: Joi
-				.string()
-				.required(),
-			contactName: Joi
-				.string()
-				.require(),
-			telephoneCountryCode: Joi
-				.string()
-				.valid(bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES)
-				.require(),
-			telephoneNumber: Joi
-				.string()
-				.require()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		//validate bookingId
-		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
-		}
-
-		Booking.findById(input.bookingId)
-			.then(targetBooking => {
-				if (targetBooking == null) {
-					reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
-					response.message = "Invalid booking ID";
-					throw response;
-				}
-
-				targetBooking.contactName = input.contactName;
-				targetBooking.telephoneCountryCode = input.telephoneCountryCode;
-				targetBooking.telephoneNumber = input.telephoneNumber;
-
-				//set emailAddress
-				if (input.emailAddress != null) {
-					if (input.emailAddress.length == 0) {
-						targetBooking.emailAddress = null;
-					} else {
-						targetBooking.emailAddress = input.emailAddress;
-					}
-				}
-
-				//add transaction history
-				targetBooking.history.push({
-					transactionTime: moment().toDate(),
-					transactionDescription: "Edited contact info",
-					userId: user.id,
-					userName: user.name
-				});
-
-				return targetBooking;
-			})
-			.then(targetBooking => {
-				targetBooking.save();
-
-				resolve(targetBooking);
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi
+			.string()
+			.required(),
+		contactName: Joi
+			.string()
+			.require(),
+		telephoneCountryCode: Joi
+			.string()
+			.valid(bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES)
+			.require(),
+		telephoneNumber: Joi
+			.string()
+			.require()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate bookingId
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+	}
+
+	//find booking
+	let booking;
+	try {
+		booking = await Booking.findById(input.bookingId);
+	} catch (err) {
+		logger.error("Booking.findById Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (booking == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	}
+
+	booking.contactName = input.contactName;
+	booking.telephoneCountryCode = input.telephoneCountryCode;
+	booking.telephoneNumber = input.telephoneNumber;
+
+	//set emailAddress
+	if (input.emailAddress != null) {
+		if (input.emailAddress.length == 0) {
+			booking.emailAddress = null;
+		} else {
+			booking.emailAddress = input.emailAddress;
+		}
+	}
+
+	//add transaction history
+	booking.history.push({
+		transactionTime: moment().toDate(),
+		transactionDescription: "Edited contact info",
+		userId: user.id,
+		userName: user.name
+	});
+
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return bookingCommon.bookingToOutputObj(newBooking);
 }
 
 /**
@@ -483,93 +489,97 @@ function editContact(input, user) {
  * 
  * Returns all bookings withint a datetime range
  */
-function viewBookings(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			bookingCommon.BOOKING_ADMIN_GROUP
-		]
+async function viewBookings(input, user) {
+	const rightsGroup = [
+		bookingCommon.BOOKING_ADMIN_GROUP
+	]
 
-		//validate user
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			startTime: Joi.date().iso().required(),
-			endTime: Joi.date().iso().required(),
-		});
+	//validate input data
+	const schema = Joi.object({
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+	});
 
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
 
-		const startTime = moment(input.startTime).toDate();
-		const endTime = moment(input.endTime).toDate();
+	const startTime = moment(input.startTime).toDate();
+	const endTime = moment(input.endTime).toDate();
 
-		if (startTime > endTime) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be later then endTime" });
-		}
+	if (startTime > endTime) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be later then endTime" };
+	}
 
-		Booking.find(
+	//get bookings
+	let bookings;
+	try {
+		bookings = await Booking.find(
 			{
 				startTime: { $gte: startTime },
 				endTime: { $lt: endTime }
 			})
-			.sort("startTime")
-			.then(bookings => {
-				var outputObjs = [];
-				bookings.forEach((booking) => {
-					const outputObj = bookingCommon.bookingToOutputObj(booking);
-					outputObjs.push(outputObj);
-				});
-
-				resolve({ "bookings": outputObjs });
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+			.sort("startTime");
+	} catch (err) {
+		logger.error("Booking.find Error", err);
+		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+	}
+	
+	var outputObjs = [];
+	bookings.forEach((booking) => {
+		const outputObj = bookingCommon.bookingToOutputObj(booking);
+		outputObjs.push(outputObj);
 	});
+
+	return { "bookings": outputObjs };
 }
 
-function findBookingById(input, user) {
-	return new Promise((resolve, reject) => {
-		const rightsGroup = [
-			bookingCommon.BOOKING_ADMIN_GROUP,
-			bookingCommon.BOOKING_USER_GROUP
-		]
+async function findBookingById(input, user) {
+	const rightsGroup = [
+		bookingCommon.BOOKING_ADMIN_GROUP,
+		bookingCommon.BOOKING_USER_GROUP
+	]
 
-		//validate user
-		if (userAuthorization(user.groups, rightsGroup) == false) {
-			reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
-		}
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
 
-		//validate input data
-		const schema = Joi.object({
-			bookingId: Joi.string().required()
-		});
-
-		const result = schema.validate(input);
-		if (result.error) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
-		}
-
-		//validate bookingId
-		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-			reject({ name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" });
-		}
-
-		Booking.findById(input.bookingId)
-			.then(booking => {
-				resolve(bookingCommon.bookingToOutputObj(booking));
-			})
-			.catch(err => {
-				logger.error("Internal Server Error", err);
-				reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
-			});
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi.string().required()
 	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate bookingId
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+	}
+
+	//find booking
+	let booking;
+	try {
+		booking = await Booking.findById(input.bookingId);
+	} catch (err) {
+		logger.error("Booking.findById Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (booking == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	}
+	
+	return bookingCommon.bookingToOutputObj(booking);
 }
 
 module.exports = {

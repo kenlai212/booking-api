@@ -15,8 +15,7 @@ function calculateTotalAmount(startTime, endTime, bookingType){
     } catch (err) {
         logger.error("Error while calling pricingService.calculateTotalAmount : ", err);
         throw err;
-    }
-    
+    }    
 }
 
 module.exports = {
