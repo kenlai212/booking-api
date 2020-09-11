@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
 
-const customError = require("../common/customError")
+const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 const logger = require("../common/logger").logger;
 const bookingCommon = require("./booking.common");
@@ -164,7 +164,7 @@ async function addNewBooking(input, user) {
 		occupancy = await OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, booking.assetId, booking.bookingType);
 	} catch (err) {
 		logger.error("OccupancyHelper.occupyAsset Error", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		throw err;
 	}
 
 	//save booking
@@ -173,7 +173,7 @@ async function addNewBooking(input, user) {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
 	//send notification to admin
@@ -181,7 +181,7 @@ async function addNewBooking(input, user) {
 		//await NotificationHelper.newBookingNotificationToAdmin(booking);
 	} catch (err) {
 		logger.error("NotificationHelper.newBookingNotificationToAdmin Error", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 			
 	//send confirmation to customer
@@ -189,10 +189,10 @@ async function addNewBooking(input, user) {
 		//await NotificationHelper.newBookingConfirmationToCustomer(booking);
 	} catch (err) {
 		logger.error("NotificationHelper.newBookingConfirmationToCustomer Error", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	return bookingCommon.bookingToOutputObj(newBooking);
+	return bookingCommon.bookingToOutputObj(booking);
 }
 
 /**
@@ -238,18 +238,23 @@ async function fulfillBooking(input, user) {
 		booking = await Booking.findById(input.bookingId);
 	} catch (err) {
 		logger.error("Booking.findById Error", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
+	if (booking == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 	}
 
-	if (booking == null) {
-		reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
+	//check if booking if already fulfilled
+	if (booking.status == FULFILLED_STATUS) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already fulfilled" };
 	}
 
 	//check fulfilledHours not longer booking duration
 	try {
-		BookingDurationHelper.checkFulfilledTime(targetBooking.startTime, targetBooking.endTime, input.fulfilledHours);
+		BookingDurationHelper.checkFulfilledTime(booking.startTime, booking.endTime, input.fulfilledHours);
 	} catch (err) {
-		reject({ name: customError.BAD_REQUEST_ERROR, message: result });
+		throw { name: customError.BAD_REQUEST_ERROR, message: result };
 	}
 
 	booking.fulfilledHours = input.fulfilledHours;
@@ -267,10 +272,10 @@ async function fulfillBooking(input, user) {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	return bookingCommon.bookingToOutputObj(newBooking);
+	return bookingCommon.bookingToOutputObj(booking);
 }
 
 /**
@@ -312,11 +317,11 @@ async function cancelBooking(input, user) {
 		booking = await Booking.findById(input.bookingId);
 	} catch (err) {
 		logger.error("Booking.findById Error", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
 	if (booking == null) {
-		reject({ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" });
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 	}
 
 	//release occupancy
@@ -328,26 +333,28 @@ async function cancelBooking(input, user) {
 	}
 
 	//delete booking record
-	await Booking.findByIdAndDelete(targetBooking._id.toString());
+	await Booking.findByIdAndDelete(booking._id.toString());
 
 	//save into bookingHistory
 	const bookingHistory = new BookingHistory();
-	bookingHistory.startTime = targetBooking.startTime;
-	bookingHistory.endTime = targetBooking.endTime;
-	bookingHistory.contactName = targetBooking.contactName;
-	bookingHistory.telephoneCountryCode = targetBooking.telephoneCountryCode;
-	bookingHistory.telephoneNumber = targetBooking.telephoneNumber;
-	bookingHistory.emailAddress = targetBooking.emailAddress;
+	bookingHistory.bookingId = booking._id;
+	bookingHistory.startTime = booking.startTime;
+	bookingHistory.endTime = booking.endTime;
+	bookingHistory.contactName = booking.contactName;
+	bookingHistory.telephoneCountryCode = booking.telephoneCountryCode;
+	bookingHistory.telephoneNumber = booking.telephoneNumber;
+	bookingHistory.emailAddress = booking.emailAddress;
 	bookingHistory.status = CANCELLED_STATUS;
 
 	try {
 		await bookingHistory.save();
 	} catch (err) {
+		//TODO roll back releaseOccupancy
 		logger.error("bookingHistory.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 	
-	retrun { "status": "SUCCESS" };
+	return bookingHistory;
 }
 
 /**
@@ -419,14 +426,14 @@ async function editContact(input, user) {
 			.required(),
 		contactName: Joi
 			.string()
-			.require(),
+			.required(),
 		telephoneCountryCode: Joi
 			.string()
-			.valid(bookingCommon.ACCEPTED_TELEPHONE_COUNTRY_CODES)
-			.require(),
+			.valid("852", "853", "86")
+			.required(),
 		telephoneNumber: Joi
 			.string()
-			.require()
+			.required()
 	});
 
 	const result = schema.validate(input);
@@ -480,7 +487,7 @@ async function editContact(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	return bookingCommon.bookingToOutputObj(newBooking);
+	return bookingCommon.bookingToOutputObj(booking);
 }
 
 /**
@@ -528,7 +535,7 @@ async function viewBookings(input, user) {
 			.sort("startTime");
 	} catch (err) {
 		logger.error("Booking.find Error", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 	
 	var outputObjs = [];

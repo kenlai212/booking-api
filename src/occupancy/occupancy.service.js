@@ -131,7 +131,7 @@ async function occupyAsset(input, user) {
 	}
 
 	//check availibility, if false, reject
-	const isAvailable = checkAvailibility(startTime, endTime, occupancies);
+	const isAvailable = occupancyHelper.checkAvailability(startTime, endTime, occupancies);
 
 	if (isAvailable == false) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" };
@@ -170,7 +170,7 @@ By : Ken Lai
 Get all occupancies with in startTime and endTime of
 target asset
 ********************************************************/
-function getOccupancies(input, user) {
+async function getOccupancies(input, user) {
 	const rightsGroup = [
 		OCCUPANCY_ADMIN_GROUP,
 		OCCUPANCY_POWER_USER_GROUP,

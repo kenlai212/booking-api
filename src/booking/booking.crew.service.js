@@ -1,8 +1,11 @@
 "use strict";
 const mongoose = require("mongoose");
+const Joi = require("joi");
+const moment = require("moment");
 
-const logger = require("../common/logger").logger;
+const customError = require("../common/customError")
 const userAuthorization = require("../common/middleware/userAuthorization");
+const logger = require("../common/logger").logger;
 const Booking = require("./booking.model").Booking;
 const crewHelper = require("./crew_internal.helper");
 const bookingCommon = require("./booking.common");
@@ -74,13 +77,13 @@ async function addCrew(input, user) {
 		crewName: crew.crewName,
 		telephoneCountryCode: crew.telephoneCountryCode,
 		telephoneNumber: crew.telephoneNumber,
-		assignmentTime: gogowakeCommon.getNowUTCTimeStamp(),
+		assignmentTime: moment().toDate(),
 		assignmentBy: user.id
 	});
 
 	//add transaction history
 	booking.history.push({
-		transactionTime: gogowakeCommon.getNowUTCTimeStamp(),
+		transactionTime: moment().toDate(),
 		transactionDescription: "Added new crew : " + input.crewId,
 		userId: user.id,
 		userName: user.name

@@ -12,6 +12,6 @@ function checkAvailability(startTime, endTime, occupancies) {
 	return isAvailable;
 }
 
-module.exprts = {
+module.exports = {
 	checkAvailability
 }

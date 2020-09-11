@@ -14,18 +14,8 @@ const editGuest = asyncMiddleware(async (req) => {
 	return await guestService.editGuest(req.body, req.user);
 });
 
-const sendDisclaimer = asyncMiddleware(async (req) => {
-	return await guestService.sendDisclaimer(req.body, req.user);
-});
-
-const signDisclaimer = asyncMiddleware(async (req) => {
-	return await guestService.signDisclaimer(req.body);
-});
-
 module.exports = {
 	addGuest,
 	removeGuest,
-	editGuest,
-	sendDisclaimer,
-	signDisclaimer
+	editGuest
 }

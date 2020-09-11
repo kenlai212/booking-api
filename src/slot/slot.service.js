@@ -24,15 +24,15 @@ Date : Mar 13 2020
 Returns hourly slots of target date.
 Will include unitPrice and availability in each slot
 **********************************************************/
-function getSlots(input, user) {
+async function getSlots(input, user) {
 	//validate user group rights
 	const rightsGroup = [
 		"BOOKING_ADMIN_GROUP",
 		"BOOKING_USER_GROUP"
 	]
-
+	
 	if (userAuthorization(user.groups, rightsGroup) == false) {
-		reject({ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" });
+		throw{ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 	}
 
 	//validate input data
@@ -43,31 +43,32 @@ function getSlots(input, user) {
 			.required()
 			.valid(OWNER_BOOKING_TYPE, CUSTOMER_BOOKING_TYPE)
 	});
-
+	
 	const result = schema.validate(input);
 	if (result.error) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
 	var targetDateStr = input.targetDate.slice(0, 10);
-	var dayStartTime = moment(targetDateStr + "T" + DAY_START + "Z").toDate();
-	var dayEndTime = moment(targetDateStr + "T" + DAY_END + "Z").toDate();
+	var dayStartTime = moment(targetDateStr + "T" + DAY_START).toDate();
+	var dayEndTime = moment(targetDateStr + "T" + DAY_END).toDate();
 
 	//generate slots from day start to day end
 	var slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
-
+	
 	//get all existing occupancies between dayStarTime and dayEndTime
 	let occupancies;
 	try {
-		occupancies = occupancyHelper.getOccupancies(slots[0].startTime, slots[slots.length - 1].endTime, DEFAULT_ASSET_ID);
+		const result = await occupancyHelper.getOccupancies(slots[0].startTime, slots[slots.length - 1].endTime, DEFAULT_ASSET_ID);
+		occupancies = result.occupancies;
 	} catch (err) {
 		logger.error("getOccupanciesHelper.getOccupancies error : ", err);
 		throw { "name": customError.INTERNAL_SERVER_ERROR, "message": "Internal Server Error" };
 	}
-
-	//set availibilities for each slots
-	slotHelper.setSlotsAvailabilities(slots, occupancies);
 	
+	//set availibilities for each slots
+	slots = slotHelper.setSlotsAvailabilities(slots, occupancies);
+
 	//if customer booking
 	//for each slots, chceck the availability of the nexst slot, 
 	//if not available, set itself to not available as well due to minimum 2hrs limit
@@ -120,8 +121,8 @@ async function getEndSlots(input, user) {
 
 	//setup dayStartTime & datyEndTimefor generateSlots() function
 	const targetDateStr = input.startTime.slice(0, 10);
-	const dayStartTime = moment(targetDateStr + "T" + DAY_START + "Z").toDate();
-	const dayEndTime = moment(targetDateStr + "T" + DAY_END + "Z").toDate();
+	const dayStartTime = moment(targetDateStr + "T" + DAY_START).toDate();
+	const dayEndTime = moment(targetDateStr + "T" + DAY_END).toDate();
 
 	//validate startTime cannot be before dayStartTime
 	const startTime = moment(input.startTime).toDate();
@@ -135,22 +136,24 @@ async function getEndSlots(input, user) {
 	}
 
 	//generate slots from day start to day end
-	const slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
+	let slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
 
+	//get all existing occupancies between dayStarTime and dayEndTime
 	let occupancies;
 	try {
-		occupancies = await occupancyHelper.getOccupancies(slots[0].startTime, slots[slots.length - 1].endTime, DEFAULT_ASSET_ID);
+		const result = await occupancyHelper.getOccupancies(slots[0].startTime, slots[slots.length - 1].endTime, DEFAULT_ASSET_ID);
+		occupancies = result.occupancies;
 	} catch (err) {
 		logger.error("getOccupanciesHelper.getOccupancies error : ", err);
 		throw { "name": customError.INTERNAL_SERVER_ERROR, "message": "Internal Server Error" };
 	}
 
 	//set availibility for each slot
-	slotHelper.setSlotsAvailabilities(slots, occupancies);
-
+	slots = slotHelper.setSlotsAvailabilities(slots, occupancies);
+	
 	//Get all the available end slots after a start slot
 	const startSlot = slotHelper.getSlotByStartTime(startTime, slots);
-
+	
 	//filter out only end slots
 	let endSlots = new Array();
 	for (var i = startSlot.index; i < slots.length; i++) {

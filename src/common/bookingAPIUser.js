@@ -4,6 +4,7 @@ const logger = require("./logger");
 const userObject = {
 	name: "Booking API System User",
 	groups: [
+		"BOOKING_ADMIN_GROUP",
 		"PRICING_USER_GROUP",
 		"OCCUPANCY_ADMIN_GROUP",
 		"NOTIFICATION_USER_GROUP"]

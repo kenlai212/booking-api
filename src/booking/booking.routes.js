@@ -14,18 +14,18 @@ router.post("/booking", authenticateAccessToken, logIncommingRequest, bookingCon
 router.delete("/booking", authenticateAccessToken, logIncommingRequest, bookingController.cancelBooking);
 router.get("/bookings", authenticateAccessToken, logIncommingRequest, bookingController.searchBookings);
 router.get("/booking", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
-router.put("/fulfill-booking", authenticateAccessToken, logIncommingRequest, bookingController.fulfillBooking);
-router.put("/edit-contact", authenticateAccessToken, logIncommingRequest, bookingController.editContact);
+router.put("/booking/fulfill", authenticateAccessToken, logIncommingRequest, bookingController.fulfillBooking);
+router.put("/booking/contact", authenticateAccessToken, logIncommingRequest, bookingController.editContact);
 
-router.put("/add-crew", authenticateAccessToken, logIncommingRequest, crewController.addCrew);
+router.post("/booking/crew", authenticateAccessToken, logIncommingRequest, crewController.addCrew);
 
-router.put("/make-payment", authenticateAccessToken, logIncommingRequest, paymentController.makePayment);
-router.put("/apply-discount", authenticateAccessToken, logIncommingRequest, paymentController.applyDiscount);
+router.put("/booking/payment", authenticateAccessToken, logIncommingRequest, paymentController.makePayment);
+router.put("/booking/discount", authenticateAccessToken, logIncommingRequest, paymentController.applyDiscount);
 
-router.put("/remove-guest", authenticateAccessToken, logIncommingRequest, guestController.removeGuest);
-router.put("/add-guest", authenticateAccessToken, logIncommingRequest, guestController.addGuest);
-router.post("/send-disclaimer", authenticateAccessToken, logIncommingRequest, guestController.sendDisclaimer);
-router.put("/edit-guest", authenticateAccessToken, logIncommingRequest, guestController.editGuest);
-router.post("/sign-disclaimer", logIncommingRequest, guestController.signDisclaimer);
+router.delete("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.removeGuest);
+router.post("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.addGuest);
+router.put("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.editGuest);
+router.put("/booking/guest/disclaimer/notification", authenticateAccessToken, logIncommingRequest, guestController.sendDisclaimer);
+router.put("/booking/guest/disclaimer", logIncommingRequest, guestController.signDisclaimer);
 
 module.exports = router;

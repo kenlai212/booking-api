@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 
 
 const bookingHistorySchema = new mongoose.Schema({
+	bookingId: String,
 	status: String,
 	startTime: Date,
 	endTime: Date,

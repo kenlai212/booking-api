@@ -1,11 +1,11 @@
 const moment = require("moment");
 
 function generateSlots(dayStartTime, dayEndTime) {
-	var slots = new Array();
+	let slots = new Array();
 
-	var slotStartTime = dayStartTime;
-	var slotEndTime = dayStartTime;
-	var index = 0;
+	let slotStartTime = dayStartTime;
+	let slotEndTime = dayStartTime;
+	let index = 0;
 	while (slotEndTime <= dayEndTime) {
 
 		var slot = new Object();
@@ -39,8 +39,8 @@ function setSlotsAvailabilities(slots, occupancies) {
 	slots.forEach((slot) => {
 		slot.available = true;
 
-		var slotStartTime = slot.startTime;
-		var slotEndTime = slot.endTime;
+		let slotStartTime = slot.startTime;
+		let slotEndTime = slot.endTime;
 
 		//cross check current slot against occupancies list for overlap
 		occupancies.forEach(occupancy => {

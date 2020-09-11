@@ -3,7 +3,7 @@ const logger = require("../common/logger").logger;
 const bookingAPIUser = require("../common/bookingAPIUser");
 const occupancyService = require("../occupancy/occupancy.service");
 
-function occupyAsset(startTime, endTime, assetId, occupancyType){
+async function occupyAsset(startTime, endTime, assetId, occupancyType){
     input = {
         startTime: startTime,
         endTime: endTime,
@@ -19,7 +19,7 @@ function occupyAsset(startTime, endTime, assetId, occupancyType){
     }
 }
 
-function releaseOccupancy(occupancyId) {
+async function releaseOccupancy(occupancyId) {
     input = { occupancyId: occupancyId }
 
     try {

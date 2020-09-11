@@ -13,8 +13,7 @@ const editContact = asyncMiddleware(async (req) => {
 });
 
 const cancelBooking = asyncMiddleware(async (req) => {
-	const queryObject = url.parse(req.url, true).query;
-	return await bookingService.cancelBooking(queryObject, req.user);
+	return await bookingService.cancelBooking(req.body, req.user);
 });
 
 const fulfillBooking = asyncMiddleware(async (req) => {

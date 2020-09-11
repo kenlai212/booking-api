@@ -51,23 +51,18 @@ async function findCrew(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
 	}
 
-	var outputObj;
-	if (result != null) {
-		outputObj = crewToOutputObj(result);
-	}
-
-	return outputObj;
+	return crewToOutputObj(crew);
 }
 
 /**
  * By : Ken Lai
  * Date: Jun 1, 2020
  */
-async function searchCrews(user) {
+async function searchCrews(input, user) {
 	const rightsGroup = [
 		OCCUPANCY_ADMIN_GROUP
 	]
-
+	
 	//validate user
 	if (userAuthorization(user.groups, rightsGroup) == false) {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
@@ -77,14 +72,15 @@ async function searchCrews(user) {
 	try {
 		crews = await Crew.find();
 	} catch (err) {
-		logger.error("Internal Server Error : ", err);
+		logger.error("Crew.find Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-
+	//set outputObjs
 	var outputObjs = [];
-	crews.forEach(crew => {
-		outputObjs.push(crewToOutputObj(crew));
+	crews.forEach((item) => {
+		outputObjs.push(crewToOutputObj(item));
+
 	});
 
 	return { "crews": outputObjs };
@@ -107,6 +103,7 @@ async function newCrew(input, user) {
 			.required(),
 		telephoneCountryCode: Joi
 			.string()
+			.valid("852", "853", "86")
 			.required(),
 		telephoneNumber: Joi
 			.string()

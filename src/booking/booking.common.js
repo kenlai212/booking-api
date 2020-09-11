@@ -18,7 +18,7 @@ function bookingToOutputObj(booking) {
 	outputObj.endTime = moment(booking.endTime).toISOString();
 	outputObj.totalAmount = booking.totalAmount;
 	outputObj.discountedAmount = booking.discountedAmount;
-	outputObj.collectedAmount = booking.collectedAmount;
+	outputObj.paidAmount = booking.paidAmount;
 	outputObj.currency = booking.currency;
 	outputObj.contactName = booking.contactName;
 	outputObj.telephoneCountryCode = booking.telephoneCountryCode;

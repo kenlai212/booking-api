@@ -53,8 +53,7 @@ mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useN
 	})
 	.then(() => {
 		//generate access token for booking api
-		global.accessToken = bookingAPIUser.getAccessToken();
-		logger.info("bookingAPIUser accessToken : " + global.accessToken);
+		logger.info("bookingAPIUser accessToken : " + bookingAPIUser.getAccessToken());
 	})
 	.catch(err => {
 		logger.error("Bootup Error", err);

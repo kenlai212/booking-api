@@ -13,9 +13,9 @@ const findCrew = asyncMiddleware(async (req) => {
 	return await crewService.findCrew(queryObject, req.user);
 });
 
-const searchCrews = async (req, res) => {
-	return await crewService.searchCrews(req.user);
-}
+const searchCrews = asyncMiddleware(async (req, res) => {
+	return await crewService.searchCrews(null, req.user);
+});
 
 module.exports = {
 	newCrew,
