@@ -7,6 +7,7 @@ const authenticateAccessToken = require("../common/middleware/authenticateAccess
 const bookingController = require("./booking.controller");
 const paymentController = require("./booking.payment.controller");
 const guestController = require("./booking.guest.controller");
+const disclaimerController = require("./booking.guest.disclaimer.controller");
 const crewController = require("./booking.crew.controller");
 
 const router = express.Router();
@@ -25,7 +26,8 @@ router.put("/booking/discount", authenticateAccessToken, logIncommingRequest, pa
 router.delete("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.removeGuest);
 router.post("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.addGuest);
 router.put("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.editGuest);
-router.put("/booking/guest/disclaimer/notification", authenticateAccessToken, logIncommingRequest, guestController.sendDisclaimer);
-router.put("/booking/guest/disclaimer", logIncommingRequest, guestController.signDisclaimer);
+
+router.put("/booking/guest/disclaimer/notification", authenticateAccessToken, logIncommingRequest, disclaimerController.sendDisclaimerNotification);
+router.put("/booking/guest/disclaimer", logIncommingRequest, disclaimerController.signDisclaimer);
 
 module.exports = router;

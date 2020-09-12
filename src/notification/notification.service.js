@@ -161,10 +161,10 @@ async function sendSMS(input, user) {
 		logger.info("Amazon SNS Request ID : " + data.ResponseMetadata.RequestId);
 		logger.info("Amazon SNS Message ID : " + data.MessageId);
 
-		resolve({
+		return {
 			messageId: data.MessageId,
 			sentTime: moment().toISOString()
-		});
+		};
 	} catch (err) {
 		logger.error("publishTextPromise Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };

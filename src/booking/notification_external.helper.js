@@ -1,3 +1,5 @@
+const config = require("config");
+
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 
@@ -79,7 +81,7 @@ async function newBookingConfirmationToCustomer(booking){
 }
 
 async function sendDisclaimerNotification(bookingId, disclaimerId, telephoneNumber) {
-	const disclaimerURL = config.get("disclaimerURL"); + "?disclaimerId=" + disclaimerId + "&bookingId=" + bookingId;
+	const disclaimerURL = config.get("booking.disclaimerURL"); + "?disclaimerId=" + disclaimerId + "&bookingId=" + bookingId;
 	const data = {
 		"message": "Please read and acknowledge our disclaimer - " + disclaimerURL,
 		"number": telephoneNumber,

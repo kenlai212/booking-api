@@ -2,11 +2,14 @@
 const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
+const config = require("config");
 
 const customError = require("../common/customError");
-const userAuthorization = require("../common/middleware/userAuthorization");
 const logger = require("../common/logger").logger;
+const userAuthorization = require("../common/middleware/userAuthorization");
+
 const bookingCommon = require("./booking.common");
+
 const Booking = require("./booking.model").Booking;
 const BookingHistory = require("./booking-history.model").BookingHistory;
 const BookingDurationHelper = require("./bookingDuration.helper");
@@ -177,19 +180,23 @@ async function addNewBooking(input, user) {
 	}
 
 	//send notification to admin
-	try {
-		//await NotificationHelper.newBookingNotificationToAdmin(booking);
-	} catch (err) {
-		logger.error("NotificationHelper.newBookingNotificationToAdmin Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	if (config.get("booking.newBookingAdminNotification.send") == true) {
+		try {
+			await NotificationHelper.newBookingNotificationToAdmin(booking);
+		} catch (err) {
+			logger.error("NotificationHelper.newBookingNotificationToAdmin Error", err);
+			throw err;
+		}
 	}
-			
+		
 	//send confirmation to customer
-	try {
-		//await NotificationHelper.newBookingConfirmationToCustomer(booking);
-	} catch (err) {
-		logger.error("NotificationHelper.newBookingConfirmationToCustomer Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	if (config.get("sendNewBookingCustomerConfirmation") == true) {
+		try {
+			await NotificationHelper.newBookingConfirmationToCustomer(booking);
+		} catch (err) {
+			logger.error("NotificationHelper.newBookingConfirmationToCustomer Error", err);
+			throw err;
+		}
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);

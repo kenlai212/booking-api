@@ -4,13 +4,13 @@ var uuid = require("uuid");
 const moment = require("moment");
 const mongoose = require("mongoose");
 
-const customError = require("../common/customError")
-const bookingCommon = require("./booking.common");
+const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 const logger = require("../common/logger").logger;
+
+const bookingCommon = require("./booking.common");
 const Booking = require("./booking.model").Booking;
-const Disclaimer = require("./disclaimer.model");
-const notificationHelper = require("./notification_external.helper");
+const notificationHelper = require("./notification_internal.helper");
 
 /**
  * By: Ken Lai
@@ -163,13 +163,11 @@ async function sendDisclaimer(input, user) {
 
 	//send disclaimer notification
 	try {
-		await notificationHelper.sendDisclaimerNotification(booking._id, guest.disclaimerId, guest.telephoneNumber);
+		return await notificationHelper.sendDisclaimerNotification(booking._id, guest.disclaimerId, guest.telephoneNumber);
 	} catch (err) {
-		logger.error("booking.save() Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		logger.error("notificationHelper.sendDisclaimerNotification Error", err);
+		throw err;
 	}
-
-	return;
 }
 
 module.exports = {

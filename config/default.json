@@ -23,7 +23,14 @@
       "hour": 16,
       "minute": 30
     },
-    "disclaimerURL": "http://admin.hebewake.com/disclaimer"
+    "disclaimerURL": "http://admin.hebewake.com/disclaimer",
+    "thankYouURL": "http://dev.www.hebewake.com/thank-you/",
+    "newBookingAdminNotification": {
+      "send": true,
+      "adminRecipientEmailAdress": "gogowakehk@gmail.com",
+      "systemSenderEmailAddress": "booking@hebewake.com"
+    },
+    "sendNewBookingCustomerConfirmation": false
   },
   "notification": {
     "email": {
