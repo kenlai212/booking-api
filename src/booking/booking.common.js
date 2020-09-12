@@ -14,20 +14,25 @@ function bookingToOutputObj(booking) {
 	outputObj.creationTime = booking.creationTime;
 	outputObj.createdBy = booking.createdBy;
 	outputObj.occupancyId = booking.occupancyId;
-	outputObj.startTime = moment(booking.startTime).toISOString();
-	outputObj.endTime = moment(booking.endTime).toISOString();
+	outputObj.status = booking.status;
+
 	outputObj.totalAmount = booking.totalAmount;
 	outputObj.discountedAmount = booking.discountedAmount;
 	outputObj.paidAmount = booking.paidAmount;
 	outputObj.currency = booking.currency;
-	outputObj.contactName = booking.contactName;
-	outputObj.telephoneCountryCode = booking.telephoneCountryCode;
-	outputObj.telephoneNumber = booking.telephoneNumber;
-	outputObj.emailAddress = booking.emailAddress;
-	outputObj.status = booking.status;
 	outputObj.paymentStatus = booking.paymentStatus;
+
+	outputObj.startTime = moment(booking.startTime).toISOString();
+	outputObj.endTime = moment(booking.endTime).toISOString();
 	outputObj.durationInHours = Math.round((booking.endTime - booking.startTime) / 1000 / 60 / 60);
 	outputObj.fulfilledHours = booking.fulfilledHours;
+
+	outputObj.contact = new Object();
+	outputObj.contact.contactName = booking.contact.contactName;
+	outputObj.contact.telephoneCountryCode = booking.contact.telephoneCountryCode;
+	outputObj.contact.telephoneNumber = booking.contact.telephoneNumber;
+	outputObj.contact.emailAddress = booking.contact.emailAddress;
+
 	outputObj.guests = booking.guests;
 	outputObj.history = booking.history;
 	outputObj.crews = booking.crews;

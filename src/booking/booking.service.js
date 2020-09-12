@@ -15,8 +15,7 @@ const BookingHistory = require("./booking-history.model").BookingHistory;
 const BookingDurationHelper = require("./bookingDuration.helper");
 const PricingHelper = require("./pricing_internal.helper");
 const OccupancyHelper = require("./occupancy_internal.helper");
-const NotificationHelper = require("./notification_external.helper");
-
+const NotificationHelper = require("./notification_internal.helper");
 
 const UTC_OFFSET = 8;
 
@@ -123,21 +122,20 @@ async function addNewBooking(input, user) {
 	booking.currency = totalAmountObj.currency;
 	booking.paymentStatus = AWAITING_PAYMENT_STATUS;
 
-	booking.contactName = input.contactName;
-	booking.telephoneCountryCode = input.telephoneCountryCode;
-	booking.telephoneNumber = input.telephoneNumber;
-
-	//set email address if not null
+	//set contact 
+	booking.contact.contactName = input.contactName;
+	booking.contact.telephoneCountryCode = input.telephoneCountryCode;
+	booking.contact.telephoneNumber = input.telephoneNumber;
 	if (input.emailAddress != null) {
-		booking.emailAddress = input.emailAddress;
+		booking.contact.emailAddress = input.emailAddress;
 	}
 
 	//set first guest as contact
 	const firstGuest = {
-		guestName: booking.contactName,
-		telephoneCountryCode: booking.telephoneCountryCode,
-		telephoneNumber: booking.telephoneNumber,
-		emailAddress: booking.emailAddress
+		guestName: booking.contact.contactName,
+		telephoneCountryCode: booking.contact.telephoneCountryCode,
+		telephoneNumber: booking.contact.telephoneNumber,
+		emailAddress: booking.contact.emailAddress
 	}
 	booking.guests = [firstGuest];
 
@@ -190,7 +188,7 @@ async function addNewBooking(input, user) {
 	}
 		
 	//send confirmation to customer
-	if (config.get("sendNewBookingCustomerConfirmation") == true) {
+	if (config.get("booking.newBookingCustomerConfirmation.send") == true) {
 		try {
 			await NotificationHelper.newBookingConfirmationToCustomer(booking);
 		} catch (err) {
@@ -551,7 +549,10 @@ async function viewBookings(input, user) {
 		outputObjs.push(outputObj);
 	});
 
-	return { "bookings": outputObjs };
+	return {
+		"count": outputObjs.length,
+		"bookings": outputObjs
+	};
 }
 
 async function findBookingById(input, user) {

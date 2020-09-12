@@ -24,13 +24,18 @@
       "minute": 30
     },
     "disclaimerURL": "http://admin.hebewake.com/disclaimer",
-    "thankYouURL": "http://dev.www.hebewake.com/thank-you/",
     "newBookingAdminNotification": {
-      "send": true,
+      "send": false,
+      "bookingDetailsURL":  "http://admin.hebewake.com/booking",
+      "adminRecipientNumbers": [ "85293139332" ],
       "adminRecipientEmailAdress": "gogowakehk@gmail.com",
       "systemSenderEmailAddress": "booking@hebewake.com"
     },
-    "sendNewBookingCustomerConfirmation": false
+    "newBookingCustomerConfirmation": {
+      "send": false,
+      "bookingDetailsURL": "http://www.hebewake.com/booking",
+      "systemSenderEmailAddress": "booking@hebewake.com"
+    }
   },
   "notification": {
     "email": {
