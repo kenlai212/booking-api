@@ -17,13 +17,13 @@ const login = asyncMiddleware(async (req) => {
 	return await authService.login(req.body);
 });
 
-const logout = asyncMiddleware(async (req) => {
-	return await authService.logout(req.body);
+const socialLogin = asyncMiddleware(async (req) => {
+	return await authService.socialLogin(req.body);
 });
 
 module.exports = {
 	checkLoginIdAvailability,
 	addNewCredentials,
 	login,
-	logout
+	socialLogin
 }

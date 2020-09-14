@@ -8,6 +8,6 @@ const router = express.Router();
 router.get("/loginId", logIncommingRequest, authenticationController.checkLoginIdAvailability);
 router.post("/credentials", logIncommingRequest, authenticationController.addNewCredentials);
 router.post("/login", logIncommingRequest, authenticationController.login);
-router.post("/logout", logIncommingRequest, authenticationController.logout);
+router.post("/login/social", logIncommingRequest, authenticationController.socialLogin);
 
 module.exports = router;

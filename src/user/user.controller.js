@@ -4,56 +4,32 @@ const url = require("url");
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const userService = require("./user.service");
 
-const deactivate = asyncMiddleware(async (req) => {
-	return await userService.deactivateUser(req.body);
-});
-
-const activate = asyncMiddleware(async (req) => {
-	return await userService.activateUser(req.body);
-});
-
-const adminActivate = asyncMiddleware(async (req) => {
-	return await userService.adminActivateUser(req.body);
-});
-
-const register =asyncMiddleware( async (req) => {
-	return await userService.register(req.body);
-});
-
-const socialRegister = asyncMiddleware(async (req) => {
-	return await userService.socialRegister(req.body);
-});
-
-const activateEmail = asyncMiddleware(async (req) => {
-	return await userService.sendActivationEmail(req.body);
-});
-
-const searchUsers = asyncMiddleware(async (req) => {
-	return await userService.fetchAllUsers();
-});
-
 const findUser = asyncMiddleware(async (req) => {
 	const queryObject = url.parse(req.url, true).query;
 	return await userService.findUser(queryObject);
+});
+
+const findSocialUser = asyncMiddleware(async (req) => {
+	const queryObject = url.parse(req.url, true).query;
+	return await userService.findSocialUser(queryObject);
+});
+
+const forgetPassword = asyncMiddleware(async (req) => {
+	return await userService.forgetPassword(req.body);
 });
 
 const updateEmailAddress = asyncMiddleware(async (req) => {
 	await userService.updateEmailAddress(req.body);
 });
 
-const assignGroup = asyncMiddleware(async (req) => {
-	await userService.assignGroup(req.body);
+const updateTelephoneNumber = asyncMiddleware(async (req) => {
+	await userService.updateTelephoneNumber(req.body);
 });
 
 module.exports = {
-	deactivate,
-	activate,
-	adminActivate,
-	socialRegister,
-	register,
-	activateEmail,
-	searchUsers,
 	findUser,
+	findSocialUser,
+	forgetPassword,
 	updateEmailAddress,
-	assignGroup
+	updateTelephoneNumber
 }

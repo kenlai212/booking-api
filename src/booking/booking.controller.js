@@ -2,7 +2,7 @@
 const url = require("url");
 
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
-const bookingService = require("./booking.service");;
+const bookingService = require("./booking.service");
 
 const newBooking = asyncMiddleware(async (req) => {
 	return await bookingService.addNewBooking(req.body, req.user);

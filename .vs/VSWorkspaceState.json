@@ -3,11 +3,8 @@
     "",
     "\\config",
     "\\src",
-    "\\src\\booking",
-    "\\src\\crew",
-    "\\src\\occupancy",
     "\\src\\user"
   ],
-  "SelectedNode": "\\src\\booking\\booking.guest.disclaimer.service.js",
+  "SelectedNode": "\\src\\user\\user.service.js",
   "PreviewInSolutionExplorer": false
 }

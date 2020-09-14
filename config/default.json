@@ -42,5 +42,15 @@
       "provider": "email-smtp.us-west-2.amazonaws.com",
       "port": 465
     }
+  },
+  "user": {
+    "activation": {
+      "activationURL": "http://www.hebewake.com/user/activate",
+      "systemSenderEmailAddress":  "registration@hebewake.com"
+    },
+    "forgetPassword": {
+      "resetPasswordURL": "http://www.hebewake.com/user/reset-password",
+      "systemSenderEmailAddress": "registration@hebewake.com"
+    }
   }
 }

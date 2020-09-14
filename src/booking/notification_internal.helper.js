@@ -51,7 +51,7 @@ async function sendDisclaimerNotification(bookingId, disclaimerId, telephoneNumb
 	const input = {
 		"message": "Please read and acknowledge our disclaimer - " + disclaimerURL,
 		"number": telephoneNumber,
-		"subject": "GOGOWAKE"
+		"subject": "GoGoWake"
 	}
 
 	try {

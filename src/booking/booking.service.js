@@ -411,92 +411,6 @@ async function reschedule(input, user) {
 
 /**
  * By : Ken Lai
- * Date : Jul 24, 2020
- */
-async function editContact(input, user) {
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP,
-		bookingCommon.BOOKING_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	//validate input data
-	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required(),
-		contactName: Joi
-			.string()
-			.required(),
-		telephoneCountryCode: Joi
-			.string()
-			.valid("852", "853", "86")
-			.required(),
-		telephoneNumber: Joi
-			.string()
-			.required()
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
-	}
-
-	//find booking
-	let booking;
-	try {
-		booking = await Booking.findById(input.bookingId);
-	} catch (err) {
-		logger.error("Booking.findById Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (booking == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-	}
-
-	booking.contactName = input.contactName;
-	booking.telephoneCountryCode = input.telephoneCountryCode;
-	booking.telephoneNumber = input.telephoneNumber;
-
-	//set emailAddress
-	if (input.emailAddress != null) {
-		if (input.emailAddress.length == 0) {
-			booking.emailAddress = null;
-		} else {
-			booking.emailAddress = input.emailAddress;
-		}
-	}
-
-	//add transaction history
-	booking.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "Edited contact info",
-		userId: user.id,
-		userName: user.name
-	});
-
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return bookingCommon.bookingToOutputObj(booking);
-}
-
-/**
- * By : Ken Lai
  * Date : Mar 01, 2020
  * 
  * Returns all bookings withint a datetime range
@@ -603,6 +517,5 @@ module.exports = {
 	fulfillBooking,
 	viewBookings,
 	findBookingById,
-	editContact,
 	reschedule
 }

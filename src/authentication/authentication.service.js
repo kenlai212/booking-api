@@ -11,13 +11,13 @@ const userHelper = require("./user_internal.helper");
 const ACCESS_TOKEN_EXPIRES = "1h";
 const PASSWORD_HASH_STRENGTH = 10;
 
-const USER_PATH = "/user";
-
 async function checkLoginIdAvailability(input) {
 	//validate input data
 	const schema = Joi.object({
 		loginId: Joi
 			.string()
+			.min(1)
+			.max(255)
 			.required()
 	});
 
@@ -101,9 +101,11 @@ async function socialLogin(input) {
 	const schema = Joi.object({
 		provider: Joi
 			.string()
+			.min(1)
 			.required(),
 		providerUserId: Joi
 			.string()
+			.min(1)
 			.required()
 	});
 
@@ -112,9 +114,27 @@ async function socialLogin(input) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	var url = process.env.AUTHENTICATION_DOMAIN + USER_PATH + "?provider=" + input.provider + "&providerUserId=" + input.providerUserId;
+	//find user
+	let user;
+	try {
+		user = await userHelper.getSocialUser(input.provider, input.providerUserId);
+	} catch (err) {
+		//if no user found, its a login error
+		if (err.name == customError.RESOURCE_NOT_FOUND_ERROR) {
+			throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
+		} else {
+			throw err;
+		}
+	}
 
-		//////////////////////////////////TODO!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+	//sign user into token
+	try {
+		return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
+	} catch (err) {
+		logger.error("jwt.sign error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
 }
 
 async function login(input){
@@ -145,30 +165,27 @@ async function login(input){
 	if (credentials == null) {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
 	}
-
-	//hash input.password
-	let hashedPassword;
+	
+	//compare input.password with credentials record
 	try {
-		hashedPassword = await bcrypt.compare(input.password, credentials.hashedPassword);
+		if (await bcrypt.compare(input.password, credentials.hashedPassword) == false) {
+			throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
+		};
 	} catch (err) {
 		throw { name: customerError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//see if hashed password matches with password in credentials record
-	if (hashedPassword != credentials.password) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
 	}
 
 	//find user
 	let user;
 	try {
-		user = userHelper.getUser(credentials.userId);
+		user = await userHelper.getUser(credentials.userId);
 	} catch (err) {
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (user == null) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
+		//if no user found, its a login error
+		if (err.name == customError.RESOURCE_NOT_FOUND_ERROR) {
+			throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
+		} else {
+			throw err;
+		}
 	}
 
 	//sign user into token

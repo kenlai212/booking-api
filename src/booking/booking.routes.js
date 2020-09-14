@@ -9,6 +9,7 @@ const paymentController = require("./booking.payment.controller");
 const guestController = require("./booking.guest.controller");
 const disclaimerController = require("./booking.guest.disclaimer.controller");
 const crewController = require("./booking.crew.controller");
+const contactController = require("./booking.contact.controller");
 
 const router = express.Router();
 router.post("/booking", authenticateAccessToken, logIncommingRequest, bookingController.newBooking);
@@ -16,7 +17,8 @@ router.delete("/booking", authenticateAccessToken, logIncommingRequest, bookingC
 router.get("/bookings", authenticateAccessToken, logIncommingRequest, bookingController.searchBookings);
 router.get("/booking", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
 router.put("/booking/fulfill", authenticateAccessToken, logIncommingRequest, bookingController.fulfillBooking);
-router.put("/booking/contact", authenticateAccessToken, logIncommingRequest, bookingController.editContact);
+
+router.put("/booking/contact", authenticateAccessToken, logIncommingRequest, contactController.editContact);
 
 router.post("/booking/crew", authenticateAccessToken, logIncommingRequest, crewController.addCrew);
 
