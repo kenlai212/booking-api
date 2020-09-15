@@ -3,6 +3,7 @@
     "",
     "\\config",
     "\\src",
+    "\\src\\authentication",
     "\\src\\user"
   ],
   "SelectedNode": "\\src\\user\\user.service.js",
