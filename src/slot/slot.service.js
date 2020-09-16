@@ -52,7 +52,9 @@ async function getSlots(input, user) {
 	let targetDate = moment(input.targetDate);
 	var dayStartTime = targetDate.set({ hour: 5, minute: 0, second: 0, millisecond: 0 }).toDate();
 	var dayEndTime = targetDate.set({ hour: 19, minute: 59, second: 59, millisecond: 0 }).toDate();
-
+	console.log("targetDate", targetDate);
+	console.log("dayStartTime", dayStartTime);
+	console.log("dayEndTime", dayEndTime);
 	//generate slots from day start to day end
 	var slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
 	
