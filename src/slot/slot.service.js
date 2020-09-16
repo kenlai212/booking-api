@@ -169,8 +169,8 @@ async function getEndSlots(input, user) {
 		const totalAmountObj = pricingHelper.calculateTotalAmount(startTime, slot.endTime);
 		slot.totalAmount = totalAmountObj.totalAmount;
 		slot.currency = totalAmountObj.currency;
-		slot.startTime = moment(slot.startTime).toISOString();
-		slot.endTime = moment(slot.endTime).toISOString();
+		slot.startTime = slot.startTime;
+		slot.endTime = slot.endTime;
 	}));
 
 	return { "endSlots": endSlots };
