@@ -49,9 +49,9 @@ async function getSlots(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	var targetDateStr = input.targetDate.slice(0, 10);
-	var dayStartTime = moment(targetDateStr + "T" + DAY_START).toDate();
-	var dayEndTime = moment(targetDateStr + "T" + DAY_END).toDate();
+	let targetDate = moment(input.targetDate);
+	var dayStartTime = targetDate.set({ hour: 5, minute: 0, second: 0, millisecond: 0 }).toDate();
+	var dayEndTime = targetDate.set({ hour: 19, minute: 59, second: 59, millisecond: 0 }).toDate();
 
 	//generate slots from day start to day end
 	var slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
