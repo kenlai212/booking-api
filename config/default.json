@@ -26,7 +26,7 @@
     "disclaimerURL": "http://admin.hebewake.com/disclaimer",
     "newBookingAdminNotification": {
       "send": false,
-      "bookingDetailsURL":  "http://admin.hebewake.com/booking",
+      "bookingDetailsURL": "http://admin.hebewake.com/booking",
       "adminRecipientNumbers": [ "85293139332" ],
       "adminRecipientEmailAdress": "gogowakehk@gmail.com",
       "systemSenderEmailAddress": "booking@hebewake.com"
@@ -46,7 +46,7 @@
   "user": {
     "activation": {
       "activationURL": "http://www.hebewake.com/user/activate",
-      "systemSenderEmailAddress":  "registration@hebewake.com"
+      "systemSenderEmailAddress": "registration@hebewake.com"
     },
     "forgetPassword": {
       "resetPasswordURL": "http://www.hebewake.com/user/reset-password",

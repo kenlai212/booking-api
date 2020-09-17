@@ -2,6 +2,7 @@
 const moment = require("moment");
 const Joi = require("joi");
 
+const utility = require("../common/utility");
 const customError = require("../common/customError");
 const logger = require("../common/logger").logger;
 const userAuthorization = require("../common/middleware/userAuthorization");
@@ -13,6 +14,7 @@ const slotMapper = require("./slotMapper.helper");
 const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
 
+const UTC_OFFSET = 8
 const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
 const DEFAULT_ASSET_ID = "MC_NXT20";
@@ -49,14 +51,10 @@ async function getSlots(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	const targetDateRes = input.targetDate.split("-");
-	console.log("targetYear", targetDateRes[0]);
-	console.log("targetMonth", targetDateRes[1]);
-	console.log("targetDay", targetDateRes[2]);
-	var dayStartTime = moment().utcOffset(8).set({ year: targetDateRes[0], month: targetDateRes[1] - 1, Date: targetDateRes[2], hour: 5, minute: 0, second: 0, millisecond: 0 }).toDate();
-	var dayEndTime = moment().utcOffset(8).set({ year: targetDateRes[0], month: targetDateRes[1] - 1, Date: targetDateRes[2], hour: 19, minute: 59, second: 59, millisecond: 0 }).toDate();
-	console.log("dayStartTime", dayStartTime);
-	console.log("dayEndTime", dayEndTime);
+	//setup dayStartTime & datyEndTimefor generateSlots() function
+	const dayStartTime = utility.isoStrToDate(input.targetDate + "T" + DAY_START, UTC_OFFSET);
+	const dayEndTime = utility.isoStrToDate(input.targetDate + "T" + DAY_END, UTC_OFFSET);
+
 	//generate slots from day start to day end
 	var slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
 	
@@ -115,7 +113,11 @@ async function getEndSlots(input, user) {
 
 	//validate input data
 	const schema = Joi.object({
-		startTime: Joi.date().iso().required()
+		startTime: Joi.date().iso().required(),
+		bookingType: Joi
+			.string()
+			.required()
+			.valid(OWNER_BOOKING_TYPE, CUSTOMER_BOOKING_TYPE)
 	});
 
 	const result = schema.validate(input);
@@ -124,12 +126,11 @@ async function getEndSlots(input, user) {
 	}
 
 	//setup dayStartTime & datyEndTimefor generateSlots() function
-	const targetDateStr = input.startTime.slice(0, 10);
-	const dayStartTime = moment(targetDateStr + "T" + DAY_START).toDate();
-	const dayEndTime = moment(targetDateStr + "T" + DAY_END).toDate();
+	const dayStartTime = utility.isoStrToDate(input.startTime.substr(0,10) + "T" + DAY_START, UTC_OFFSET);
+	const dayEndTime = utility.isoStrToDate(input.startTime.substr(0, 10) + "T" + DAY_END, UTC_OFFSET);
+	const startTime = utility.isoStrToDate(input.startTime, UTC_OFFSET);
 
 	//validate startTime cannot be before dayStartTime
-	const startTime = moment(input.startTime).toDate();
 	if (startTime < dayStartTime) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be earlier then " + DAY_START };
 	}
@@ -169,12 +170,17 @@ async function getEndSlots(input, user) {
 	}
 
 	//set totalAmount for each end slot
-	endSlots.forEach((slot => {
-		const totalAmountObj = pricingHelper.calculateTotalAmount(startTime, slot.endTime);
-		slot.totalAmount = totalAmountObj.totalAmount;
-		slot.currency = totalAmountObj.currency;
-		slot.startTime = slot.startTime;
-		slot.endTime = slot.endTime;
+	endSlots.forEach((async slot => {
+		try {
+			const totalAmountObj = await pricingHelper.calculateTotalAmount(startTime, slot.endTime, input.bookingType);
+			slot.totalAmount = totalAmountObj.totalAmount;
+			slot.currency = totalAmountObj.currency;
+		} catch (err) {
+			logger.error("pricingHelper.calculateTotalAmount error : ", err);
+			throw err;
+		}
+		
+		
 	}));
 
 	return { "endSlots": endSlots };
