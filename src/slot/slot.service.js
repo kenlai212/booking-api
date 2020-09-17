@@ -49,10 +49,12 @@ async function getSlots(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	let targetDate = moment(input.targetDate);
-	var dayStartTime = targetDate.set({ hour: 5, minute: 0, second: 0, millisecond: 0 }).toDate();
-	var dayEndTime = targetDate.set({ hour: 19, minute: 59, second: 59, millisecond: 0 }).toDate();
-	console.log("targetDate", targetDate);
+	const targetDateRes = input.targetDate.split("-");
+	console.log("targetYear", targetDateRes[0]);
+	console.log("targetMonth", targetDateRes[1]);
+	console.log("targetDay", targetDateRes[2]);
+	var dayStartTime = moment().set({ year: targetDateRes[0], month: targetDateRes[1] - 1, Date: targetDateRes[2], hour: 5, minute: 0, second: 0, millisecond: 0 }).toDate();
+	var dayEndTime = moment().set({ year: targetDateRes[0], month: targetDateRes[1] - 1, Date: targetDateRes[2], hour: 19, minute: 59, second: 59, millisecond: 0 }).toDate();
 	console.log("dayStartTime", dayStartTime);
 	console.log("dayEndTime", dayEndTime);
 	//generate slots from day start to day end

@@ -3,9 +3,8 @@
     "",
     "\\config",
     "\\src",
-    "\\src\\authentication",
-    "\\src\\user"
+    "\\src\\slot"
   ],
-  "SelectedNode": "\\config\\production.json",
+  "SelectedNode": "\\src\\slot\\slot.service.js",
   "PreviewInSolutionExplorer": false
 }
