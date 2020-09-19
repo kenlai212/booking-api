@@ -1,10 +1,11 @@
 const bookngAPIUser = require("../common/bookingAPIUser");
 const occupancyService = require("../occupancy/occupancy.service");
 
-async function getOccupancies(startTime, endTime, assetId) {
+async function getOccupancies(startTime, endTime, utcOffset, assetId) {
 	const input = {
 		"startTime": startTime,
 		"endTime": endTime,
+		"utcOffset": utcOffset,
 		"assetId": assetId
 	}
 

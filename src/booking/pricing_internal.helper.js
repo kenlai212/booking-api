@@ -2,11 +2,12 @@ const logger = require("../common/logger").logger;
 const bookingAPIUser = require("../common/bookingAPIUser");
 const pricingService = require("../pricing/pricing.service");
 
-function calculateTotalAmount(startTime, endTime, bookingType){
+function calculateTotalAmount(startTime, endTime, utcOffset, bookingType){
     
     const pricingTotalAmountInput = {
         "startTime": startTime,
         "endTime": endTime,
+        "utcOffset": utcOffset,
         "bookingType": bookingType
     }
 

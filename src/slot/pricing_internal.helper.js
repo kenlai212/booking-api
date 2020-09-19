@@ -4,10 +4,11 @@ const bookngAPIUser = require("../common/bookingAPIUser");
 const logger = require("../common/logger").logger;
 const pricingService = require("../pricing/pricing.service");
 
-async function calculateTotalAmount(startTime, endTime, bookingType) {
+async function calculateTotalAmount(startTime, endTime, utcOffset, bookingType) {
     const input = {
         "startTime": moment(startTime).toISOString(),
         "endTime": moment(endTime).toISOString(),
+        "utcOffset": utcOffset,
         "bookingType": bookingType
     }
 

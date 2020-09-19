@@ -1,5 +1,4 @@
 "use strict";
-const moment = require("moment");
 const Joi = require("joi");
 
 const utility = require("../common/utility");
@@ -14,7 +13,6 @@ const slotMapper = require("./slotMapper.helper");
 const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
 
-const UTC_OFFSET = 8
 const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
 const DEFAULT_ASSET_ID = "MC_NXT20";
@@ -40,6 +38,7 @@ async function getSlots(input, user) {
 	//validate input data
 	const schema = Joi.object({
 		targetDate: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 		bookingType: Joi
 			.string()
 			.required()
@@ -52,8 +51,8 @@ async function getSlots(input, user) {
 	}
 
 	//setup dayStartTime & datyEndTimefor generateSlots() function
-	const dayStartTime = utility.isoStrToDate(input.targetDate + "T" + DAY_START, UTC_OFFSET);
-	const dayEndTime = utility.isoStrToDate(input.targetDate + "T" + DAY_END, UTC_OFFSET);
+	const dayStartTime = utility.isoStrToDate(input.targetDate + "T" + DAY_START, input.utcOffset);
+	const dayEndTime = utility.isoStrToDate(input.targetDate + "T" + DAY_END, input.utcOffset);
 
 	//generate slots from day start to day end
 	var slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
@@ -61,7 +60,7 @@ async function getSlots(input, user) {
 	//get all existing occupancies between dayStarTime and dayEndTime
 	let occupancies;
 	try {
-		const result = await occupancyHelper.getOccupancies(slots[0].startTime, slots[slots.length - 1].endTime, DEFAULT_ASSET_ID);
+		const result = await occupancyHelper.getOccupancies(slots[0].startTime, slots[slots.length - 1].endTime, input.utcOffset, DEFAULT_ASSET_ID);
 		occupancies = result.occupancies;
 	} catch (err) {
 		logger.error("getOccupanciesHelper.getOccupancies error : ", err);
@@ -114,6 +113,7 @@ async function getEndSlots(input, user) {
 	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 		bookingType: Joi
 			.string()
 			.required()
@@ -126,9 +126,9 @@ async function getEndSlots(input, user) {
 	}
 
 	//setup dayStartTime & datyEndTimefor generateSlots() function
-	const dayStartTime = utility.isoStrToDate(input.startTime.substr(0,10) + "T" + DAY_START, UTC_OFFSET);
-	const dayEndTime = utility.isoStrToDate(input.startTime.substr(0, 10) + "T" + DAY_END, UTC_OFFSET);
-	const startTime = utility.isoStrToDate(input.startTime, UTC_OFFSET);
+	const dayStartTime = utility.isoStrToDate(input.startTime.substr(0, 10) + "T" + DAY_START, input.utcOffset);
+	const dayEndTime = utility.isoStrToDate(input.startTime.substr(0, 10) + "T" + DAY_END, input.utcOffset);
+	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
 
 	//validate startTime cannot be before dayStartTime
 	if (startTime < dayStartTime) {
@@ -172,7 +172,7 @@ async function getEndSlots(input, user) {
 	//set totalAmount for each end slot
 	endSlots.forEach((async slot => {
 		try {
-			const totalAmountObj = await pricingHelper.calculateTotalAmount(startTime, slot.endTime, input.bookingType);
+			const totalAmountObj = await pricingHelper.calculateTotalAmount(startTime, slot.endTime, input.utcOffset, input.bookingType);
 			slot.totalAmount = totalAmountObj.totalAmount;
 			slot.currency = totalAmountObj.currency;
 		} catch (err) {

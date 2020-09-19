@@ -3,10 +3,11 @@ const logger = require("../common/logger").logger;
 const bookingAPIUser = require("../common/bookingAPIUser");
 const occupancyService = require("../occupancy/occupancy.service");
 
-async function occupyAsset(startTime, endTime, assetId, occupancyType){
+async function occupyAsset(startTime, endTime, utcOffset, assetId, occupancyType){
     input = {
         startTime: startTime,
         endTime: endTime,
+        utcOffset: utcOffset,
         assetId: assetId,
         occupancyType: occupancyType
     }

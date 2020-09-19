@@ -3,6 +3,7 @@ const Joi = require("joi");
 const moment = require('moment');
 const mongoose = require("mongoose");
 
+const utility = require("../common/utility");
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
@@ -38,6 +39,7 @@ function releaseOccupancy(input, user) {
 		const schema = Joi.object({
 			occupancyId: Joi
 				.string()
+				.min(1)
 				.required()
 		});
 
@@ -93,6 +95,7 @@ async function occupyAsset(input, user) {
 			.required(),
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 		assetId: Joi
 			.string()
 			.required()
@@ -104,8 +107,8 @@ async function occupyAsset(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	const startTime = moment(input.startTime).toDate();
-	const endTime = moment(input.endTime).toDate();
+	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
+	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
 	//startTime cannot be later then endTime
 	if (startTime > endTime) {
@@ -188,6 +191,7 @@ async function getOccupancies(input, user) {
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 		assetId: Joi
 			.string()
 			.required()
@@ -199,8 +203,8 @@ async function getOccupancies(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	const startTime = moment(input.startTime).toDate();
-	const endTime = moment(input.endTime).toDate();
+	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
+	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
 	if (startTime > endTime) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
@@ -225,15 +229,18 @@ async function getOccupancies(input, user) {
 
 	});
 
-	return { "occupancies": outputObjs };
+	return {
+		"count": outputObjs.length,
+		"occupancies": outputObjs
+	};
 }
 
 function occupancyToOutputObj(occupancy) {
 	var outputObj = new Object();
 	outputObj.id = occupancy._id;
 	outputObj.occupancyType = occupancy.occupancyType;
-	outputObj.startTime = moment(occupancy.startTime).toISOString();
-	outputObj.endTime = moment(occupancy.endTime).toISOString();
+	outputObj.startTime = occupancy.startTime;
+	outputObj.endTime = occupancy.endTime;
 	outputObj.assetId = occupancy.assetId;
 
 	if (occupancy.history != null) {
@@ -241,7 +248,7 @@ function occupancyToOutputObj(occupancy) {
 
 		occupancy.history.forEach(item => {
 			var historyOutputObj = new Object();
-			historyOutputObj.transactionTime = moment(item.transactionTime).toISOString();
+			historyOutputObj.transactionTime = item.transactionTime;
 			historyOutputObj.transactionDescription = item.transactionDescription;
 			historyOutputObj.userId = item.userId;
 			historyOutputObj.userName = item.userName;

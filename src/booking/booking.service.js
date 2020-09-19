@@ -4,6 +4,7 @@ const moment = require("moment");
 const Joi = require("joi");
 const config = require("config");
 
+const utility = require("../common/utility");
 const customError = require("../common/customError");
 const logger = require("../common/logger").logger;
 const userAuthorization = require("../common/middleware/userAuthorization");
@@ -56,18 +57,17 @@ async function addNewBooking(input, user) {
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 		bookingType: Joi
 			.string()
 			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
 			.required(),
-		contactName: Joi
-			.string()
-			.required(),
+		contactName: Joi.string().min(1).required(),
 		telephoneCountryCode: Joi
 			.string()
 			.valid("852", "853", "86")
 			.required(),
-		telephoneNumber: Joi.string().required()
+		telephoneNumber: Joi.string().min(1).required()
 	});
 
 	const result = schema.validate(input);
@@ -75,8 +75,8 @@ async function addNewBooking(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	const startTime = moment(input.startTime).toDate();
-	const endTime = moment(input.endTime).toDate();
+	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
+	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
 	//check if endTime is earlier then startTime
 	if (startTime > endTime) {
@@ -117,7 +117,7 @@ async function addNewBooking(input, user) {
 	booking.bookingType = input.bookingType;
 
 	//calculate pricing & currency
-	const totalAmountObj = PricingHelper.calculateTotalAmount(booking.startTime, booking.endTime, booking.bookingType);
+	const totalAmountObj = PricingHelper.calculateTotalAmount(booking.startTime, booking.endTime, input.utcOffset, booking.bookingType);
 	booking.totalAmount = totalAmountObj.totalAmount;
 	booking.currency = totalAmountObj.currency;
 	booking.paymentStatus = AWAITING_PAYMENT_STATUS;
@@ -162,7 +162,7 @@ async function addNewBooking(input, user) {
 	//save occupancy record
 	let occupancy;
 	try {
-		occupancy = await OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, booking.assetId, booking.bookingType);
+		occupancy = await OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, input.utcOffset, booking.assetId, booking.bookingType);
 	} catch (err) {
 		logger.error("OccupancyHelper.occupyAsset Error", err);
 		throw err;
@@ -219,12 +219,8 @@ async function fulfillBooking(input, user) {
 
 	//validate input data
 	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required(),
-		fulfilledHours: Joi
-			.number()
-			.required()
+		bookingId: Joi.string().min(1).required(),
+		fulfilledHours: Joi.number().min(0.5).required()
 	});
 
 	const result = schema.validate(input);
@@ -301,9 +297,7 @@ async function cancelBooking(input, user) {
 
 	//validate input data
 	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required()
+		bookingId: Joi.string().min(1).required()
 	});
 
 	const result = schema.validate(input);
@@ -378,9 +372,7 @@ async function reschedule(input, user) {
 
 	//validate input data
 	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required()
+		bookingId: Joi.string().min(1).required()
 	});
 
 	const result = schema.validate(input);
@@ -429,6 +421,7 @@ async function viewBookings(input, user) {
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 	});
 
 	const result = schema.validate(input);
@@ -436,8 +429,8 @@ async function viewBookings(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	const startTime = moment(input.startTime).toDate();
-	const endTime = moment(input.endTime).toDate();
+	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
+	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
 	if (startTime > endTime) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be later then endTime" };
@@ -482,7 +475,7 @@ async function findBookingById(input, user) {
 
 	//validate input data
 	const schema = Joi.object({
-		bookingId: Joi.string().required()
+		bookingId: Joi.string().min(1).required()
 	});
 
 	const result = schema.validate(input);

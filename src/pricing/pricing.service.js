@@ -1,8 +1,8 @@
 "use strict";
 const Joi = require("joi");
-const moment = require("moment");
 const config = require("config");
 
+const utility = require("../common/utility");
 const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 
@@ -24,6 +24,7 @@ function calculateTotalAmount(input, user) {
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 		bookingType: Joi
 			.string()
 			.required()
@@ -35,8 +36,8 @@ function calculateTotalAmount(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	const startTime = moment(input.startTime).toDate();
-	const endTime = moment(input.endTime).toDate();
+	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
+	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
 	//startTime cannot be later then endTime
 	if (startTime > endTime) {

@@ -22,8 +22,8 @@ function bookingToOutputObj(booking) {
 	outputObj.currency = booking.currency;
 	outputObj.paymentStatus = booking.paymentStatus;
 
-	outputObj.startTime = moment(booking.startTime).toISOString();
-	outputObj.endTime = moment(booking.endTime).toISOString();
+	outputObj.startTime = booking.startTime;
+	outputObj.endTime = booking.endTime;
 	outputObj.durationInHours = Math.round((booking.endTime - booking.startTime) / 1000 / 60 / 60);
 	outputObj.fulfilledHours = booking.fulfilledHours;
 
