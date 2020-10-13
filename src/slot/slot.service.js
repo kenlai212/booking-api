@@ -15,7 +15,6 @@ const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
 
 const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
-const DEFAULT_ASSET_ID = "MC_NXT20";
 
 /**********************************************************
 By : Ken Lai
@@ -42,7 +41,12 @@ async function getSlots(input, user) {
 		bookingType: Joi
 			.string()
 			.required()
-			.valid(OWNER_BOOKING_TYPE, CUSTOMER_BOOKING_TYPE)
+			.valid(OWNER_BOOKING_TYPE, CUSTOMER_BOOKING_TYPE),
+		assetId: Joi
+			.string()
+			.required()
+			.valid("MC_NXT20"),
+		showOnlyAvailable: Joi.boolean().required()
 	});
 	
 	const result = schema.validate(input);
@@ -51,8 +55,10 @@ async function getSlots(input, user) {
 	}
 
 	//setup dayStartTime & datyEndTimefor generateSlots() function
-	const dayStartTime = utility.isoStrToDate(input.targetDate + "T" + DAY_START, input.utcOffset);
-	const dayEndTime = utility.isoStrToDate(input.targetDate + "T" + DAY_END, input.utcOffset);
+	const dayStartIsoStr = input.targetDate + "T" + DAY_START;
+	const dayEndIsoStr = input.targetDate + "T" + DAY_END;
+	const dayStartTime = utility.isoStrToDate(dayStartIsoStr, input.utcOffset);
+	const dayEndTime = utility.isoStrToDate(dayEndIsoStr, input.utcOffset);
 
 	//generate slots from day start to day end
 	var slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
@@ -60,36 +66,40 @@ async function getSlots(input, user) {
 	//get all existing occupancies between dayStarTime and dayEndTime
 	let occupancies;
 	try {
-		const result = await occupancyHelper.getOccupancies(slots[0].startTime, slots[slots.length - 1].endTime, input.utcOffset, DEFAULT_ASSET_ID);
+		const result = await occupancyHelper.getOccupancies(dayStartIsoStr, dayEndIsoStr, input.utcOffset, input.assetId);
 		occupancies = result.occupancies;
 	} catch (err) {
 		logger.error("getOccupanciesHelper.getOccupancies error : ", err);
 		throw { "name": customError.INTERNAL_SERVER_ERROR, "message": "Internal Server Error" };
 	}
+
+	//if customer booking, set 2hrs prior slots restriction
+	if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
+		occupancies = slotHelper.setCustomerBookingStartSlotsRestriction(occupancies, 2);
+	}
+
+	//add a buffer slot and the end of each occupacy
+	occupancies = slotHelper.setBetweenBookingBufferSlot(occupancies)
 	
 	//set availibilities for each slots
 	slots = slotHelper.setSlotsAvailabilities(slots, occupancies);
 
-	//if customer booking
-	//for each slots, chceck the availability of the nexst slot, 
-	//if not available, set itself to not available as well due to minimum 2hrs limit
-	if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
-		slots.forEach((slot, index) => {
-			const nextIndex = index + 1;
-
-			if (index < slots.length - 1) {
-				if (slots[nextIndex].available == false) {
-					slot.available = false
-				}
+	let outputObjs = [];
+	if (input.showOnlyAvailable == "true") {
+		//push only available slots
+		slots.forEach(slot => {
+			if (slot.available == true) {
+				let outputObj = slotMapper(slot, false);
+				outputObjs.push(outputObj);
 			}
 		});
+	} else {
+		//push all slots with "available" flag
+		slots.forEach(slot => {
+			let outputObj = slotMapper(slot, true);
+			outputObjs.push(outputObj);
+		});
 	}
-
-	let outputObjs = [];
-	slots.forEach(slot => {
-		let outputObj = slotMapper(slot);
-		outputObjs.push(outputObj);
-	})
 
 	return { "slots": outputObjs };
 }

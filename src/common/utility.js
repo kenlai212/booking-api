@@ -11,8 +11,8 @@ function isoStrToDate(isoStr, utcOffset) {
 		.utcOffset(parseInt(utcOffset))
 		.set({
 			year: parseInt(dateRes[0]),
-			month: parseInt(dateRes[1] - 1),
-			Date: parseInt(dateRes[2]),
+			month: parseInt(dateRes[1]) - 1,
+			date: parseInt(dateRes[2]),
 			hour: parseInt(timeRes[0]),
 			minute: parseInt(timeRes[1]),
 			second: parseInt(timeRes[2]),

@@ -41,12 +41,12 @@ function setSlotsAvailabilities(slots, occupancies) {
 
 		let slotStartTime = slot.startTime;
 		let slotEndTime = slot.endTime;
-
+		
 		//cross check current slot against occupancies list for overlap
 		occupancies.forEach(occupancy => {
 			const occupancyStartTime = moment(occupancy.startTime).toDate();
 			const occupancyEndTime = moment(occupancy.endTime).toDate();
-
+			
 			if ((slotStartTime >= occupancyStartTime && slotStartTime <= occupancyEndTime) ||
 				(slotEndTime >= occupancyStartTime && slotEndTime <= occupancyEndTime) ||
 				(slotStartTime <= occupancyStartTime && slotEndTime >= occupancyEndTime)) {
@@ -67,8 +67,30 @@ function setSlotsAvailabilities(slots, occupancies) {
 	return slots;
 }
 
+//for customer bookings
+//on each occupancy, restrict x hours prior to startTime
+//to enforce minimum time restriction
+function setCustomerBookingStartSlotsRestriction(occupancies, hoursOfRestriction) {
+	occupancies.forEach(occupancy => {
+		occupancy.startTime = moment(occupancy.startTime).subtract(hoursOfRestriction, "hours").toDate();
+	});
+
+	return occupancies;
+}
+
+//add a buffer slot to the end of each occupancy
+function setBetweenBookingBufferSlot(occupancies) {
+	occupancies.forEach(occupancy => {
+		occupancy.endTime = moment(occupancy.endTime).add(30, "minutes").toDate();
+	});
+
+	return occupancies;
+}
+
 module.exports = {
 	generateSlots,
 	getSlotByStartTime,
-	setSlotsAvailabilities
+	setSlotsAvailabilities,
+	setCustomerBookingStartSlotsRestriction,
+	setBetweenBookingBufferSlot
 }

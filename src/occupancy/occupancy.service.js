@@ -202,7 +202,7 @@ async function getOccupancies(input, user) {
 	if (result.error) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
-
+	
 	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
 	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 

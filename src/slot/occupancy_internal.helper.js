@@ -1,10 +1,13 @@
+const moment = require("moment");
+
+const logger = require("../common/logger").logger;
 const bookngAPIUser = require("../common/bookingAPIUser");
 const occupancyService = require("../occupancy/occupancy.service");
 
-async function getOccupancies(startTime, endTime, utcOffset, assetId) {
+async function getOccupancies(startTimeIsoStr, endTimeIsoStr, utcOffset, assetId) {
 	const input = {
-		"startTime": startTime,
-		"endTime": endTime,
+		"startTime": startTimeIsoStr,
+		"endTime": endTimeIsoStr,
 		"utcOffset": utcOffset,
 		"assetId": assetId
 	}

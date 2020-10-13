@@ -1,11 +1,14 @@
 const moment = require("moment");
 
-module.exports = function (slot) {
+module.exports = function (slot, showAvailable) {
 	var outputObj = new Object();
 	outputObj.index = slot.index;
 	outputObj.startTime = slot.startTime;
 	outputObj.endTime = slot.endTime;
-	outputObj.available = slot.available;
+
+	if (showAvailable == true) {
+		outputObj.available = slot.available;
+	}
 
 	return outputObj;
 }
