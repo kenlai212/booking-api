@@ -131,7 +131,8 @@ async function getEndSlots(input, user) {
 		assetId: Joi
 			.string()
 			.required()
-			.valid("MC_NXT20")
+			.valid("MC_NXT20"),
+		calculateTotalAmount: Joi.boolean()
 	});
 
 	const result = schema.validate(input);
@@ -185,21 +186,32 @@ async function getEndSlots(input, user) {
 		}
 	}
 
-	//set totalAmount for each end slot
-	endSlots.forEach((async slot => {
-		try {
-			const totalAmountObj = await pricingHelper.calculateTotalAmount(startTime, slot.endTime, input.utcOffset, input.bookingType);
-			slot.totalAmount = totalAmountObj.totalAmount;
-			slot.currency = totalAmountObj.currency;
-		} catch (err) {
-			logger.error("pricingHelper.calculateTotalAmount error : ", err);
-			throw err;
-		}
-		
-		
-	}));
+	let outputObjs = [];
+	//push all slots with "available" flag
+	endSlots.forEach(async endSlot => {
 
-	return { "endSlots": endSlots };
+		let outputObj = new Object();
+		outputObj.index = endSlot.index;
+		outputObj.startTime = endSlot.startTime;
+		outputObj.endTime = endSlot.endTime;
+
+		//calculate cumulative total amount
+		if (input.calculateTotalAmount != null && input.calculateTotalAmount == "true") {
+			let totalAmountObj;
+			try {
+				totalAmountObj = await pricingHelper.calculateTotalAmount(startTime, endSlot.endTime, input.utcOffset, input.bookingType);
+			} catch (err) {
+				logger.error("pricingHelper.calculateTotalAmount error : ", err);
+				throw err;
+			}
+			outputObj.totalAmount = totalAmountObj.totalAmount;
+			outputObj.current = totalAmountObj.currency;
+		}
+
+		outputObjs.push(outputObj);
+	});
+
+	return { "endSlots": outputObjs };
 }
 
 module.exports = {
