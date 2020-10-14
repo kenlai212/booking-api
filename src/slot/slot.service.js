@@ -127,7 +127,11 @@ async function getEndSlots(input, user) {
 		bookingType: Joi
 			.string()
 			.required()
-			.valid(OWNER_BOOKING_TYPE, CUSTOMER_BOOKING_TYPE)
+			.valid(OWNER_BOOKING_TYPE, CUSTOMER_BOOKING_TYPE),
+		assetId: Joi
+			.string()
+			.required()
+			.valid("MC_NXT20")
 	});
 
 	const result = schema.validate(input);
@@ -136,8 +140,10 @@ async function getEndSlots(input, user) {
 	}
 
 	//setup dayStartTime & datyEndTimefor generateSlots() function
-	const dayStartTime = utility.isoStrToDate(input.startTime.substr(0, 10) + "T" + DAY_START, input.utcOffset);
-	const dayEndTime = utility.isoStrToDate(input.startTime.substr(0, 10) + "T" + DAY_END, input.utcOffset);
+	const dayStartTimeStr = input.startTime.substr(0, 10) + "T" + DAY_START;
+	const dayEndTimeStr = input.startTime.substr(0, 10) + "T" + DAY_END;
+	const dayStartTime = utility.isoStrToDate(dayStartTimeStr, input.utcOffset);
+	const dayEndTime = utility.isoStrToDate(dayEndTimeStr, input.utcOffset);
 	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
 
 	//validate startTime cannot be before dayStartTime
@@ -156,7 +162,7 @@ async function getEndSlots(input, user) {
 	//get all existing occupancies between dayStarTime and dayEndTime
 	let occupancies;
 	try {
-		const result = await occupancyHelper.getOccupancies(slots[0].startTime, slots[slots.length - 1].endTime, DEFAULT_ASSET_ID);
+		const result = await occupancyHelper.getOccupancies(dayStartTimeStr, dayEndTimeStr, input.utcOffset, input.assetId);
 		occupancies = result.occupancies;
 	} catch (err) {
 		logger.error("getOccupanciesHelper.getOccupancies error : ", err);

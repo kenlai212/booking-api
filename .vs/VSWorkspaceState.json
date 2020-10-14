@@ -1,11 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\src",
-    "\\src\\common",
-    "\\src\\occupancy",
-    "\\src\\slot"
+    "\\src"
   ],
-  "SelectedNode": "\\src\\slot\\slot.service.js",
+  "SelectedNode": "\\server.js",
   "PreviewInSolutionExplorer": false
 }

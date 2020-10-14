@@ -1,6 +1,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const config = require("config");
+const cors = require('cors');
 require("dotenv").config();
 
 const logger = require("./src/common/logger").logger;
@@ -15,6 +16,7 @@ const authenticationRoutes = require("./src/authentication/authentication.routes
 const notificationRoutes = require("./src/notification/notification.routes");
 
 const app = express();
+app.use(cors());
 
 //set up routes
 app.use(express.json());
