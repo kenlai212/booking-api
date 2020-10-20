@@ -46,24 +46,35 @@ function calculateTotalAmount(input, user) {
 	
 	//calculate duration in hours
 	const diffTime = Math.abs(endTime - startTime);
-	const durationInMinutes = Math.ceil(diffTime / (1000 * 60));
-	//const durationInHours = Math.ceil(durationInMinutes / 60);
-	const durationInHours = Math.round((durationInMinutes / 60) * 2) / 2;
+	const durationByMinutes = Math.ceil(diffTime / (1000 * 60));
+	const durationByHours = Math.round((durationByMinutes / 60) * 2) / 2;
 
-	//calculate total amount for CUSTOMER_BOOKING or OWNER_BOOKING
-	var totalAmount;
+	//define unitPrice for (CUSTOMER_BOOKING or OWNER_BOOKING) and (weekdays or holidays)
+	let unitPrice;
 	if (input.bookingType == CUSTOMER_BOOKING) {
-		totalAmount = durationInHours * config.get("pricing.unitPriceRegular");
+		unitPrice = config.get("pricing.unitPriceRegular");
 		
-		//check weekday or weekend
+		//check weekday or holidays
 		if (startTime.getDay() != 6 && startTime.getDay() != 0) {
-			totalAmount = durationInHours * config.get("pricing.unitPriceDiscounted");
+			unitPrice = config.get("pricing.unitPriceDiscounted");
 		}
 	} else {
-		totalAmount = durationInHours * config.get("pricing.unitPriceOwnerBooking");
+		unitPrice = config.get("pricing.unitPriceOwnerBooking");
 	}
+
+	//calculate regular and total maount
+	const regularAmount = durationByHours * unitPrice;
+	const discountAmount = 0;
+	const totalAmount = regularAmount - discountAmount;
 	
-	return { "totalAmount": totalAmount, "totalHours": durationInHours, "currency": config.get("pricing.unitCurrency") };
+	return {
+		"regularAmount": regularAmount,
+		"discountAmount": discountAmount,
+		"totalAmount": totalAmount,
+		"durationByHours": durationByHours,
+		"unitPrice": unitPrice,
+		"currency": config.get("pricing.unitCurrency")
+	};
 }
 
 module.exports = {

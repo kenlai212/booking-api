@@ -8,10 +8,6 @@ const newBooking = asyncMiddleware(async (req) => {
 	return await bookingService.addNewBooking(req.body, req.user);
 });
 
-const editContact = asyncMiddleware(async (req) => {
-	return await bookingService.editContact(req.body, req.user);
-});
-
 const cancelBooking = asyncMiddleware(async (req) => {
 	return await bookingService.cancelBooking(req.body, req.user);
 });
@@ -35,6 +31,5 @@ module.exports = {
 	cancelBooking,
 	fulfillBooking,
 	searchBookings,
-	findBooking,
-	editContact
+	findBooking
 }

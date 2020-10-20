@@ -11,6 +11,8 @@ const Booking = require("./booking.model").Booking;
 
 
 const PAID_STATUS = "PAID";
+const PARTIAL_PAID_STATUS = "PARTIAL_PAID";
+const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 
 /**
  * By : Ken Lai
@@ -70,15 +72,26 @@ async function makePayment(input, user) {
 		throw { name: customError.BAD, message: "Cannot make payment in " + input.currency };
 	}
 
-	booking.paymentStatus = PAID_STATUS;
+	//set paymentStatus
+	let paymentStatus;
+	if (input.paidAmount == booking.totalAmount) {
+		paymentStatus = PAID_STATUS;
+	} else if (input.paidAmount < booking.totalAmount && input.paidAmount != 0) {
+		paymentStatus = PARTIAL_PAID_STATUS;
+	} else if (input.paidAmount == 0) {
+		paymentStatus = AWAITING_PAYMENT_STATUS;
+	}
+	booking.paymentStatus = paymentStatus;
+
 	booking.paidAmount = Number(input.paidAmount);
+	booking.balance = booking.totalAmount - booking.paidAmount;
 
 	//add transaction history
 	var transactionHistory = new Object();
 	transactionHistory.transactionTime = moment().toDate();
 	transactionHistory.userId = user.id;
 	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = "Payment status made changed to PAID";
+	transactionHistory.transactionDescription = "Payment status made changed to " + paymentStatus;
 	booking.history.push(transactionHistory);
 
 	try {
@@ -111,7 +124,7 @@ async function applyDiscount(input, user) {
 		bookingId: Joi
 			.string()
 			.required(),
-		discountedAmount: Joi
+		discountAmount: Joi
 			.number()
 			.required()
 	});
@@ -139,7 +152,9 @@ async function applyDiscount(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 	}
 
-	booking.discountedAmount = input.discountedAmount;
+	booking.discountAmount = input.discountAmount;
+	booking.totalAmount = booking.regularAmount - booking.discountAmount;
+	booking.balance = booking.totalAmount - booking.paidAmount;
 
 	//add transaction history
 	var transactionHistory = new Object();

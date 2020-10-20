@@ -16,22 +16,25 @@ function bookingToOutputObj(booking) {
 	outputObj.occupancyId = booking.occupancyId;
 	outputObj.status = booking.status;
 
+	outputObj.regularAmount = booking.regularAmount;
+	outputObj.discountAmount = booking.discountAmount;
 	outputObj.totalAmount = booking.totalAmount;
-	outputObj.discountedAmount = booking.discountedAmount;
 	outputObj.paidAmount = booking.paidAmount;
+	outputObj.balance = booking.balance;
 	outputObj.currency = booking.currency;
+	outputObj.unitPrice = booking.unitPrice;
 	outputObj.paymentStatus = booking.paymentStatus;
 
 	outputObj.startTime = booking.startTime;
 	outputObj.endTime = booking.endTime;
-	outputObj.durationInHours = Math.round((booking.endTime - booking.startTime) / 1000 / 60 / 60);
+	outputObj.durationByHours = booking.durationByHours;
 	outputObj.fulfilledHours = booking.fulfilledHours;
 
-	outputObj.contact = new Object();
-	outputObj.contact.contactName = booking.contact.contactName;
-	outputObj.contact.telephoneCountryCode = booking.contact.telephoneCountryCode;
-	outputObj.contact.telephoneNumber = booking.contact.telephoneNumber;
-	outputObj.contact.emailAddress = booking.contact.emailAddress;
+	outputObj.host = new Object();
+	outputObj.host.contactName = booking.host.hostName;
+	outputObj.host.telephoneCountryCode = booking.host.telephoneCountryCode;
+	outputObj.host.telephoneNumber = booking.host.telephoneNumber;
+	outputObj.host.emailAddress = booking.host.emailAddress;
 
 	outputObj.guests = booking.guests;
 	outputObj.history = booking.history;

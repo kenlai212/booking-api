@@ -30,7 +30,7 @@ async function newBookingNotificationToAdmin(booking) {
 
 async function newBookingConfirmationToCustomer(booking) {
 	//TODO add chinese language confirmation
-	const number = booking.contact.telephoneCountryCode + booking.contact.telephoneNumber;
+	const number = booking.host.telephoneCountryCode + booking.host.telephoneNumber;
 	const bookingDetailsURL = config.get("booking.newBookingCustomerConfirmation.bookingDetailsURL") + "/" + booking._id;
 	const input = {
 		message: `Thank you for booking with us. You can view your booking details @ ${bookingDetailsURL}`,

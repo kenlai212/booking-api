@@ -15,7 +15,7 @@ const Booking = require("./booking.model").Booking;
  * By : Ken Lai
  * Date : Jul 24, 2020
  */
-async function editContact(input, user) {
+async function editHost(input, user) {
 	const rightsGroup = [
 		bookingCommon.BOOKING_ADMIN_GROUP,
 		bookingCommon.BOOKING_USER_GROUP
@@ -32,7 +32,7 @@ async function editContact(input, user) {
 			.string()
 			.min(1)
 			.required(),
-		contactName: Joi
+		hostName: Joi
 			.string()
 			.min(1)
 			.max(255),
@@ -41,7 +41,11 @@ async function editContact(input, user) {
 			.valid("852", "853", "86"),
 		telephoneNumber: Joi
 			.string()
-			.min(7)
+			.min(7),
+		emailAddress: Joi
+			.string()
+			.min(1)
+			.max(255)
 	});
 
 	const result = schema.validate(input);
@@ -69,15 +73,15 @@ async function editContact(input, user) {
 
 	//thow bad request if no contact attribute in input
 	if (
-		(input.contactName == null) &&
+		(input.hostName == null) &&
 		(input.telephoneCountryCode == null) &&
 		(input.telephoneNumber == null)) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Nothing to change for Contact" };
 	}
 
 	//set contactName if provided in input
-	if (input.contactName != null) {
-		booking.contact.contactName = input.contactName;
+	if (input.hostName != null) {
+		booking.host.hostName = input.hostName;
 	}
 
 	//set telephoneCountryCode if provided in input
@@ -97,7 +101,7 @@ async function editContact(input, user) {
 	//add transaction history
 	booking.history.push({
 		transactionTime: moment().toDate(),
-		transactionDescription: "Edited contact info",
+		transactionDescription: "Edited host info",
 		userId: user.id,
 		userName: user.name
 	});
@@ -113,5 +117,5 @@ async function editContact(input, user) {
 }
 
 module.exports = {
-	editContact
+	editHost
 }

@@ -17,6 +17,7 @@ const BookingDurationHelper = require("./bookingDuration.helper");
 const PricingHelper = require("./pricing_internal.helper");
 const OccupancyHelper = require("./occupancy_internal.helper");
 const NotificationHelper = require("./notification_internal.helper");
+const crewHelper = require("./crew_internal.helper");
 
 const UTC_OFFSET = 8;
 
@@ -62,12 +63,13 @@ async function addNewBooking(input, user) {
 			.string()
 			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
 			.required(),
-		contactName: Joi.string().min(1).required(),
+		hostName: Joi.string().min(1).required(),
 		telephoneCountryCode: Joi
 			.string()
 			.valid("852", "853", "86")
 			.required(),
-		telephoneNumber: Joi.string().min(1).required()
+		telephoneNumber: Joi.string().min(1).required(),
+		crews: Joi.array().length(1)
 	});
 
 	const result = schema.validate(input);
@@ -88,8 +90,8 @@ async function addNewBooking(input, user) {
 		try {
 			BookingDurationHelper.checkMimumDuration(startTime, endTime);
 			BookingDurationHelper.checkMaximumDuration(startTime, endTime);
-			BookingDurationHelper.checkEarliestStartTime(startTime, UTC_OFFSET);
-			BookingDurationHelper.checkLatestEndTime(endTime, UTC_OFFSET);
+			//BookingDurationHelper.checkEarliestStartTime(startTime, UTC_OFFSET);
+			//BookingDurationHelper.checkLatestEndTime(endTime, UTC_OFFSET);
 		} catch (err) {
 			throw { name: customError.BAD_REQUEST_ERROR, message: err };
 		}
@@ -117,30 +119,63 @@ async function addNewBooking(input, user) {
 	booking.bookingType = input.bookingType;
 
 	//calculate pricing & currency
-	const totalAmountObj = PricingHelper.calculateTotalAmount(booking.startTime, booking.endTime, input.utcOffset, booking.bookingType);
+	const totalAmountObj = PricingHelper.calculateTotalAmount(input.startTime, input.endTime, input.utcOffset, booking.bookingType);
+	booking.regularAmount = totalAmountObj.regularAmount;
+	booking.discountAmount = totalAmountObj.discountAmount;
 	booking.totalAmount = totalAmountObj.totalAmount;
+	booking.paidAmount = 0;
+	booking.balance = totalAmountObj.totalAmount;
+	booking.durationByHours = totalAmountObj.durationByHours;
+	booking.unitPrice = totalAmountObj.unitPrice;
 	booking.currency = totalAmountObj.currency;
 	booking.paymentStatus = AWAITING_PAYMENT_STATUS;
 
-	//set contact 
-	booking.contact.contactName = input.contactName;
-	booking.contact.telephoneCountryCode = input.telephoneCountryCode;
-	booking.contact.telephoneNumber = input.telephoneNumber;
+	//set host
+	booking.host.hostName = input.hostName;
+	booking.host.telephoneCountryCode = input.telephoneCountryCode;
+	booking.host.telephoneNumber = input.telephoneNumber;
 	if (input.emailAddress != null) {
-		booking.contact.emailAddress = input.emailAddress;
+		booking.host.emailAddress = input.emailAddress;
 	}
 
 	//set first guest as contact
 	const firstGuest = {
-		guestName: booking.contact.contactName,
-		telephoneCountryCode: booking.contact.telephoneCountryCode,
-		telephoneNumber: booking.contact.telephoneNumber,
-		emailAddress: booking.contact.emailAddress
+		guestName: booking.host.hostName,
+		telephoneCountryCode: booking.host.telephoneCountryCode,
+		telephoneNumber: booking.host.telephoneNumber,
+		emailAddress: booking.host.emailAddress
 	}
 	booking.guests = [firstGuest];
 
-	//add crew //TODO auto add crew based on schedule
-	//booking.crews = new Array();
+	//add crew 
+	//TODO auto add crew based on schedule
+	if (input.crews != null) {
+		let crew;
+		try {
+			crew = await crewHelper.getCrew(input.crewId);
+		} catch (err) {
+			logger.error("crewHelper.getCrew Error : ", err);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
+
+		if (crew == null || crew.id == null) {
+			throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
+		}
+
+		//add crew
+		if (booking.crews == null) {
+			booking.crews = new Array();
+		}
+
+		booking.crews.push({
+			crewId: crew.id,
+			crewName: crew.crewName,
+			telephoneCountryCode: crew.telephoneCountryCode,
+			telephoneNumber: crew.telephoneNumber,
+			assignmentTime: moment().toDate(),
+			assignmentBy: user.id
+		}); 
+	}
 
 	booking.creationTime = moment().toDate();
 	booking.createdBy = user.id;
@@ -162,7 +197,7 @@ async function addNewBooking(input, user) {
 	//save occupancy record
 	let occupancy;
 	try {
-		occupancy = await OccupancyHelper.occupyAsset(booking.startTime, booking.endTime, input.utcOffset, booking.assetId, booking.bookingType);
+		occupancy = await OccupancyHelper.occupyAsset(input.startTime, input.endTime, input.utcOffset, booking.assetId, booking.bookingType);
 	} catch (err) {
 		logger.error("OccupancyHelper.occupyAsset Error", err);
 		throw err;

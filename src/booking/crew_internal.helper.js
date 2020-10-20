@@ -1,5 +1,6 @@
-const bookingAPIUser = require("../common/bookingAPIUser");
+const logger = require("../common/logger").logger;
 
+const bookingAPIUser = require("../common/bookingAPIUser");
 const crewService = require("../crew/crew.service");
 
 async function getCrew(crewId) {
