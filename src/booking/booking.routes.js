@@ -20,12 +20,13 @@ router.put("/booking/fulfill", authenticateAccessToken, logIncommingRequest, boo
 
 router.put("/booking/host", authenticateAccessToken, logIncommingRequest, hostController.editHost);
 
-router.post("/booking/crew", authenticateAccessToken, logIncommingRequest, crewController.addCrew);
+router.post("/booking/crew", authenticateAccessToken, logIncommingRequest, crewController.assignCrew);
+router.delete("/booking/crew/:bookingId/:crewId", authenticateAccessToken, logIncommingRequest, crewController.relieveCrew);
 
 router.put("/booking/payment", authenticateAccessToken, logIncommingRequest, paymentController.makePayment);
 router.put("/booking/discount", authenticateAccessToken, logIncommingRequest, paymentController.applyDiscount);
 
-router.delete("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.removeGuest);
+router.delete("/booking/guest/:bookingId/:guestId", authenticateAccessToken, logIncommingRequest, guestController.removeGuest);
 router.post("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.addGuest);
 router.put("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.editGuest);
 

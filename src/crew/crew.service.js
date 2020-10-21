@@ -143,7 +143,7 @@ async function newCrew(input, user) {
 
 function crewToOutputObj(crew) {
 	var outputObj = new Object();
-	outputObj.id = crew._id;
+	outputObj.crewId = crew._id;
 	outputObj.crewName = crew.crewName;
 	outputObj.telephoneCountryCode = crew.telephoneCountryCode;
 	outputObj.telephoneNumber = crew.telephoneNumber;

@@ -3,7 +3,7 @@ const guestService = require("./booking.guest.service");
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 
 const removeGuest = asyncMiddleware(async (req) => {
-	return await guestService.removeGuest(req.body, req.user);
+	return await guestService.removeGuest(req.params, req.user);
 });
 
 const addGuest = asyncMiddleware(async (req) => {
