@@ -136,17 +136,16 @@ async function adminActivateUser(input, user) {
 	}
 }
 
-async function assignGroup(input, user) {
+async function unassignGroup(input, user) {
 	//validate user group rights
 	const rightsGroup = [
 		USER_ADMIN_GROUP
 	]
-	
+
 	if (userAuthorization(user.groups, rightsGroup) == false) {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-
 	}
-	
+
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -161,6 +160,78 @@ async function assignGroup(input, user) {
 				"OCCUPANCY_ADMIN_GROUP",
 				"NOTIFICATION_USER_GROUP",
 				"USER_ADMIN_GROUP")
+			.required()
+		//TODO add more valid groups
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate userId
+	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//get target user
+	let targetUser;
+	try {
+		targetUser = await User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//remove groupId from targetUSer.groups
+	targetUser.groups.forEach(function (groupId, index, object) {
+		if (groupId == input.groupId) {
+			object.splice(index, 1);
+		}
+	});
+
+	targetUser.history.push({
+		transactionTime: moment().toDate(),
+		transactionDescription: "Removed " + input.groupId + " from User"
+	});
+
+	try {
+		return await targetUser.save();
+	} catch (err) {
+		logger.error("Internal Server Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+}
+
+async function assignGroup(input, user) {
+	//validate user group rights
+	const rightsGroup = [
+		USER_ADMIN_GROUP
+	]
+	
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+	
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.min(1)
+			.required(),
+		groupId: Joi
+			.string()
+			.valid(
+				"BOOKING_ADMIN",
+				"BOOKING_USER",
+				"PRICING_USER",
+				"OCCUPANCY_ADMIN",
+				"NOTIFICATION_USER",
+				"USER_ADMIN")
 			.required()
 		//TODO add more valid groups
 	});
@@ -247,6 +318,57 @@ async function searchUsers(user) {
 	}
 }
 
+async function deleteUser(input, user) {
+	//validate user group rights
+	const rightsGroup = [
+		USER_ADMIN_GROUP
+	]
+
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.min(1)
+			.required()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate userId
+	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//get target user
+	let targetUser;
+	try {
+		targetUser = await User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	try {
+		await User.deleteOne(targetUser._id);
+	} catch (err) {
+		logger.error("User.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+	}
+
+	return {"status": "SUCCESS"}
+}
+
 /*
 * By : Ken Lai
 * Date : Mar 31, 2020
@@ -323,6 +445,8 @@ module.exports = {
 	deactivateUser,
 	adminActivateUser,
 	assignGroup,
+	unassignGroup,
 	searchUsers,
+	deleteUser,
 	resendActivationEmail
 }

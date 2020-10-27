@@ -280,17 +280,15 @@ async function fulfillBooking(input, user) {
 	if (booking == null) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 	}
-
+	
 	//check if booking if already fulfilled
 	if (booking.status == FULFILLED_STATUS) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already fulfilled" };
 	}
 
 	//check fulfilledHours not longer booking duration
-	try {
-		BookingDurationHelper.checkFulfilledTime(booking.startTime, booking.endTime, input.fulfilledHours);
-	} catch (err) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result };
+	if (input.fulfilledHours > booking.durationByHours) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Fulfilled Hours cannot be longer then booking duration" };
 	}
 
 	booking.fulfilledHours = input.fulfilledHours;

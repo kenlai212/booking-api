@@ -14,6 +14,7 @@ const crewRoutes = require("./src/crew/crew.routes");
 const userRoutes = require("./src/user/user.routes");
 const authenticationRoutes = require("./src/authentication/authentication.routes");
 const notificationRoutes = require("./src/notification/notification.routes");
+const boatRoutes = require("./src/asset/boat.routes");
 
 const app = express();
 app.use(cors());
@@ -28,6 +29,7 @@ app.use("/", crewRoutes);
 app.use("/", userRoutes);
 app.use("/", authenticationRoutes);
 app.use("/", notificationRoutes);
+app.use("/", boatRoutes);
 
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {

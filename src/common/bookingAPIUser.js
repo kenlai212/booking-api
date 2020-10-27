@@ -8,7 +8,8 @@ const userObject = {
 		"PRICING_USER_GROUP",
 		"OCCUPANCY_ADMIN_GROUP",
 		"NOTIFICATION_USER_GROUP",
-		"USER_ADMIN_GROUP"]
+		"USER_ADMIN_GROUP",
+		"ASSET_ADMIN_GROUP"]
 }
 
 function getAccessToken() {

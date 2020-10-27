@@ -115,7 +115,7 @@ async function newCrew(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	var crew = new Crew();
+	let crew = new Crew();
 	crew.crewName = input.crewName;
 	crew.createdBy = user.id;
 	crew.createdTime = moment().toDate();

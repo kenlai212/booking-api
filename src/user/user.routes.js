@@ -14,11 +14,13 @@ router.post("/user/social", logIncommingRequest, registrationController.socialRe
 
 router.post("/user/forget-password", logIncommingRequest, userController.forgetPassword);
 
-router.delete("/user/deactivate", authenticateAccessToken, logIncommingRequest, adminController.deactivate);
+router.put("/user/deactivate", authenticateAccessToken, logIncommingRequest, adminController.deactivate);
 router.put("/user/activate/admin", authenticateAccessToken, logIncommingRequest, adminController.adminActivate);
 router.post("/user/activation-email", authenticateAccessToken, logIncommingRequest, adminController.resendActivationEmail);
 router.get("/users", authenticateAccessToken, logIncommingRequest, adminController.searchUsers);
 router.put("/user/groups", authenticateAccessToken, logIncommingRequest, adminController.assignGroup);
+router.delete("/user/groups", authenticateAccessToken, logIncommingRequest, adminController.unassignGroup);
+router.delete("/user", authenticateAccessToken, logIncommingRequest, adminController.deleteUser);
 
 router.get("/user", authenticateAccessToken, logIncommingRequest, userController.findUser);
 router.get("/user/social", authenticateAccessToken, logIncommingRequest, userController.findSocialUser);

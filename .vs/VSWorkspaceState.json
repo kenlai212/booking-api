@@ -2,9 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\booking",
+    "\\src\\authentication",
     "\\src\\pricing"
   ],
-  "SelectedNode": "\\src\\booking\\booking.payment.service.js",
+  "SelectedNode": "\\src",
   "PreviewInSolutionExplorer": false
 }
