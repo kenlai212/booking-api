@@ -5,7 +5,7 @@ const boatSchema = new mongoose.Schema({
 	lastUpdateTime: Date,
 	assetId: String,
 	boatName: String,
-	fuelPercentage: Number
+	fuelLevel: Number
 });
 
 const Boat = mongoose.model("Boat", boatSchema);

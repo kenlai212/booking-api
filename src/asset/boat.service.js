@@ -51,7 +51,7 @@ async function newBoat(input, user) {
 	boat.lastUpdateTime = moment().toDate();
 	boat.boatName = input.boatName;
 	boat.assetId = input.assetId;
-	boat.fuelPercentage = 0;
+	boat.fuelLevel = 0;
 	
 	//save to db
 	try {
@@ -64,7 +64,7 @@ async function newBoat(input, user) {
 	return boatToOutputObj(boat);
 }
 
-async function setFuelPercentage(input, user) {
+async function setFuelLevel(input, user) {
 	const rightsGroup = [
 		ASSET_ADMIN_GROUP,
 		ASSET_USER_GROUP
@@ -80,7 +80,7 @@ async function setFuelPercentage(input, user) {
 		assetId: Joi
 			.string()
 			.required(),
-		fuelPercentage: Joi
+		fuelLevel: Joi
 			.number()
 			.min(0)
 			.max(100)
@@ -104,7 +104,7 @@ async function setFuelPercentage(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid assetId" };
 	}
 
-	boat.fuelPercentage = input.fuelPercentage;
+	boat.fuelLevel = input.fuelLevel;
 	boat.lastUpdateTime = moment().toDate();
 
 	try {
@@ -117,18 +117,57 @@ async function setFuelPercentage(input, user) {
 	return boatToOutputObj(boat);
 }
 
+async function findBoat(input, user) {
+	const rightsGroup = [
+		ASSET_ADMIN_GROUP,
+		ASSET_USER_GROUP
+	]
+
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//validate input data
+	const schema = Joi.object({
+		assetId: Joi
+			.string()
+			.required()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	let boat;
+	try {
+		boat = await Boat.findOne({ assetId: input.assetId });
+	} catch (err) {
+		logger.error("Boat.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (boat == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "None found" };
+	}
+
+	return boatToOutputObj(boat);
+}
+
 function boatToOutputObj(boat) {
 	var outputObj = new Object();
 	outputObj.boatId = boat._id;
 	outputObj.lastUpdateTime = boat.lastUpdateTime;
 	outputObj.assetId = boat.assetId
 	outputObj.boatName = boat.boatName;
-	outputObj.fuelPercentage = boat.fuelPercentage;
+	outputObj.fuelLevel = boat.fuelLevel;
 
 	return outputObj;
 }
 
 module.exports = {
 	newBoat,
-	setFuelPercentage
+	setFuelLevel,
+	findBoat
 }

@@ -7,6 +7,7 @@ const boatController = require("./boat.controller");
 
 const router = express.Router();
 router.post("/boat", logIncommingRequest, authenticateAccessToken, boatController.newBoat);
-router.put("/boat/fuel-percentage", logIncommingRequest, authenticateAccessToken, boatController.setFuelPercentage);
+router.get("/boat/:assetId", logIncommingRequest, authenticateAccessToken, boatController.findBoat);
+router.put("/boat/fuel-level", logIncommingRequest, authenticateAccessToken, boatController.setFuelLevel);
 
 module.exports = router;

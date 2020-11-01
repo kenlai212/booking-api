@@ -31,7 +31,7 @@ function bookingToOutputObj(booking) {
 	outputObj.fulfilledHours = booking.fulfilledHours;
 
 	outputObj.host = new Object();
-	outputObj.host.contactName = booking.host.hostName;
+	outputObj.host.hostName = booking.host.hostName;
 	outputObj.host.telephoneCountryCode = booking.host.telephoneCountryCode;
 	outputObj.host.telephoneNumber = booking.host.telephoneNumber;
 	outputObj.host.emailAddress = booking.host.emailAddress;

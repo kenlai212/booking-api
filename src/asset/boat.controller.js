@@ -8,11 +8,17 @@ const newBoat = asyncMiddleware(async (req) => {
 	return await boatService.newBoat(req.body, req.user);
 });
 
-const setFuelPercentage = asyncMiddleware(async (req) => {
-	return await boatService.setFuelPercentage(req.body, req.user);
+const setFuelLevel = asyncMiddleware(async (req) => {
+	return await boatService.setFuelLevel(req.body, req.user);
+});
+
+const findBoat = asyncMiddleware(async (req) => {
+	console.log(req.params);
+	return await boatService.findBoat(req.params, req.user);
 });
 
 module.exports = {
 	newBoat,
-	setFuelPercentage
+	setFuelLevel,
+	findBoat
 }

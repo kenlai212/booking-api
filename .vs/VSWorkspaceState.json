@@ -1,9 +1,7 @@
 {
   "ExpandedNodes": [
     "",
-    "\\src",
-    "\\src\\authentication",
-    "\\src\\pricing"
+    "\\src\\booking"
   ],
   "SelectedNode": "\\src",
   "PreviewInSolutionExplorer": false
