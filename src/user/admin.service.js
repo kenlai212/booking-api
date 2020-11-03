@@ -15,7 +15,7 @@ const ACTIVE_STATUS = "ACTIVE";
 const INACTIVE_STATUS = "INACTIVE";
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
 
-const USER_ADMIN_GROUP = "USER_ADMIN_GROUP";
+const USER_ADMIN_GROUP = "USER_ADMIN";
 
 async function deactivateUser(input, user) {
 	//validate user group rights
@@ -231,7 +231,9 @@ async function assignGroup(input, user) {
 				"PRICING_USER",
 				"OCCUPANCY_ADMIN",
 				"NOTIFICATION_USER",
-				"USER_ADMIN")
+				"USER_ADMIN",
+				"ASSET_ADMIN",
+				"ASSET_USER")
 			.required()
 		//TODO add more valid groups
 	});

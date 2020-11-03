@@ -10,11 +10,11 @@ const userAuthorization = require("../common/middleware/userAuthorization");
 const Occupancy = require("./occupancy.model").Occupancy;
 const occupancyHelper = require("./occupancy.helper");
 
-const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
-const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER_GROUP";
-const OCCUPANCY_USER_GROUP = "OCCUPANCY_USER_GROUP";
-const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN_GROUP";
-const BOOKING_USER_GROUP = "BOOKING_USER_GROUP";
+const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN";
+const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER";
+const OCCUPANCY_USER_GROUP = "OCCUPANCY_USER";
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
+const BOOKING_USER_GROUP = "BOOKING_USER";
 
 /**
  * By : Ken Lai

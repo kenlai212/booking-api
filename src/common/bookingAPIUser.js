@@ -4,12 +4,12 @@ const logger = require("./logger");
 const userObject = {
 	name: "Booking API System User",
 	groups: [
-		"BOOKING_ADMIN_GROUP",
-		"PRICING_USER_GROUP",
-		"OCCUPANCY_ADMIN_GROUP",
-		"NOTIFICATION_USER_GROUP",
-		"USER_ADMIN_GROUP",
-		"ASSET_ADMIN_GROUP"]
+		"BOOKING_ADMIN",
+		"PRICING_USER",
+		"OCCUPANCY_ADMIN",
+		"NOTIFICATION_USER",
+		"USER_ADMIN",
+		"ASSET_ADMIN"]
 }
 
 function getAccessToken() {

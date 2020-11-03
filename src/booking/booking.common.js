@@ -2,8 +2,8 @@
 const moment = require("moment");
 
 //constants for user groups
-const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN_GROUP";
-const BOOKING_USER_GROUP = "BOOKING_USER_GROUP";
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
+const BOOKING_USER_GROUP = "BOOKING_USER";
 
 const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
 

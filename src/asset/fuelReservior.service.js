@@ -7,8 +7,8 @@ const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 const FuelReservior = require("./fuelReservior.model");
 
-const ASSET_ADMIN_GROUP = "ASSET_ADMIN_GROUP";
-const ASSET_USER_GROUP = "ASSET_USER_GROUP";
+const ASSET_ADMIN_GROUP = "ASSET_ADMIN";
+const ASSET_USER_GROUP = "ASSET_USER";
 
 async function newFuelReservior(input, user) {
 	const rightsGroup = [
@@ -34,7 +34,7 @@ async function newFuelReservior(input, user) {
 	if (result.error) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
-
+	/*
 	let existingReservior;
 	try {
 		existingReservior = await FuelReservior.findOne({ assetId: input.assetId });
@@ -45,8 +45,8 @@ async function newFuelReservior(input, user) {
 
 	if (existingReservior != null) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: `FuelReservior with assetId(${input.assetId}) already exist` };
-	}
-
+	}*/
+	
 	let fuelReservior = new FuelReservior();
 	fuelReservior.lastUpdateTime = moment().toDate();
 	fuelReservior.reserviorName = input.reserviorName;
@@ -58,6 +58,7 @@ async function newFuelReservior(input, user) {
 	try {
 		fuelReservior = await fuelReservior.save();
 	} catch (err) {
+		console.log("diu!!!!");
 		logger.error("Internal Server Error : ", err);
 		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 	}

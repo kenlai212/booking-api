@@ -1,6 +1,4 @@
 "use strict";
-const url = require("url");
-
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const boatService = require("./boat.service");
 

@@ -16,6 +16,9 @@ const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
 const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
 
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
+const BOOKING_USER_GROUP = "BOOKING_USER";
+
 /**********************************************************
 By : Ken Lai
 Date : Mar 13 2020
@@ -26,8 +29,8 @@ Will include unitPrice and availability in each slot
 async function getSlots(input, user) {
 	//validate user group rights
 	const rightsGroup = [
-		"BOOKING_ADMIN_GROUP",
-		"BOOKING_USER_GROUP"
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
 	]
 	
 	if (userAuthorization(user.groups, rightsGroup) == false) {
@@ -78,7 +81,7 @@ async function getSlots(input, user) {
 		occupancies = slotHelper.setCustomerBookingStartSlotsRestriction(occupancies, 2);
 	}
 
-	//add a buffer slot and the end of each occupacy
+	//add a buffer slot at the end of each occupacy
 	occupancies = slotHelper.setBetweenBookingBufferSlot(occupancies)
 	
 	//set availibilities for each slots
@@ -112,8 +115,8 @@ Returns all immediate available end slots after the target start slot
 async function getEndSlots(input, user) {
 	//validate user group rights
 	const rightsGroup = [
-		"BOOKING_ADMIN_GROUP",
-		"BOOKING_USER_GROUP"
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
 	]
 
 	if (userAuthorization(user.groups, rightsGroup) == false) {
@@ -187,7 +190,7 @@ async function getEndSlots(input, user) {
 	}
 
 	let outputObjs = [];
-	//push all slots with "available" flag
+	//push all slots with "available" flag into outputObjs array
 	endSlots.forEach(async endSlot => {
 
 		let outputObj = new Object();

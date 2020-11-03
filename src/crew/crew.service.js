@@ -8,8 +8,8 @@ const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 const Crew = require("./crew.model").Crew;
 
-const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN_GROUP";
-const OCCUPANCY_USER_GROUP = "OCCUPANCY_USER_GROUP";
+const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN";
+const OCCUPANCY_USER_GROUP = "OCCUPANCY_USER";
 
 async function findCrew(input, user) {
 	const rightsGroup = [

@@ -1,8 +1,10 @@
 {
   "ExpandedNodes": [
     "",
+    "\\src",
+    "\\src\\asset",
     "\\src\\booking"
   ],
-  "SelectedNode": "\\src",
+  "SelectedNode": "\\src\\asset\\fuelReservior.service.js",
   "PreviewInSolutionExplorer": false
 }

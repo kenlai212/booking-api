@@ -7,8 +7,8 @@ const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 const Boat = require("./boat.model").Boat;
 
-const ASSET_ADMIN_GROUP = "ASSET_ADMIN_GROUP";
-const ASSET_USER_GROUP = "ASSET_USER_GROUP";
+const ASSET_ADMIN_GROUP = "ASSET_ADMIN";
+const ASSET_USER_GROUP = "ASSET_USER";
 
 async function newBoat(input, user) {
 	const rightsGroup = [

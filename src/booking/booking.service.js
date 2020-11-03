@@ -69,7 +69,7 @@ async function addNewBooking(input, user) {
 			.valid("852", "853", "86")
 			.required(),
 		telephoneNumber: Joi.string().min(1).required(),
-		crews: Joi.array().length(1)
+		crewId: Joi.string().min(1)
 	});
 
 	const result = schema.validate(input);
@@ -88,8 +88,8 @@ async function addNewBooking(input, user) {
 	if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
 		//check minimum booking duration, maximum booking duration, earliest startTime
 		try {
-			BookingDurationHelper.checkMimumDuration(startTime, endTime);
-			BookingDurationHelper.checkMaximumDuration(startTime, endTime);
+			//BookingDurationHelper.checkMimumDuration(startTime, endTime);
+			//BookingDurationHelper.checkMaximumDuration(startTime, endTime);
 			//BookingDurationHelper.checkEarliestStartTime(startTime, UTC_OFFSET);
 			//BookingDurationHelper.checkLatestEndTime(endTime, UTC_OFFSET);
 		} catch (err) {
@@ -146,10 +146,10 @@ async function addNewBooking(input, user) {
 		emailAddress: booking.host.emailAddress
 	}
 	booking.guests = [firstGuest];
-
+	console.log(input);
 	//add crew 
 	//TODO auto add crew based on schedule
-	if (input.crews != null) {
+	if (input.crewId != null) {
 		let crew;
 		try {
 			crew = await crewHelper.getCrew(input.crewId);
@@ -158,7 +158,7 @@ async function addNewBooking(input, user) {
 			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 		}
 
-		if (crew == null || crew.id == null) {
+		if (crew == null) {
 			throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
 		}
 
@@ -174,7 +174,7 @@ async function addNewBooking(input, user) {
 			telephoneNumber: crew.telephoneNumber,
 			assignmentTime: moment().toDate(),
 			assignmentBy: user.id
-		}); 
+		});
 	}
 
 	booking.creationTime = moment().toDate();

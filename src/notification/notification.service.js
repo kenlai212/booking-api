@@ -9,6 +9,10 @@ const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 
+const NOTIFICATION_ADMIN_GROUP = "NOTIFICATION_ADMIN";
+const NOTIFICATION_POWER_USER_GROUP = "NOTIFICATION_POWER_USER";
+const NOTIFICATION_USER_GROUP = "NOTIFICATION_USER";
+
 /**
 By : Ken Lai
 Date : Mar 18, 2020
@@ -17,11 +21,9 @@ send email using aws ses service
 **/
 async function sendEmail(input, user){
 	const rightsGroup = [
-		"NOTIFICATION_ADMIN_GROUP",
-		"NOTIFICATION_POWER_USER_GROUP",
-		"NOTIFICATION_USER_GROUP",
-		"BOOKING_ADMIN_GROUP",
-		"BOOKING_USER_GROUP"
+		NOTIFICATION_ADMIN_GROUP,
+		NOTIFICATION_POWER_USER_GROUP,
+		NOTIFICATION_USER_GROUP
 	]
 
 	//validate user group
@@ -98,11 +100,9 @@ send sms using aws sns service
 **/
 async function sendSMS(input, user) {
 	const rightsGroup = [
-		"NOTIFICATION_ADMIN_GROUP",
-		"NOTIFICATION_POWER_USER_GROUP",
-		"NOTIFICATION_USER_GROUP",
-		"BOOKING_ADMIN_GROUP",
-		"BOOKING_USER_GROUP"
+		NOTIFICATION_ADMIN_GROUP,
+		NOTIFICATION_POWER_USER_GROUP,
+		NOTIFICATION_USER_GROUP
 	]
 
 	//validate user group

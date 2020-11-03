@@ -9,10 +9,13 @@ const userAuthorization = require("../common/middleware/userAuthorization");
 const CUSTOMER_BOOKING = "CUSTOMER_BOOKING";
 const OWNER_BOOKING = "OWNER_BOOKING";
 
+const PRICING_ADMIN_GROUP = "PRICING_ADMIN";
+const PRICING_USER_GROUP = "PRICING_USER";
+
 function calculateTotalAmount(input, user) {
 	const rightsGroup = [
-		"PRICING_ADMIN_GROUP",
-		"PRICING_USER_GROUP"
+		PRICING_ADMIN_GROUP,
+		PRICING_USER_GROUP
 	]
 	
 	//validate user group
