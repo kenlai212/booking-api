@@ -1,13 +1,13 @@
 "use strict";
-const paymentService = require("./booking.payment.service");
+const invoiceService = require("./booking.invoice.service");
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 
 const makePayment = asyncMiddleware(async (req) => {
-	return await paymentService.makePayment(req.body, req.user);
+	return await invoiceService.makePayment(req.body, req.user);
 });
 
 const applyDiscount = asyncMiddleware(async (req) => {
-	return await paymentService.applyDiscount(req.body, req.user);
+	return await invoiceService.applyDiscount(req.body, req.user);
 });
 
 module.exports = {

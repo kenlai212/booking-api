@@ -39,8 +39,8 @@ function calculateTotalAmount(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
-	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
+	const startTime = utility.isoStrToDate(input.startTime, 0);
+	const endTime = utility.isoStrToDate(input.endTime, 0);
 
 	//startTime cannot be later then endTime
 	if (startTime > endTime) {
@@ -52,32 +52,54 @@ function calculateTotalAmount(input, user) {
 	const durationByMinutes = Math.ceil(diffTime / (1000 * 60));
 	const durationByHours = Math.round((durationByMinutes / 60) * 2) / 2;
 
-	//define unitPrice for (CUSTOMER_BOOKING or OWNER_BOOKING) and (weekdays or holidays)
-	let unitPrice;
-	if (input.bookingType == CUSTOMER_BOOKING) {
-		unitPrice = config.get("pricing.unitPriceRegular");
-		
-		//check weekday or holidays
-		if (startTime.getDay() != 6 && startTime.getDay() != 0) {
-			unitPrice = config.get("pricing.unitPriceDiscounted");
+	//calculate regular maount
+	const unitPrice = config.get("pricing.unitPriceRegular");
+	const regularAmount = durationByHours * unitPrice;
+
+	let discounts = [];
+
+	//check for OWNER discount
+	if (input.bookingType == "OWNER_BOOKING") {
+		const discount = {
+			amount: config.get("pricing.ownerDiscount"),
+			discountCode: "OWNER_DISCOUNT"
 		}
-	} else {
-		unitPrice = config.get("pricing.unitPriceOwnerBooking");
+
+		discounts.push(discount);
 	}
 
-	//calculate regular and total maount
-	const regularAmount = durationByHours * unitPrice;
-	const discountAmount = 0;
-	const totalAmount = regularAmount - discountAmount;
-	
-	return {
-		"regularAmount": regularAmount,
-		"discountAmount": discountAmount,
-		"totalAmount": totalAmount,
-		"durationByHours": durationByHours,
-		"unitPrice": unitPrice,
-		"currency": config.get("pricing.unitCurrency")
-	};
+	//check for WEEKDAY discount for customer booking
+	if (startTime.getDay() != 6 && startTime.getDay() != 0 && input.bookingType=="CUSTOMER_BOOKING") {
+		const discount = {
+			amount: config.get("pricing.weekdayDiscount"),
+			discountCode: "WEEKDAY_DISCOUNT"
+		}
+
+		discounts.push(discount);
+	}
+
+	//calculate totalAmount
+	let totalAmount;
+	let totalDiscountAmount = 0;
+	discounts.forEach(discount => {
+		totalDiscountAmount += discount.amount;
+	});
+
+	totalAmount = regularAmount - totalDiscountAmount;
+
+	let pricingObject = new Object();
+	pricingObject.regularAmount = regularAmount;
+
+	if (discounts.length > 0) {
+		pricingObject.discounts = discounts;
+	}
+
+	pricingObject.totalAmount = totalAmount;
+	pricingObject.durationByHours = durationByHours;
+	pricingObject.unitPrice = unitPrice;
+	pricingObject.currency = config.get("pricing.unitCurrency");
+
+	return pricingObject;
 }
 
 module.exports = {

@@ -16,14 +16,17 @@ function bookingToOutputObj(booking) {
 	outputObj.occupancyId = booking.occupancyId;
 	outputObj.status = booking.status;
 
-	outputObj.regularAmount = booking.regularAmount;
-	outputObj.discountAmount = booking.discountAmount;
-	outputObj.totalAmount = booking.totalAmount;
-	outputObj.paidAmount = booking.paidAmount;
-	outputObj.balance = booking.balance;
-	outputObj.currency = booking.currency;
-	outputObj.unitPrice = booking.unitPrice;
-	outputObj.paymentStatus = booking.paymentStatus;
+	outputObj.invoice = new Object();
+	outputObj.invoice.regularAmount = booking.invoice.regularAmount;
+	if (booking.invoice.discounts != null) {
+		outputObj.invoice.discounts = booking.invoice.discounts;
+	}
+	outputObj.invoice.totalAmount = booking.invoice.totalAmount;
+	outputObj.invoice.paidAmount = booking.invoice.paidAmount;
+	outputObj.invoice.balance = booking.invoice.balance;
+	outputObj.invoice.currency = booking.invoice.currency;
+	outputObj.invoice.unitPrice = booking.invoice.unitPrice;
+	outputObj.invoice.paymentStatus = booking.invoice.paymentStatus;
 
 	outputObj.startTime = booking.startTime;
 	outputObj.endTime = booking.endTime;

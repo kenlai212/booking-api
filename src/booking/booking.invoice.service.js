@@ -81,10 +81,10 @@ async function makePayment(input, user) {
 	} else if (input.paidAmount == 0) {
 		paymentStatus = AWAITING_PAYMENT_STATUS;
 	}
-	booking.paymentStatus = paymentStatus;
+	booking.invoice.paymentStatus = paymentStatus;
 
-	booking.paidAmount = Number(input.paidAmount);
-	booking.balance = booking.totalAmount - booking.paidAmount;
+	booking.invoice.paidAmount = Number(input.paidAmount);
+	booking.invoice.balance = booking.invoice.totalAmount - booking.invoice.paidAmount;
 
 	//add transaction history
 	var transactionHistory = new Object();
@@ -126,6 +126,10 @@ async function applyDiscount(input, user) {
 			.required(),
 		discountAmount: Joi
 			.number()
+			.required(),
+		discountCode: Joi
+			.string()
+			.valid("WEEKDAY_DISCOUNT", "OWNER_DISCOUNT", "VIP_DISCOUNT")
 			.required()
 	});
 
@@ -151,17 +155,34 @@ async function applyDiscount(input, user) {
 	if (booking == null) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 	}
+	
+	//set discounts
+	if (booking.invoice.discounts == null) {
+		booking.invoice.discounts = new Array();
+	}
 
-	booking.discountAmount = input.discountAmount;
-	booking.totalAmount = booking.regularAmount - booking.discountAmount;
-	booking.balance = booking.totalAmount - booking.paidAmount;
-
+	const discount = {
+		amount: input.discountAmount,
+		discountCode: input.discountCode
+	}
+	booking.invoice.discounts.push(discount);
+	
+	//calculate totalAmount
+	let totalDiscountAmount = 0;
+	booking.invoice.discounts.forEach(discount => {
+		totalDiscountAmount += discount.amount;
+	});
+	booking.invoice.totalAmount = booking.invoice.regularAmount - totalDiscountAmount;
+	
+	//calculate balance
+	booking.invoice.balance = booking.invoice.totalAmount - booking.invoice.paidAmount;
+	
 	//add transaction history
 	var transactionHistory = new Object();
 	transactionHistory.transactionTime = moment().toDate();
 	transactionHistory.userId = user.id;
 	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = "Gave discount. Final discounted amount : " + booking.discountedAmount;
+	transactionHistory.transactionDescription = `Gave ${input.discountCode} (${input.discountAmount})`;
 	booking.history.push(transactionHistory);
 
 	try {

@@ -4,8 +4,8 @@
   },
   "pricing": {
     "unitPriceRegular": 1200,
-    "unitPriceDiscounted": 1000,
-    "unitPriceOwnerBooking": 300,
+    "ownerDiscount": 900,
+    "weekdayDiscount": 200,
     "unitCurrency": "HKD"
   },
   "domainURL": {

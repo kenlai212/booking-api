@@ -66,9 +66,9 @@ async function addNewBooking(input, user) {
 		hostName: Joi.string().min(1).required(),
 		telephoneCountryCode: Joi
 			.string()
-			.valid("852", "853", "86")
-			.required(),
-		telephoneNumber: Joi.string().min(1).required(),
+			.valid("852", "853", "86"),
+		telephoneNumber: Joi.string().min(1),
+		emailAddress: Joi.string().min(1),
 		crewId: Joi.string().min(1)
 	});
 
@@ -118,35 +118,57 @@ async function addNewBooking(input, user) {
 	//TODO validate if user can do OWNER_BOOKING
 	booking.bookingType = input.bookingType;
 
-	//calculate pricing & currency
+	//set invoice
 	const totalAmountObj = PricingHelper.calculateTotalAmount(input.startTime, input.endTime, input.utcOffset, booking.bookingType);
-	booking.regularAmount = totalAmountObj.regularAmount;
-	booking.discountAmount = totalAmountObj.discountAmount;
-	booking.totalAmount = totalAmountObj.totalAmount;
-	booking.paidAmount = 0;
-	booking.balance = totalAmountObj.totalAmount;
+	booking.invoice = new Object();
+	booking.invoice.regularAmount = totalAmountObj.regularAmount;
+	booking.invoice.totalAmount = totalAmountObj.totalAmount;
+
+	if (totalAmountObj.discounts != null && totalAmountObj.discounts.length > 0) {
+		booking.invoice.discounts = totalAmountObj.discounts;
+	}
+
+	booking.invoice.paidAmount = 0;
+	booking.invoice.balance = totalAmountObj.totalAmount;
+	booking.invoice.unitPrice = totalAmountObj.unitPrice;
+	booking.invoice.currency = totalAmountObj.currency;
+	booking.invoice.paymentStatus = AWAITING_PAYMENT_STATUS;
+
 	booking.durationByHours = totalAmountObj.durationByHours;
-	booking.unitPrice = totalAmountObj.unitPrice;
-	booking.currency = totalAmountObj.currency;
-	booking.paymentStatus = AWAITING_PAYMENT_STATUS;
 
 	//set host
 	booking.host.hostName = input.hostName;
-	booking.host.telephoneCountryCode = input.telephoneCountryCode;
-	booking.host.telephoneNumber = input.telephoneNumber;
+
+	if (input.telephoneNumber != null) {
+
+		//telephoneCountryCode cannot be null if telephoneNumber is not null
+		if (input.telephoneCountryCode == null) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: "telephoneCountryCode is mandatory" };
+		}
+
+		booking.host.telephoneNumber = input.telephoneNumber;
+		booking.host.telephoneCountryCode = input.telephoneCountryCode;
+	}
+	
 	if (input.emailAddress != null) {
 		booking.host.emailAddress = input.emailAddress;
 	}
 
 	//set first guest as contact
-	const firstGuest = {
-		guestName: booking.host.hostName,
-		telephoneCountryCode: booking.host.telephoneCountryCode,
-		telephoneNumber: booking.host.telephoneNumber,
-		emailAddress: booking.host.emailAddress
+	const firstGuest = new Object();
+	firstGuest.guestName = booking.host.hostName;
+
+	if (booking.host.telephoneNumber != null) {
+		firstGuest.telephoneNumber = booking.host.telephoneNumber;
+		firstGuest.telephoneCountryCode = booking.host.telephoneCountryCode;
 	}
+
+	if (booking.host.emailAddress != null) {
+		firstGuest.emailAddress = booking.host.emailAddress;
+	}
+	
 	booking.guests = [firstGuest];
-	console.log(input);
+	
 	//add crew 
 	//TODO auto add crew based on schedule
 	if (input.crewId != null) {

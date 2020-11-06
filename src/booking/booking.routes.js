@@ -5,7 +5,7 @@ const logIncommingRequest = require("../common/middleware/logIncommingRequest");
 const authenticateAccessToken = require("../common/middleware/authenticateAccessToken");
 
 const bookingController = require("./booking.controller");
-const paymentController = require("./booking.payment.controller");
+const invoiceController = require("./booking.invoice.controller");
 const guestController = require("./booking.guest.controller");
 const disclaimerController = require("./booking.guest.disclaimer.controller");
 const crewController = require("./booking.crew.controller");
@@ -23,8 +23,8 @@ router.put("/booking/host", authenticateAccessToken, logIncommingRequest, hostCo
 router.post("/booking/crew", authenticateAccessToken, logIncommingRequest, crewController.assignCrew);
 router.delete("/booking/crew/:bookingId/:crewId", authenticateAccessToken, logIncommingRequest, crewController.relieveCrew);
 
-router.put("/booking/payment", authenticateAccessToken, logIncommingRequest, paymentController.makePayment);
-router.put("/booking/discount", authenticateAccessToken, logIncommingRequest, paymentController.applyDiscount);
+router.put("/booking/payment", authenticateAccessToken, logIncommingRequest, invoiceController.makePayment);
+router.put("/booking/discount", authenticateAccessToken, logIncommingRequest, invoiceController.applyDiscount);
 
 router.delete("/booking/guest/:bookingId/:guestId", authenticateAccessToken, logIncommingRequest, guestController.removeGuest);
 router.post("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.addGuest);
