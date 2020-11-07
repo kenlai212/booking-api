@@ -60,8 +60,9 @@ function calculateTotalAmount(input, user) {
 
 	//check for OWNER discount
 	if (input.bookingType == "OWNER_BOOKING") {
+		const totalDiscount = config.get("pricing.ownerDiscount") * durationByHours;
 		const discount = {
-			amount: config.get("pricing.ownerDiscount"),
+			amount: totalDiscount,
 			discountCode: "OWNER_DISCOUNT"
 		}
 
