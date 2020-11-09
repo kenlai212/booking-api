@@ -22,7 +22,11 @@ function bookingToOutputObj(booking) {
 		outputObj.invoice.discounts = booking.invoice.discounts;
 	}
 	outputObj.invoice.totalAmount = booking.invoice.totalAmount;
-	outputObj.invoice.paidAmount = booking.invoice.paidAmount;
+
+	if (booking.invoice.payments != null) {
+		outputObj.invoice.payments = booking.invoice.payments;
+	}
+
 	outputObj.invoice.balance = booking.invoice.balance;
 	outputObj.invoice.currency = booking.invoice.currency;
 	outputObj.invoice.unitPrice = booking.invoice.unitPrice;

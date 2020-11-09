@@ -13,7 +13,7 @@ const hostController = require("./booking.host.controller");
 
 const router = express.Router();
 router.post("/booking", authenticateAccessToken, logIncommingRequest, bookingController.newBooking);
-router.delete("/booking/:bookingId", authenticateAccessToken, logIncommingRequest, bookingController.cancelBooking);
+//router.delete("/booking/:bookingId", authenticateAccessToken, logIncommingRequest, bookingController.cancelBooking);
 router.get("/bookings", authenticateAccessToken, logIncommingRequest, bookingController.searchBookings);
 router.get("/booking", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
 router.put("/booking/fulfill", authenticateAccessToken, logIncommingRequest, bookingController.fulfillBooking);
@@ -25,6 +25,7 @@ router.delete("/booking/crew/:bookingId/:crewId", authenticateAccessToken, logIn
 
 router.put("/booking/payment", authenticateAccessToken, logIncommingRequest, invoiceController.makePayment);
 router.put("/booking/discount", authenticateAccessToken, logIncommingRequest, invoiceController.applyDiscount);
+router.delete("/booking/discount", authenticateAccessToken, logIncommingRequest, invoiceController.removeDiscount);
 
 router.delete("/booking/guest/:bookingId/:guestId", authenticateAccessToken, logIncommingRequest, guestController.removeGuest);
 router.post("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.addGuest);

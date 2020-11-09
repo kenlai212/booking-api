@@ -20,6 +20,10 @@ const bookingSchema = new mongoose.Schema({
 			discountCode: String
 		}],
 		totalAmount: Number,
+		payments: [{
+			amount: Number,
+			paymentDate: Date
+        }],
 		paidAmount: Number,
 		balance: Number,
 		paymentStatus: String,

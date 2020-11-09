@@ -171,7 +171,7 @@ async function addGuest(input, user) {
 	}
 	booking.history.push({
 		transactionTime: moment().toDate(),
-		transactionDescription: "Added new guest : " + input.guestName,
+		transactionDescription: `Added new guest : ${input.guestName}`,
 		userId: user.id,
 		userName: user.name
 	});

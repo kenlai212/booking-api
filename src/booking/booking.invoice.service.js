@@ -31,7 +31,7 @@ async function makePayment(input, user) {
 
 	//validate input data
 	const schema = Joi.object({
-		paidAmount: Joi
+		amount: Joi
 			.number()
 			.required(),
 		currency: Joi
@@ -68,30 +68,48 @@ async function makePayment(input, user) {
 	}
 
 	//Validate currency
-	if (input.currency != booking.currency) {
+	if (input.currency != booking.invoice.currency) {
 		throw { name: customError.BAD, message: "Cannot make payment in " + input.currency };
 	}
 
+	//add payment to payments array
+	if (booking.invoice.payments == null) {
+		booking.invoice.payments = [];
+	}
+	
+	const payment = {
+		amount: input.amount,
+		paymentDate: moment().toDate()
+	}
+
+	booking.invoice.payments.push(payment);
+
+	//tally all payment amounts
+	let totalPaymentAmount = 0;
+	booking.invoice.payments.forEach(payment => {
+		totalPaymentAmount += payment.amount;
+	});
+
+	//calculate balance
+	booking.invoice.balance = calculateBalance(booking.invoice.totalAmount, totalPaymentAmount);
+
 	//set paymentStatus
 	let paymentStatus;
-	if (input.paidAmount == booking.totalAmount) {
+	if (totalPaymentAmount == booking.invoice.totalAmount) {
 		paymentStatus = PAID_STATUS;
-	} else if (input.paidAmount < booking.totalAmount && input.paidAmount != 0) {
+	} else if (totalPaymentAmount < booking.invoice.totalAmount && totalPaymentAmount > 0) {
 		paymentStatus = PARTIAL_PAID_STATUS;
-	} else if (input.paidAmount == 0) {
+	} else if (totalPaymentAmount == 0) {
 		paymentStatus = AWAITING_PAYMENT_STATUS;
 	}
 	booking.invoice.paymentStatus = paymentStatus;
-
-	booking.invoice.paidAmount = Number(input.paidAmount);
-	booking.invoice.balance = booking.invoice.totalAmount - booking.invoice.paidAmount;
 
 	//add transaction history
 	var transactionHistory = new Object();
 	transactionHistory.transactionTime = moment().toDate();
 	transactionHistory.userId = user.id;
 	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = "Payment status made changed to " + paymentStatus;
+	transactionHistory.transactionDescription = "Payment made $" + totalPaymentAmount;
 	booking.history.push(transactionHistory);
 
 	try {
@@ -168,14 +186,10 @@ async function applyDiscount(input, user) {
 	booking.invoice.discounts.push(discount);
 	
 	//calculate totalAmount
-	let totalDiscountAmount = 0;
-	booking.invoice.discounts.forEach(discount => {
-		totalDiscountAmount += discount.amount;
-	});
-	booking.invoice.totalAmount = booking.invoice.regularAmount - totalDiscountAmount;
+	booking.invoice.totalAmount = calculateTotalAmount(booking.invoice.regularAmount, booking.invoice.discounts);
 	
 	//calculate balance
-	booking.invoice.balance = booking.invoice.totalAmount - booking.invoice.paidAmount;
+	booking.invoice.balance = calculateBalance(booking.invoice.totalAmount, booking.invoice.paidAmount);
 	
 	//add transaction history
 	var transactionHistory = new Object();
@@ -195,8 +209,112 @@ async function applyDiscount(input, user) {
 	return bookingCommon.bookingToOutputObj(booking);
 }
 
+function calculateBalance(totalAmount, paidAmount) {
+	return totalAmount - paidAmount;
+}
+
+function calculateTotalAmount(regularAmount, discounts) {
+	let totalDiscountAmount = 0;
+
+	if (discounts != null) {
+		discounts.forEach(discount => {
+			totalDiscountAmount += discount.amount;
+		});
+	}
+
+	return regularAmount - totalDiscountAmount;
+}
+
+async function removeDiscount(input, user) {
+	const rightsGroup = [
+		bookingCommon.BOOKING_ADMIN_GROUP
+	]
+	
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi
+			.string()
+			.required(),
+		discountId: Joi
+			.string()
+			.required()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate bookingId
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+	}
+	
+	//find booking
+	let booking;
+	try {
+		booking = await Booking.findById(input.bookingId);
+	} catch (err) {
+		logger.error("Booking.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (booking == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	}
+	
+	//find discount
+	let targetDiscount;
+	if (booking.invoice.discounts != null && booking.invoice.discounts.length > 0) {
+		booking.invoice.discounts.forEach((discount, index, object) => {
+			if (discount._id == input.discountId) {
+				targetDiscount = discount;
+				object.splice(index, 1);
+			}
+		});
+	}
+
+	//validate discountId
+	if (targetDiscount == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Discount not found" };
+	}
+
+	//calculate totalAmount
+	booking.invoice.totalAmount = calculateTotalAmount(booking.invoice.regularAmount, booking.invoice.discounts);
+
+	//calculate balance
+	booking.invoice.balance = calculateBalance(booking.invoice.totalAmount, booking.invoice.paidAmount);
+
+
+	//add transaction history
+	if (booking.history == null) {
+		booking.history = [];
+	}
+	booking.history.push({
+		transactionTime: moment().toDate(),
+		transactionDescription: `Removed discount : ${targetDiscount.discountCode}, ${targetDiscount.amount}`,
+		userId: user.id,
+		userName: user.name
+	});
+
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return bookingCommon.bookingToOutputObj(booking);
+}
+
 module.exports = {
 	makePayment,
 	applyDiscount,
+	removeDiscount
 }
 
