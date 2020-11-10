@@ -3,8 +3,9 @@ const mongoose = require("mongoose");
 const fuelReserviorSchema = new mongoose.Schema({
 	assetId: String,
 	lastUpdateTime: Date,
-	fullCanister: Number,
-	emptyCanister: Number
+	lastUpdateBy: String,
+	fullCanisters: Number,
+	emptyCanisters: Number
 });
 
 const FuelReservior = mongoose.model("FuelReservior", fuelReserviorSchema);

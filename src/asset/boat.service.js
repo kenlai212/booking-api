@@ -96,7 +96,7 @@ async function setFuelLevel(input, user) {
 	try {
 		boat = await Boat.findOne({ assetId: input.assetId });
 	} catch (err) {
-		logger.error("Boat.findById Error : ", err);
+		logger.error("Boat.findOne Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
