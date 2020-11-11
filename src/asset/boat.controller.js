@@ -11,7 +11,6 @@ const setFuelLevel = asyncMiddleware(async (req) => {
 });
 
 const findBoat = asyncMiddleware(async (req) => {
-	console.log(req.params);
 	return await boatService.findBoat(req.params, req.user);
 });
 

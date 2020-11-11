@@ -10,7 +10,12 @@ const editCanisters = asyncMiddleware(async (req) => {
 	return await fuelReserviorService.editCanisters(req.body, req.user);
 });
 
+const findFuelReservior = asyncMiddleware(async (req) => {
+	return await fuelReserviorService.findFuelReservior(req.params, req.user);
+});
+
 module.exports = {
 	newFuelReservior,
-	editCanisters
+	editCanisters,
+	findFuelReservior
 }

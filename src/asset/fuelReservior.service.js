@@ -121,6 +121,44 @@ async function editCanisters(input, user) {
 	return fuelReserviorToOutputObj(fuelReservior);
 }
 
+async function findFuelReservior(input, user) {
+	const rightsGroup = [
+		ASSET_ADMIN_GROUP,
+		ASSET_USER_GROUP
+	]
+
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//validate input data
+	const schema = Joi.object({
+		assetId: Joi
+			.string()
+			.required()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	let fuelReservior;
+	try {
+		fuelReservior = await FuelReservior.findOne({ assetId: input.assetId });
+	} catch (err) {
+		logger.error("FuelReservior.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (fuelReservior == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "None found" };
+	}
+
+	return fuelReserviorToOutputObj(fuelReservior);
+}
+
 function fuelReserviorToOutputObj(fuelReservior) {
 	var outputObj = new Object();
 	outputObj.reserviorId = fuelReservior._id;
@@ -134,5 +172,6 @@ function fuelReserviorToOutputObj(fuelReservior) {
 
 module.exports = {
 	newFuelReservior,
-	editCanisters
+	editCanisters,
+	findFuelReservior
 }

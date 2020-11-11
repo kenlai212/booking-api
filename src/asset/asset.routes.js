@@ -13,5 +13,6 @@ router.put("/boat/fuel-level", logIncommingRequest, authenticateAccessToken, boa
 
 router.post("/fuel-reservior", logIncommingRequest, authenticateAccessToken, fuelReserviorController.newFuelReservior);
 router.put("/fuel-reservior", logIncommingRequest, authenticateAccessToken, fuelReserviorController.editCanisters);
+router.get("/fuel-reservior/:assetId", logIncommingRequest, authenticateAccessToken, fuelReserviorController.findFuelReservior);
 
 module.exports = router;
