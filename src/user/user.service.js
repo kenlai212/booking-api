@@ -11,6 +11,8 @@ const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
 const notificationHelper = require("./notification_internal.helper");
 
+const USER_ADMIN_GROUP = "USER_ADMIN";
+
 /**
  * By : Ken Lai
  * Date : Mar 15, 2020
@@ -145,20 +147,28 @@ async function forgetPassword(input){
 	}
 }
 
-async function updateEmailAddress(input, user) {
-	//TODO validate user either admin or self
-
+async function updateContactInfo(input, user) {
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
 			.string()
 			.required(),
+		name: Joi
+			.string()
+			.min(1),
 		emailAddress: Joi
 			.string()
-			.required()
+			.min(1),
+		telephoneCountryCode: Joi
+			.string()
+			.valid("852", "853", "86", null),
+		telephoneNumber: Joi
+			.string()
+			.min(1)
+		//TODO validate telephoneNmber
 		//TODO validate email address format
 	});
-
+	
 	const result = schema.validate(input);
 	if (result.error) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
@@ -175,75 +185,58 @@ async function updateEmailAddress(input, user) {
 	if (targetUser == null) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
 	}
-
-	//update emailAddress in user record
-	targetUser.emailAddress = input.emailAddress;
-
-	//set history
-	const historyItem = {
-		transactionTime: moment().toDate(),
-		transactionDescription: "Updated email address"
+	
+	//check for authorization. if USER_ADMIN or user.id is same as targetUser._id
+	let authorize = false;
+	if (user.groups.includes(USER_ADMIN_GROUP) == true) {
+		authorize = true;
 	}
-	targetUser.history.push(historyItem);
-
-	try {
-		return await targetUser.save();
-	} catch (err) {
-		logger.error("user.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	
+	if (authorize == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 	}
-}
+	
+	//update contact info
+	let hasDelta = false;
 
-async function updateTelephoneNumber(input, user) {
-	//TODO validate user either admin or self
-
-	//validate input data
-	const schema = Joi.object({
-		userId: Joi
-			.string()
-			.required(),
-		telephoneCountryCode: Joi
-			.string()
-			.validate("852", "853", "86")
-			.required(),
-		telephoneNumber: Joi
-			.string()
-			.required()
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		reject({ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') });
+	if (input.name != null) {
+		targetUser.name = input.name;
+		hasDelta = true;
 	}
 
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	if (input.telephoneNumber != null) {
+		if (input.telephoneCountryCode == null) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: "telephoneCountryCode is mandatory" };
+		}
+
+		targetUser.telephoneCountryCode = input.telephoneCountryCode;
+		targetUser.telephoneNumber = input.telephoneNumber;
+		hasDelta = true;
+	}
+	
+	if (input.emailAddress != null) {
+		targetUser.emailAddress = input.emailAddress;
+		hasDelta = true
 	}
 
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
-	}
+	if (hasDelta == true) {
+		//set history
+		const historyItem = {
+			transactionTime: moment().toDate(),
+			transactionDescription: "Updated contact info"
+		}
+		targetUser.history.push(historyItem);
 
-	//update telephoneCountry and telephoneNumber and  in user record
-	targetUser.telephoneCountryCode = input.telephoneCountryCode;
-	targetUser.telephoneNumber = input.telephoneNumber;
+		try {
+			targetUser = await targetUser.save();
+		} catch (err) {
+			logger.error("user.save Error : ", err);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
 
-	//set history
-	const historyItem = {
-		transactionTime: moment().toDate(),
-		transactionDescription: "Updated telephone number"
-	}
-	targetUser.history.push(historyItem);
-
-	try {
-		return await targetUser.save();
-	} catch (err) {
-		logger.error("user.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		return userObjectMapper.toOutputObj(targetUser);
+	} else {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "No changes" };
 	}
 }
 
@@ -251,6 +244,5 @@ module.exports = {
 	findUser,
 	findSocialUser,
 	forgetPassword,
-	updateEmailAddress,
-	updateTelephoneNumber
+	updateContactInfo,
 }

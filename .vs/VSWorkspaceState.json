@@ -1,9 +1,8 @@
 {
   "ExpandedNodes": [
     "",
-    "\\src",
-    "\\src\\booking"
+    "\\src\\user"
   ],
-  "SelectedNode": "\\src\\booking\\booking.invoice.service.js",
+  "SelectedNode": "\\src",
   "PreviewInSolutionExplorer": false
 }

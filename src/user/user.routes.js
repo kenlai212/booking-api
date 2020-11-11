@@ -21,10 +21,11 @@ router.get("/users", authenticateAccessToken, logIncommingRequest, adminControll
 router.put("/user/groups", authenticateAccessToken, logIncommingRequest, adminController.assignGroup);
 router.delete("/user/groups", authenticateAccessToken, logIncommingRequest, adminController.unassignGroup);
 router.delete("/user", authenticateAccessToken, logIncommingRequest, adminController.deleteUser);
+router.get("/groups", authenticateAccessToken, logIncommingRequest, adminController.searchGroups);
 
 router.get("/user", authenticateAccessToken, logIncommingRequest, userController.findUser);
 router.get("/user/social", authenticateAccessToken, logIncommingRequest, userController.findSocialUser);
-router.put("/user/email-address", authenticateAccessToken, logIncommingRequest, userController.updateEmailAddress);
+router.put("/user/contact-info", authenticateAccessToken, logIncommingRequest, userController.updateContactInfo);
 
 
 module.exports = router;

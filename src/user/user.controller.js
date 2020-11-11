@@ -18,18 +18,13 @@ const forgetPassword = asyncMiddleware(async (req) => {
 	return await userService.forgetPassword(req.body);
 });
 
-const updateEmailAddress = asyncMiddleware(async (req) => {
-	await userService.updateEmailAddress(req.body);
-});
-
-const updateTelephoneNumber = asyncMiddleware(async (req) => {
-	await userService.updateTelephoneNumber(req.body);
+const updateContactInfo = asyncMiddleware(async (req) => {
+	return await userService.updateContactInfo(req.body, req.user);
 });
 
 module.exports = {
 	findUser,
 	findSocialUser,
 	forgetPassword,
-	updateEmailAddress,
-	updateTelephoneNumber
+	updateContactInfo
 }

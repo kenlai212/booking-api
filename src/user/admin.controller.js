@@ -30,6 +30,10 @@ const resendActivationEmail = asyncMiddleware(async (req) => {
 	return await adminService.resendActivationEmail(req.body, req.user);
 });
 
+const searchGroups = asyncMiddleware(async (req) => {
+	return await adminService.searchGroups(req.body, req.user);
+});
+
 module.exports = {
 	searchUsers,
 	assignGroup,
@@ -37,5 +41,6 @@ module.exports = {
 	deactivate,
 	deleteUser,
 	adminActivate,
-	resendActivationEmail
+	resendActivationEmail,
+	searchGroups
 }

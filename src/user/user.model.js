@@ -7,7 +7,7 @@ const userSchema = new mongoose.Schema({
 	providerUserId: String,
 	image: String,
 	telephoneCountryCode: String,
-	telephoneNumber:String,
+	telephoneNumber: String,
 	emailAddress: String,
 	status: String,
 	registrationTime: Date,

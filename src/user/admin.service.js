@@ -26,6 +26,7 @@ async function deactivateUser(input, user) {
 	if (userAuthorization(user.groups, rightsGroup) == false) {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 	}
+
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -283,6 +284,26 @@ async function assignGroup(input, user) {
     }
 }
 
+async function searchGroups(input, user) {
+	//validate user group rights
+	const rightsGroup = [
+		USER_ADMIN_GROUP
+	]
+
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	return ["BOOKING_ADMIN",
+		"BOOKING_USER",
+		"PRICING_USER",
+		"OCCUPANCY_ADMIN",
+		"NOTIFICATION_USER",
+		"USER_ADMIN",
+		"ASSET_ADMIN",
+		"ASSET_USER"]
+}
+
 /**
 * By : Ken Lai
 * Date : Mar 30, 2020
@@ -450,5 +471,6 @@ module.exports = {
 	unassignGroup,
 	searchUsers,
 	deleteUser,
-	resendActivationEmail
+	resendActivationEmail,
+	searchGroups
 }
