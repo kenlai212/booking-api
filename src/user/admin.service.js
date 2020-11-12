@@ -17,7 +17,7 @@ const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
 
 const USER_ADMIN_GROUP = "USER_ADMIN";
 
-async function deactivateUser(input, user) {
+async function editStatus(input, user) {
 	//validate user group rights
 	const rightsGroup = [
 		USER_ADMIN_GROUP
@@ -31,69 +31,10 @@ async function deactivateUser(input, user) {
 	const schema = Joi.object({
 		userId: Joi
 			.string()
-			.required()
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate userId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
-	//find targetUser
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
-	}
-
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
-	//update user status to db
-	targetUser.status = INACTIVE_STATUS;
-	targetUser.lastUpdateTime = new Date();
-	targetUser.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "User Deactived"
-	});
-
-	try {
-		return await targetUser.save();
-	} catch (err) {
-		logger.error("user.save() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-}
-
-/*
-* By : Ken Lai
-* Date : Mar 31, 2020
-
-* adminstartive active user. No activation email necessary
-* only callable by admin
-*/
-async function adminActivateUser(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		USER_ADMIN_GROUP
-	]
-
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	//validate input data
-	const schema = Joi.object({
-		userId: Joi
+			.required(),
+		status: Joi
 			.string()
+			.valid(ACTIVE_STATUS, INACTIVE_STATUS)
 			.required()
 	});
 
@@ -121,12 +62,12 @@ async function adminActivateUser(input, user) {
 	}
 
 	//update user status
-	targetUser.status = ACTIVE_STATUS;
+	targetUser.status = input.status;
 	targetUser.lastUpdateTime = new Date();
 	targetUser.activationKey = undefined;
 	targetUser.history.push({
 		transactionTime: moment().toDate(),
-		transactionDescription: "Admin Activated User"
+		transactionDescription: `Admin changed user status : ${input.status}`
 	});
 
 	try {
@@ -156,11 +97,14 @@ async function unassignGroup(input, user) {
 		groupId: Joi
 			.string()
 			.valid(
-				"BOOKING_ADMIN_GROUP",
-				"PRICING_USER_GROUP",
-				"OCCUPANCY_ADMIN_GROUP",
-				"NOTIFICATION_USER_GROUP",
-				"USER_ADMIN_GROUP")
+				"BOOKING_ADMIN",
+				"BOOKING_USER",
+				"PRICING_USER",
+				"OCCUPANCY_ADMIN",
+				"NOTIFICATION_USER",
+				"USER_ADMIN",
+				"ASSET_ADMIN",
+				"ASSET_USER")
 			.required()
 		//TODO add more valid groups
 	});
@@ -465,8 +409,7 @@ async function resendActivationEmail(input, user) {
 }
 
 module.exports = {
-	deactivateUser,
-	adminActivateUser,
+	editStatus,
 	assignGroup,
 	unassignGroup,
 	searchUsers,

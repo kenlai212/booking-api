@@ -11,19 +11,15 @@ const assignGroup = asyncMiddleware(async (req) => {
 });
 
 const unassignGroup = asyncMiddleware(async (req) => {
-	return await adminService.unassignGroup(req.body, req.user);
+	return await adminService.unassignGroup(req.params, req.user);
 });
 
-const deactivate = asyncMiddleware(async (req) => {
-	return await adminService.deactivateUser(req.body, req.user);
-});
-
-const adminActivate = asyncMiddleware(async (req) => {
-	return await adminService.adminActivateUser(req.body, req.user);
+const editStatus = asyncMiddleware(async (req) => {
+	return await adminService.editStatus(req.body, req.user);
 });
 
 const deleteUser = asyncMiddleware(async (req) => {
-	return await adminService.deleteUser(req.body, req.user);
+	return await adminService.deleteUser(req.params, req.user);
 });
 
 const resendActivationEmail = asyncMiddleware(async (req) => {
@@ -36,11 +32,10 @@ const searchGroups = asyncMiddleware(async (req) => {
 
 module.exports = {
 	searchUsers,
+	deleteUser,
 	assignGroup,
 	unassignGroup,
-	deactivate,
-	deleteUser,
-	adminActivate,
+	editStatus,
 	resendActivationEmail,
 	searchGroups
 }
