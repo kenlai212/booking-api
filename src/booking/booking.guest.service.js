@@ -108,9 +108,13 @@ async function addGuest(input, user) {
 			.required(),
 		telephoneCountryCode: Joi
 			.string()
-			.valid("852", "853", "86")
-			.required(),
-		telephoneNumber: Joi.string().required()
+			.valid("852", "853", "86", null),
+		telephoneNumber: Joi
+			.string()
+			.min(1),
+		emailAddress: Joi
+			.string()
+			.min(1)
 	});
 
 	const result = schema.validate(input);
@@ -141,13 +145,10 @@ async function addGuest(input, user) {
 		booking.guests = [];
 	}
 
-	//check  if guest already exist
+	//check if guest already exist
 	var foundExistingGuest = false;
 	booking.guests.forEach(guest => {
-		if (guest.guestName == input.guestName &&
-			guest.telephoneCountryCode == input.telephoneCountryCode &&
-			guest.telephoneNumber == input.telephoneNumber
-		) {
+		if (guest.guestName == input.guestName) {
 			foundExistingGuest = true;
 		}
 	});

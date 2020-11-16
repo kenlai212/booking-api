@@ -9,16 +9,20 @@ const newCrew = asyncMiddleware(async (req) => {
 });
 
 const findCrew = asyncMiddleware(async (req) => {
-	const queryObject = url.parse(req.url, true).query;
-	return await crewService.findCrew(queryObject, req.user);
+	return await crewService.findCrew(req.params, req.user);
 });
 
 const searchCrews = asyncMiddleware(async (req, res) => {
 	return await crewService.searchCrews(null, req.user);
 });
 
+const deleteCrew = asyncMiddleware(async (req, res) => {
+	return await crewService.deleteCrew(req.params, req.user);
+});
+
 module.exports = {
 	newCrew,
 	searchCrews,
-	findCrew
+	findCrew,
+	deleteCrew
 }

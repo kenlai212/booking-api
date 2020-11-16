@@ -8,13 +8,13 @@ const customError = require("../common/customError");
 const userAuthorization = require("../common/middleware/userAuthorization");
 const Crew = require("./crew.model").Crew;
 
-const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN";
-const OCCUPANCY_USER_GROUP = "OCCUPANCY_USER";
+const CREW_ADMIN_GROUP = "CREW_ADMIN";
+const CREW_USER_GROUP = "CREW_USER";
 
 async function findCrew(input, user) {
 	const rightsGroup = [
-		OCCUPANCY_ADMIN_GROUP,
-		OCCUPANCY_USER_GROUP
+		CREW_ADMIN_GROUP,
+		CREW_USER_GROUP
 	]
 
 	//validate user
@@ -54,13 +54,9 @@ async function findCrew(input, user) {
 	return crewToOutputObj(crew);
 }
 
-/**
- * By : Ken Lai
- * Date: Jun 1, 2020
- */
 async function searchCrews(input, user) {
 	const rightsGroup = [
-		OCCUPANCY_ADMIN_GROUP
+		CREW_ADMIN_GROUP
 	]
 	
 	//validate user
@@ -83,12 +79,15 @@ async function searchCrews(input, user) {
 
 	});
 
-	return { "crews": outputObjs };
+	return {
+		"count": outputObjs.length,
+		"crews": outputObjs
+	};
 }
 
 async function newCrew(input, user) {
 	const rightsGroup = [
-		OCCUPANCY_ADMIN_GROUP
+		CREW_ADMIN_GROUP
 	]
 
 	//validate user
@@ -108,6 +107,9 @@ async function newCrew(input, user) {
 		telephoneNumber: Joi
 			.string()
 			.required(),
+		emailAddress: Joi
+			.string()
+			.min(1)
 	});
 
 	const result = schema.validate(input);
@@ -116,11 +118,17 @@ async function newCrew(input, user) {
 	}
 
 	let crew = new Crew();
+	crew.status = "ACTIVE";
 	crew.crewName = input.crewName;
 	crew.createdBy = user.id;
 	crew.createdTime = moment().toDate();
+
 	crew.telephoneCountryCode = input.telephoneCountryCode;
 	crew.telephoneNumber = input.telephoneNumber;
+	if (input.emailAddress != null) {
+		crew.emailAddress = input.emailAddress;
+	}
+	
 	crew.history = [
 		{
 			transactionTime: moment().toDate(),
@@ -141,12 +149,67 @@ async function newCrew(input, user) {
 	return crewToOutputObj(crew);
 }
 
+async function deleteCrew(input, user) {
+	const rightsGroup = [
+		CREW_ADMIN_GROUP
+	]
+
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//validate input data
+	const schema = Joi.object({
+		crewId: Joi
+			.string()
+			.min(1)
+			.required()
+	});
+	
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate crewId
+	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//get target crew
+	let targetCrew;
+	try {
+		targetCrew = await Crew.findById(input.crewId);
+	} catch (err) {
+		logger.error("Crew.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetCrew == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
+	}
+	
+	try {
+		await Crew.findByIdAndDelete(targetCrew._id.toString());
+	} catch (err) {
+		logger.error("Crew.findByIdAndDelete() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return { "status": "SUCCESS" }
+}
+
 function crewToOutputObj(crew) {
 	var outputObj = new Object();
 	outputObj.crewId = crew._id;
+	outputObj.status = crew.status;
 	outputObj.crewName = crew.crewName;
 	outputObj.telephoneCountryCode = crew.telephoneCountryCode;
 	outputObj.telephoneNumber = crew.telephoneNumber;
+	if (crew.emailAddress != null) {
+		outputObj.emailAddress;
+	}
 
 	return outputObj;
 }
@@ -154,5 +217,6 @@ function crewToOutputObj(crew) {
 module.exports = {
 	searchCrews,
 	newCrew,
-	findCrew
+	findCrew,
+	deleteCrew
 }

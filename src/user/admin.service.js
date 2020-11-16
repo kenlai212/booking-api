@@ -104,7 +104,9 @@ async function unassignGroup(input, user) {
 				"NOTIFICATION_USER",
 				"USER_ADMIN",
 				"ASSET_ADMIN",
-				"ASSET_USER")
+				"ASSET_USER",
+				"CREW_ADMIN",
+				"CREW_USER")
 			.required()
 		//TODO add more valid groups
 	});
@@ -178,7 +180,9 @@ async function assignGroup(input, user) {
 				"NOTIFICATION_USER",
 				"USER_ADMIN",
 				"ASSET_ADMIN",
-				"ASSET_USER")
+				"ASSET_USER",
+				"CREW_ADMIN",
+				"CREW_USER")
 			.required()
 		//TODO add more valid groups
 	});
@@ -245,7 +249,9 @@ async function searchGroups(input, user) {
 		"NOTIFICATION_USER",
 		"USER_ADMIN",
 		"ASSET_ADMIN",
-		"ASSET_USER"]
+		"ASSET_USER",
+		"CREW_ADMIN",
+		"CREW_USER"]
 }
 
 /**
@@ -319,7 +325,7 @@ async function deleteUser(input, user) {
 		targetUser = await User.findById(input.userId);
 	} catch (err) {
 		logger.error("User.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
 	if (targetUser == null) {
@@ -329,8 +335,8 @@ async function deleteUser(input, user) {
 	try {
 		await User.deleteOne(targetUser._id);
 	} catch (err) {
-		logger.error("User.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+		logger.error("User.deleteOne() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
 	return {"status": "SUCCESS"}

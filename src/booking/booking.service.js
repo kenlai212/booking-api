@@ -387,8 +387,13 @@ async function cancelBooking(input, user) {
 	}
 
 	//delete booking record
-	await Booking.findByIdAndDelete(booking._id.toString());
-
+	try {
+		await Booking.findByIdAndDelete(booking._id.toString());
+	} catch (err) {
+		logger.error("Booking.findByIdAndDelete Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
 	//save into bookingHistory
 	const bookingHistory = new BookingHistory();
 	bookingHistory.bookingId = booking._id;

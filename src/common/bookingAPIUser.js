@@ -9,7 +9,8 @@ const userObject = {
 		"OCCUPANCY_ADMIN",
 		"NOTIFICATION_USER",
 		"USER_ADMIN",
-		"ASSET_ADMIN"]
+		"ASSET_ADMIN",
+		"CREW_ADMIN"]
 }
 
 function getAccessToken() {

@@ -127,6 +127,11 @@ async function socialLogin(input) {
 		}
 	}
 
+	//check if user is activated
+	if (user.status != "ACTIVE") {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Inactive user" };
+	}
+
 	//sign user into token
 	try {
 		return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
