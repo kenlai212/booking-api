@@ -10,5 +10,6 @@ router.post("/crew", logIncommingRequest, authenticateAccessToken, crewControlle
 router.get("/crews", logIncommingRequest, authenticateAccessToken, crewController.searchCrews);
 router.get("/crew/:crewId", logIncommingRequest, authenticateAccessToken, crewController.findCrew);
 router.delete("/crew/:crewId", logIncommingRequest, authenticateAccessToken, crewController.deleteCrew);
+router.put("/crew/status", logIncommingRequest, authenticateAccessToken, crewController.editStatus);
 
 module.exports = router;

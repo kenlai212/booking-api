@@ -12,14 +12,13 @@ const userAuthorization = require("../common/middleware/userAuthorization");
 const bookingCommon = require("./booking.common");
 
 const Booking = require("./booking.model").Booking;
-const BookingHistory = require("./booking-history.model").BookingHistory;
+const bookingHistorySerivce = require("./bookingHistory.service");
+const PassBooking = require("./passBooking.model").PassBooking;
 const BookingDurationHelper = require("./bookingDuration.helper");
 const PricingHelper = require("./pricing_internal.helper");
 const OccupancyHelper = require("./occupancy_internal.helper");
 const NotificationHelper = require("./notification_internal.helper");
 const crewHelper = require("./crew_internal.helper");
-
-const UTC_OFFSET = 8;
 
 //constants for booking types
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
@@ -103,7 +102,7 @@ async function addNewBooking(input, user) {
 	}
 
 	//init booking object
-	var booking = new Booking();
+	let booking = new Booking();
 	booking.startTime = startTime;
 	booking.endTime = endTime;
 
@@ -201,12 +200,6 @@ async function addNewBooking(input, user) {
 
 	booking.creationTime = moment().toDate();
 	booking.createdBy = user.id;
-	booking.history = [{
-		transactionTime: moment().toDate(),
-		transactionDescription: "New booking",
-		userId: user.id,
-		userName: user.name
-	}]
 
 	//set assetId
 	if (input.assetId == null) {
@@ -233,7 +226,22 @@ async function addNewBooking(input, user) {
 		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
+	
+	//save bookingHistory
+	let initBookingHistoryInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: "New booking",
+		userId: user.id,
+		userName: user.name,
+	};
+	
+	try {
+		await bookingHistorySerivce.initBookingHistory(initBookingHistoryInput, user);
+	} catch (err) {
+		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+	}
+	
 	//send notification to admin
 	if (config.get("booking.newBookingAdminNotification.send") == true) {
 		try {

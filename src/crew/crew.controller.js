@@ -20,9 +20,14 @@ const deleteCrew = asyncMiddleware(async (req, res) => {
 	return await crewService.deleteCrew(req.params, req.user);
 });
 
+const editStatus = asyncMiddleware(async (req, res) => {
+	return await crewService.editStatus(req.body, req.user);
+});
+
 module.exports = {
 	newCrew,
 	searchCrews,
 	findCrew,
-	deleteCrew
+	deleteCrew,
+	editStatus
 }

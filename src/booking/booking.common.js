@@ -44,8 +44,10 @@ function bookingToOutputObj(booking) {
 	outputObj.host.emailAddress = booking.host.emailAddress;
 
 	outputObj.guests = booking.guests;
-	outputObj.history = booking.history;
-	outputObj.crews = booking.crews;
+
+	if (booking.crews != null && booking.crews.length > 0) {
+		outputObj.crews = booking.crews;
+	}
 
 	return outputObj;
 }

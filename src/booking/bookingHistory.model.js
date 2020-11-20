@@ -3,14 +3,13 @@ const mongoose = require("mongoose");
 
 
 const bookingHistorySchema = new mongoose.Schema({
-	bookingId: String,
-	status: String,
-	startTime: Date,
-	endTime: Date,
-	contactName: String,
-	telephoneCountryCode: String,
-	telephoneNumber: String,
-	emailAddress: String
+	bookinId: String,
+	history: [{
+		transactionTime: Date,
+		transactionDescription: String,
+		userId: String,
+		userName: String
+	}]
 });
 
 const BookingHistory = mongoose.model("BookingHistory", bookingHistorySchema);

@@ -134,7 +134,7 @@ async function socialLogin(input) {
 
 	//sign user into token
 	try {
-		return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
+		return userToToken(user);
 	} catch (err) {
 		logger.error("jwt.sign error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
@@ -198,13 +198,41 @@ async function login(input){
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Inactive User" };
 	}
 
+	const output = {
+		"id": user._id,
+		"name": user.name,
+		"emailAddress": user.emailAddress,
+		"telephoneCountryCode": user.telephoneCountryCode,
+		"telephoneNumber": user.telephoneNumber,
+		"provider": user.provider,
+		"providerUserId": user.providerUserId,
+		"status": user.status,
+		"groups": user.groups
+	}
+
 	//sign user into token
 	try {
-		return jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
+		return userToToken(user);
 	} catch (err) {
 		logger.error("jwt.sign error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+}
+
+function userToToken(user) {
+	const output = {
+		"id": user._id,
+		"name": user.name,
+		"emailAddress": user.emailAddress,
+		"telephoneCountryCode": user.telephoneCountryCode,
+		"telephoneNumber": user.telephoneNumber,
+		"provider": user.provider,
+		"providerUserId": user.providerUserId,
+		"status": user.status,
+		"groups": user.groups
+	}
+
+	return jwt.sign(output, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
 }
 
 module.exports = {

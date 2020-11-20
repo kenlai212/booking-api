@@ -25,7 +25,7 @@ router.delete("/booking/crew/:bookingId/:crewId", authenticateAccessToken, logIn
 
 router.put("/booking/payment", authenticateAccessToken, logIncommingRequest, invoiceController.makePayment);
 router.put("/booking/discount", authenticateAccessToken, logIncommingRequest, invoiceController.applyDiscount);
-router.delete("/booking/discount", authenticateAccessToken, logIncommingRequest, invoiceController.removeDiscount);
+router.delete("/booking/discount/:bookingId/:discountId", authenticateAccessToken, logIncommingRequest, invoiceController.removeDiscount);
 
 router.delete("/booking/guest/:bookingId/:guestId", authenticateAccessToken, logIncommingRequest, guestController.removeGuest);
 router.post("/booking/guest", authenticateAccessToken, logIncommingRequest, guestController.addGuest);

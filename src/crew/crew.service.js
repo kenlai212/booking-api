@@ -200,6 +200,72 @@ async function deleteCrew(input, user) {
 	return { "status": "SUCCESS" }
 }
 
+async function editStatus(input, user) {
+	const rightsGroup = [
+		CREW_ADMIN_GROUP
+	]
+
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//validate input data
+	const schema = Joi.object({
+		crewId: Joi
+			.string()
+			.min(1)
+			.required(),
+		status: Joi
+			.string()
+			.valid("ACTIVE","INACTIVE")
+			.required()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate crewId
+	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//get target crew
+	let targetCrew;
+	try {
+		targetCrew = await Crew.findById(input.crewId);
+	} catch (err) {
+		logger.error("Crew.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetCrew == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
+	}
+
+	//update status
+	targetCrew.status = input.status;
+
+	const historyItem = {
+		transactionTime: moment().toDate(),
+		transactionDescription: `Updated status : ${input.status}`,
+		userId: user.id,
+		userName: user.name
+	}
+	targetCrew.history.push(historyItem);
+
+	try {
+		targetCrew = await targetCrew.save();
+	} catch (err) {
+		logger.error("targetCrew.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return targetCrew;
+}
+
 function crewToOutputObj(crew) {
 	var outputObj = new Object();
 	outputObj.crewId = crew._id;
@@ -218,5 +284,6 @@ module.exports = {
 	searchCrews,
 	newCrew,
 	findCrew,
-	deleteCrew
+	deleteCrew,
+	editStatus
 }

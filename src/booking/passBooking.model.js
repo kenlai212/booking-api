@@ -1,7 +1,9 @@
 "use strict";
 const mongoose = require("mongoose");
 
-const bookingSchema = new mongoose.Schema({
+
+const passBookingSchema = new mongoose.Schema({
+	bookingId: String,
 	creationTime: Date,
 	createdBy: String,
 	bookingType: String,
@@ -23,7 +25,7 @@ const bookingSchema = new mongoose.Schema({
 		payments: [{
 			amount: Number,
 			paymentDate: Date
-        }],
+		}],
 		paidAmount: Number,
 		balance: Number,
 		paymentStatus: String,
@@ -52,8 +54,8 @@ const bookingSchema = new mongoose.Schema({
 	}]
 });
 
-const Booking = mongoose.model("Booking", bookingSchema);
+const PassBooking = mongoose.model("PassBooking", passBookingSchema);
 
 module.exports = {
-	Booking
+	PassBooking
 }

@@ -7,13 +7,11 @@ const makePayment = asyncMiddleware(async (req) => {
 });
 
 const applyDiscount = asyncMiddleware(async (req) => {
-	console.log("apply");
 	return await invoiceService.applyDiscount(req.body, req.user);
 });
 
 const removeDiscount = asyncMiddleware(async (req) => {
-	console.log("delete");
-	return await invoiceService.removeDiscount(req.body, req.user);
+	return await invoiceService.removeDiscount(req.params, req.user);
 });
 
 module.exports = {
