@@ -1,6 +1,6 @@
 "use strict";
 const crewService = require("./booking.crew.service");
-const asyncMiddleware = require("../common/middleware/asyncMiddleware");
+const asyncMiddleware = require("../../common/middleware/asyncMiddleware");
 
 const assignCrew = asyncMiddleware(async (req, res) => {
 	return await crewService.assignCrew(req.body, req.user);

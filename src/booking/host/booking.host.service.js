@@ -3,13 +3,13 @@ const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
 
-const customError = require("../common/customError");
-const logger = require("../common/logger").logger;
-const userAuthorization = require("../common/middleware/userAuthorization");
+const customError = require("../../common/customError");
+const logger = require("../../common/logger").logger;
+const userAuthorization = require("../../common/middleware/userAuthorization");
 
-const bookingCommon = require("./booking.common");
+const bookingCommon = require("../booking.common");
 
-const Booking = require("./booking.model").Booking;
+const Booking = require("../booking.model").Booking;
 
 /**
  * By : Ken Lai
@@ -98,19 +98,26 @@ async function editHost(input, user) {
 		booking.contact.emailAddress = input.emailAddress;
 	}
 
-	//add transaction history
-	booking.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "Edited host info",
-		userId: user.id,
-		userName: user.name
-	});
-
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save bookingHistory
+	let initBookingHistoryInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: "Edited host info",
+		userId: user.id,
+		userName: user.name,
+	};
+
+	try {
+		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+	} catch (err) {
+		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);

@@ -1,6 +1,6 @@
 "use strict";
 const guestService = require("./booking.guest.service");
-const asyncMiddleware = require("../common/middleware/asyncMiddleware");
+const asyncMiddleware = require("../../common/middleware/asyncMiddleware");
 
 const removeGuest = asyncMiddleware(async (req) => {
 	return await guestService.removeGuest(req.params, req.user);

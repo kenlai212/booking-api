@@ -12,8 +12,7 @@ const userAuthorization = require("../common/middleware/userAuthorization");
 const bookingCommon = require("./booking.common");
 
 const Booking = require("./booking.model").Booking;
-const bookingHistorySerivce = require("./bookingHistory.service");
-const PassBooking = require("./passBooking.model").PassBooking;
+const bookingHistoryHelper = require("./bookingHistory_internal.helper");
 const BookingDurationHelper = require("./bookingDuration.helper");
 const PricingHelper = require("./pricing_internal.helper");
 const OccupancyHelper = require("./occupancy_internal.helper");
@@ -219,11 +218,22 @@ async function addNewBooking(input, user) {
 	}
 
 	//save booking
-	booking.occupancyId = occupancy.id;
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//link booking to occupancy
+	try {
+		await OccupancyHelper.linkBookingToOccupancy(occupancy.id.toString(), booking._id.toString());
+	} catch (err) {
+		//rollback occupancy record and booking record
+		await OccupancyHelper.releaseOccupancy(occupancy.id);
+		await Booking.findByIdAndDelete(booking._id);
+
+		logger.error("OccupancyHelper.linkBookingToOccupancy Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 	
@@ -237,7 +247,7 @@ async function addNewBooking(input, user) {
 	};
 	
 	try {
-		await bookingHistorySerivce.initBookingHistory(initBookingHistoryInput, user);
+		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
 	} catch (err) {
 		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
 	}
@@ -324,19 +334,26 @@ async function fulfillBooking(input, user) {
 	booking.fulfilledHours = input.fulfilledHours;
 	booking.status = FULFILLED_STATUS;
 
-	const fulfilledHistory = {
-		transactionTime: moment().toDate(),
-		transactionDescription: "Fulfilled booking",
-		userId: user.id,
-		userName: user.name
-	}
-	booking.history.push(fulfilledHistory);
-
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save bookingHistory
+	let initBookingHistoryInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: "Fulfilled booking",
+		userId: user.id,
+		userName: user.name,
+	};
+
+	try {
+		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+	} catch (err) {
+		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -394,34 +411,32 @@ async function cancelBooking(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//delete booking record
+	//change booking status to cancel
+	booking.status = CANCELLED_STATUS;
+
 	try {
-		await Booking.findByIdAndDelete(booking._id.toString());
+		booking = await booking.save();
 	} catch (err) {
 		logger.error("Booking.findByIdAndDelete Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-	
-	//save into bookingHistory
-	const bookingHistory = new BookingHistory();
-	bookingHistory.bookingId = booking._id;
-	bookingHistory.startTime = booking.startTime;
-	bookingHistory.endTime = booking.endTime;
-	bookingHistory.contactName = booking.contactName;
-	bookingHistory.telephoneCountryCode = booking.telephoneCountryCode;
-	bookingHistory.telephoneNumber = booking.telephoneNumber;
-	bookingHistory.emailAddress = booking.emailAddress;
-	bookingHistory.status = CANCELLED_STATUS;
+
+	//add history item
+	let addHistoryItemInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: "Cancelled Booking",
+		userId: user.id,
+		userName: user.name,
+	};
 
 	try {
-		await bookingHistory.save();
+		await bookingHistoryHelper.addHistoryItem(addHistoryItemInput, user);
 	} catch (err) {
-		//TODO roll back releaseOccupancy
-		logger.error("bookingHistory.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		logger.error("bookingHistorySerivce.addHistoryItem Error", err);
 	}
 	
-	return bookingHistory;
+	return booking;
 }
 
 /**

@@ -5,18 +5,18 @@ const logIncommingRequest = require("../common/middleware/logIncommingRequest");
 const authenticateAccessToken = require("../common/middleware/authenticateAccessToken");
 
 const bookingController = require("./booking.controller");
-const invoiceController = require("./booking.invoice.controller");
-const guestController = require("./booking.guest.controller");
-const disclaimerController = require("./booking.guest.disclaimer.controller");
-const crewController = require("./booking.crew.controller");
-const hostController = require("./booking.host.controller");
+const invoiceController = require("./invoice/booking.invoice.controller");
+const guestController = require("./guest/booking.guest.controller");
+const disclaimerController = require("./guest/booking.guest.disclaimer.controller");
+const crewController = require("./crew/booking.crew.controller");
+const hostController = require("./host/booking.host.controller");
 
 const router = express.Router();
 router.post("/booking", authenticateAccessToken, logIncommingRequest, bookingController.newBooking);
-router.delete("/booking/:bookingId", authenticateAccessToken, logIncommingRequest, bookingController.cancelBooking);
+router.put("/booking/status/cancel", authenticateAccessToken, logIncommingRequest, bookingController.cancelBooking);
 router.get("/bookings", authenticateAccessToken, logIncommingRequest, bookingController.searchBookings);
 router.get("/booking", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
-router.put("/booking/fulfill", authenticateAccessToken, logIncommingRequest, bookingController.fulfillBooking);
+router.put("/booking/status/fulfill", authenticateAccessToken, logIncommingRequest, bookingController.fulfillBooking);
 
 router.put("/booking/host", authenticateAccessToken, logIncommingRequest, hostController.editHost);
 

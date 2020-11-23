@@ -18,12 +18,12 @@ function bookingToOutputObj(booking) {
 
 	outputObj.invoice = new Object();
 	outputObj.invoice.regularAmount = booking.invoice.regularAmount;
-	if (booking.invoice.discounts != null) {
+	if (booking.invoice.discounts != null && booking.invoice.discounts.length > 0) {
 		outputObj.invoice.discounts = booking.invoice.discounts;
 	}
 	outputObj.invoice.totalAmount = booking.invoice.totalAmount;
 
-	if (booking.invoice.payments != null) {
+	if (booking.invoice.payments != null && booking.invoice.payments.length > 0) {
 		outputObj.invoice.payments = booking.invoice.payments;
 	}
 

@@ -22,9 +22,14 @@ const cancelOccupancy = asyncMiddleware(async (req) => {
 	return await occupancyService.releaseOccupancy(req.body, req.user);
 });
 
+const updateBookingId = asyncMiddleware(async (req) => {
+	return await occupancyService.updateBookingId(req.body, req.user);
+});
+
 module.exports = {
 	getOccupancies,
 	newOccupancy,
 	availability,
-	cancelOccupancy
+	cancelOccupancy,
+	updateBookingId
 }

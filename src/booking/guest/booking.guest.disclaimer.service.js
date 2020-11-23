@@ -4,13 +4,13 @@ var uuid = require("uuid");
 const moment = require("moment");
 const mongoose = require("mongoose");
 
-const customError = require("../common/customError");
-const userAuthorization = require("../common/middleware/userAuthorization");
-const logger = require("../common/logger").logger;
+const customError = require("../../common/customError");
+const userAuthorization = require("../../common/middleware/userAuthorization");
+const logger = require("../../common/logger").logger;
 
-const bookingCommon = require("./booking.common");
-const Booking = require("./booking.model").Booking;
-const notificationHelper = require("./notification_internal.helper");
+const bookingCommon = require("../booking.common");
+const Booking = require("../booking.model").Booking;
+const notificationHelper = require("../notification_internal.helper");
 
 /**
  * By: Ken Lai
@@ -67,17 +67,26 @@ async function signDisclaimer(input) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid disclaimerId" };
 	}
 
-	//add transaction history
-	var transactionHistory = new Object();
-	transactionHistory.transactionTime = moment().toDate();
-	transactionHistory.transactionDescription = "Guest signed disclaimer. GuestId : " + guestId;
-	booking.history.push(transactionHistory);
-
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save bookingHistory
+	let initBookingHistoryInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: "Guest signed disclaimer. GuestId : " + guestId,
+		userId: user.id,
+		userName: user.name,
+	};
+
+	try {
+		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+	} catch (err) {
+		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -145,20 +154,27 @@ async function sendDisclaimer(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid guestId" };
 	}
 
-	//update guest.disclaimerId
-	var transactionHistory = new Object();
-	transactionHistory.transactionTime = moment().toDate();
-	transactionHistory.userId = user.id;
-	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = "Send disclaimer to guest : " + guest.guestName + "(" + guest.telephoneNumber + ")";
-	booking.history.push(transactionHistory);
-
 	//save booking
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save() Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save bookingHistory
+	let initBookingHistoryInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: "Send disclaimer to guest : " + guest.guestName + "(" + guest.telephoneNumber + ")",
+		userId: user.id,
+		userName: user.name,
+	};
+
+	try {
+		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+	} catch (err) {
+		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
 	}
 
 	//send disclaimer notification

@@ -1,6 +1,6 @@
 "use strict";
 const invoiceService = require("./booking.invoice.service");
-const asyncMiddleware = require("../common/middleware/asyncMiddleware");
+const asyncMiddleware = require("../../common/middleware/asyncMiddleware");
 
 const makePayment = asyncMiddleware(async (req) => {
 	return await invoiceService.makePayment(req.body, req.user);

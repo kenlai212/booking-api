@@ -3,11 +3,12 @@ const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
 
-const customError = require("../common/customError")
-const userAuthorization = require("../common/middleware/userAuthorization");
-const logger = require("../common/logger").logger;
-const bookingCommon = require("./booking.common");
-const Booking = require("./booking.model").Booking;
+const customError = require("../../common/customError")
+const userAuthorization = require("../../common/middleware/userAuthorization");
+const logger = require("../../common/logger").logger;
+const bookingCommon = require("../booking.common");
+const Booking = require("../booking.model").Booking;
+const bookingHistroyHelper = require("../bookingHistory_internal.helper");
 
 
 const PAID_STATUS = "PAID";
@@ -104,19 +105,26 @@ async function makePayment(input, user) {
 	}
 	booking.invoice.paymentStatus = paymentStatus;
 
-	//add transaction history
-	var transactionHistory = new Object();
-	transactionHistory.transactionTime = moment().toDate();
-	transactionHistory.userId = user.id;
-	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = "Payment made $" + totalPaymentAmount;
-	booking.history.push(transactionHistory);
-
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save() Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save bookingHistory
+	let initBookingHistoryInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: "Payment made $" + totalPaymentAmount,
+		userId: user.id,
+		userName: user.name,
+	};
+
+	try {
+		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+	} catch (err) {
+		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -190,20 +198,27 @@ async function applyDiscount(input, user) {
 	
 	//calculate balance
 	booking.invoice.balance = calculateBalance(booking.invoice.totalAmount, booking.invoice.paidAmount);
-	
-	//add transaction history
-	var transactionHistory = new Object();
-	transactionHistory.transactionTime = moment().toDate();
-	transactionHistory.userId = user.id;
-	transactionHistory.userName = user.name;
-	transactionHistory.transactionDescription = `Gave ${input.discountCode} (${input.discountAmount})`;
-	booking.history.push(transactionHistory);
 
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save bookingHistory
+	let initBookingHistoryInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: `Gave ${input.discountCode} (${input.discountAmount})`,
+		userId: user.id,
+		userName: user.name,
+	};
+
+	try {
+		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+	} catch (err) {
+		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -290,23 +305,26 @@ async function removeDiscount(input, user) {
 	//calculate balance
 	booking.invoice.balance = calculateBalance(booking.invoice.totalAmount, booking.invoice.paidAmount);
 
-
-	//add transaction history
-	if (booking.history == null) {
-		booking.history = [];
-	}
-	booking.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: `Removed discount : ${targetDiscount.discountCode}, ${targetDiscount.amount}`,
-		userId: user.id,
-		userName: user.name
-	});
-
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save bookingHistory
+	let initBookingHistoryInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionDescription: `Removed discount : ${targetDiscount.discountCode}, ${targetDiscount.amount}`,
+		userId: user.id,
+		userName: user.name,
+	};
+
+	try {
+		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+	} catch (err) {
+		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);

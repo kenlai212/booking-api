@@ -7,11 +7,54 @@ const customError = require("../common/customError")
 const userAuthorization = require("../common/middleware/userAuthorization");
 const logger = require("../common/logger").logger;
 const BookingHistory = require("./bookingHistory.model").BookingHistory;
-const bookingCommon = require("./booking.common");
+
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
+
+async function getBookingHistory(input, user) {
+	const rightsGroup = [
+		BOOKING_ADMIN_GROUP
+	]
+
+	//validate user
+	if (userAuthorization(user.groups, rightsGroup) == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi
+			.string()
+			.required()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate bookingId
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+	}
+
+	let bookingHistory;
+	try {
+		bookingHistory = await BookingHistory.findOne({ bookingId: input.bookingId });
+	} catch (err) {
+		logger.error("BookingHistory.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (bookingHistory == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	}
+
+	return bookingHistory;
+}
 
 async function initBookingHistory(input, user) {
 	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
+		BOOKING_ADMIN_GROUP
 	]
 
 	//validate user
@@ -47,6 +90,18 @@ async function initBookingHistory(input, user) {
 	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
 	}
+
+	let existingBookingHistory;
+	try {
+		existingBookingHistory = await BookingHistory.findOne({ bookingId: input.bookingId });
+	} catch (err) {
+		logger.error("BookingHistory.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (existingBookingHistory != null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Booking History for bookingId : ${existiingBookingHistory} alerady exist` };
+	}
 	
 	let bookingHistory = new BookingHistory();
 	bookingHistory.bookingId = input.bookingId;
@@ -59,7 +114,7 @@ async function initBookingHistory(input, user) {
 		userName: input.userName
 	};
 	bookingHistory.history.push(historyItem);
-
+	
 	try {
 		bookingHistory = await bookingHistory.save();
 	} catch (err) {
@@ -72,14 +127,14 @@ async function initBookingHistory(input, user) {
 
 async function addHistoryItem(input, user) {
 	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
+		BOOKING_ADMIN_GROUP
 	]
 
 	//validate user
 	if (userAuthorization(user.groups, rightsGroup) == false) {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 	}
-
+	
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
@@ -144,5 +199,6 @@ async function addHistoryItem(input, user) {
 
 module.exports = {
 	initBookingHistory,
-	addHistoryItem
+	addHistoryItem,
+	getBookingHistory
 }

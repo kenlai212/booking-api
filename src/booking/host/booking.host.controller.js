@@ -1,7 +1,7 @@
 "use strict";
 const url = require("url");
 
-const asyncMiddleware = require("../common/middleware/asyncMiddleware");
+const asyncMiddleware = require("../../common/middleware/asyncMiddleware");
 const hostService = require("./booking.host.service");
 
 const editHost = asyncMiddleware(async (req) => {

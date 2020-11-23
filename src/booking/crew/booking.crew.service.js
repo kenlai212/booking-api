@@ -3,12 +3,12 @@ const mongoose = require("mongoose");
 const Joi = require("joi");
 const moment = require("moment");
 
-const customError = require("../common/customError")
-const userAuthorization = require("../common/middleware/userAuthorization");
-const logger = require("../common/logger").logger;
-const Booking = require("./booking.model").Booking;
-const crewHelper = require("./crew_internal.helper");
-const bookingCommon = require("./booking.common");
+const customError = require("../../common/customError")
+const userAuthorization = require("../../common/middleware/userAuthorization");
+const logger = require("../../common/logger").logger;
+const Booking = require("../booking.model").Booking;
+const crewHelper = require("../crew_internal.helper");
+const bookingCommon = require("../booking.common");
 
 async function relieveCrew(input, user) {
 	const rightsGroup = [
@@ -73,6 +73,13 @@ async function relieveCrew(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
 	}
 
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
 	//add transaction history
 	booking.history.push({
 		transactionTime: moment().toDate(),
@@ -84,7 +91,7 @@ async function relieveCrew(input, user) {
 	try {
 		booking = await booking.save();
 	} catch (err) {
-		logger.error("booking.save Error : ", err);
+		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
@@ -162,6 +169,13 @@ async function assignCrew(input, user) {
 		assignmentBy: user.id
 	});
 
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
 	//add transaction history
 	booking.history.push({
 		transactionTime: moment().toDate(),
@@ -173,7 +187,7 @@ async function assignCrew(input, user) {
 	try {
 		booking = await booking.save();
 	} catch (err) {
-		logger.error("booking.save Error : ", err);
+		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 

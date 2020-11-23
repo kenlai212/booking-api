@@ -8,6 +8,7 @@ const controller = require("./occupancy.controller");
 const router = express.Router();
 router.get("/occupancies", authenticateAccessToken, logIncommingRequest, controller.getOccupancies);
 router.post("/occupancy", authenticateAccessToken, logIncommingRequest, controller.newOccupancy);
+router.put("/occupancy/bookingId", authenticateAccessToken, logIncommingRequest, controller.updateBookingId);
 router.get("/availability", authenticateAccessToken, logIncommingRequest, controller.availability);
 router.delete("/occupancy", authenticateAccessToken, logIncommingRequest, controller.cancelOccupancy);
 

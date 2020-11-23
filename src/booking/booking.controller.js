@@ -9,7 +9,7 @@ const newBooking = asyncMiddleware(async (req) => {
 });
 
 const cancelBooking = asyncMiddleware(async (req) => {
-	return await bookingService.cancelBooking(req.params, req.user);
+	return await bookingService.cancelBooking(req.body, req.user);
 });
 
 const fulfillBooking = asyncMiddleware(async (req) => {

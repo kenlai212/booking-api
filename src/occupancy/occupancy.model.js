@@ -2,18 +2,10 @@
 const mongoose = require("mongoose");
 
 const occupancySchema = new mongoose.Schema({
-	occupancyType: String,
+	bookingId: String,
 	startTime: Date,
 	endTime: Date,
-	assetId: String,
-	createdBy: String,
-	createdTime: Date,
-	history: [{
-		transactionTime: Date,
-		transactionDescription: String,
-		userId: String,
-		userName: String
-	}]
+	assetId: String
 });
 
 const Occupancy = mongoose.model("Occupancy", occupancySchema);
