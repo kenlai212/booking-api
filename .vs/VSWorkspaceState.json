@@ -2,8 +2,9 @@
   "ExpandedNodes": [
     "",
     "\\src",
-    "\\src\\booking"
+    "\\src\\bookingHistory",
+    "\\src\\user"
   ],
-  "SelectedNode": "\\src\\booking\\bookingHistory.model.js",
+  "SelectedNode": "\\src\\user\\userHistory.service.js",
   "PreviewInSolutionExplorer": false
 }

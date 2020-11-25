@@ -8,6 +8,7 @@ const User = require("./user.model").User;
 const authenticationHelper = require("./authentication_internal.helper");
 const activationEmailHelper = require("./activationEmail.helper");
 const userObjectMapper = require("./userObjectMapper.helper");
+const userHistoryService = require("./userHistory.service");
 
 const ACTIVE_STATUS = "ACTIVE";
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
@@ -59,20 +60,33 @@ async function socialRegister(input) {
 	newUser.status = AWAITING_ACTIVATION_STATUS;
 	newUser.registrationTime = moment().toDate();
 	newUser.activationKey = uuid.v4();
-	newUser.history = [
-		{
-			transactionTime: moment().toDate(),
-			transactionDescription: "New User registered"
-		}
-	];
 
 	//save newUser record to db
 	try {
-		return await newUser.save();
+		newUser = await newUser.save();
 	} catch (err) {
 		logger.error("newUser.save() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+
+	//init userHistory
+	const historyItem = {
+		userId: newUser._id.toString(),
+		transactionDescription: "New User registered"
+	}
+
+	try {
+		await userHistoryService.initUserHistory(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.initUserHistory() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//map to output obj
+	let outputObj = userObjectMapper.toOutputObj(newUser);
+	outputObj.activationKey = newUser.activationKey;
+
+	return outputObj;
 }
 
 async function register(input) {
@@ -129,17 +143,24 @@ async function register(input) {
 	newUser.status = AWAITING_ACTIVATION_STATUS;
 	newUser.registrationTime = moment().toDate();
 	newUser.activationKey = uuid.v4();
-	newUser.history = [
-		{
-			transactionTime: moment().toDate(),
-			transactionDescription: "New User registered"
-		}
-	];
 
 	try {
 		newUser = await newUser.save();
 	} catch (err) {
 		logger.error("newUser.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save userHistory
+	const histroyItem = {
+		userId: newUser._id.toString(),
+		transactionDescription: "New Social User registered"
+	}
+
+	try {
+		await userHistoryService.initUserHistory(histroyItem);
+	} catch (err) {
+		logger.error("userHistoryService.initUserHistory() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
@@ -159,35 +180,23 @@ async function register(input) {
 		try {
 			let sentActivationEmailResult = await activationEmailHelper.sendActivationEmail(newUser.activationKey, newUser.emailAddress);
 
-			//set histroy to reflect activation email sent
-			const historyItem = {
-				transactionTime: moment().toDate(),
-				transactionDescription: "Sent activation email to user. MessageID : " + sentActivationEmailResult.messageId
-			}
-			newUser.history.push(historyItem);
-
-			//update newUser record with history
+			//save userHistroy to reflect activation email sent
+			historyItem.transactionDescription = "Sent activation email to user. MessageID : " + sentActivationEmailResult.messageId;
 			try {
-				newUser.save();
+				await userHistoryService.addHistoryItem(historyItem);
 			} catch (err) {
-				logger.error("update newUser history error : ", err);
+				logger.error("userHistoryService.addHistoryItem() error : ", err);
 				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 			}
 		} catch (err) {
 			logger.error("authenticationHelper.addNewCredentials error : ", err);
 
-			//set history to reflect activation email failed
-			const historyItem = {
-				transactionTime: moment().toDate(),
-				transactionDescription: "Sent activation email to user. MessageID : " + sentActivationEmailResult.messageId
-			}
-			newUser.history.push(historyItem);
-
-			//update newUser record with history
+			//save userHistroy to reflect activation email failed
+			historyItem.transactionDescription = "Sent activation email to user. MessageID : " + sentActivationEmailResult.messageId;
 			try {
-				newUser.save();
+				await userHistoryService.addHistoryItem(historyItem);
 			} catch (err) {
-				logger.error("update newUser history error : ", err);
+				logger.error("userHistoryService.addHistoryItem() error : ", err);
 				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 			}
 
@@ -237,18 +246,27 @@ async function activate(input) {
 	targetUser.lastUpdateTime = new Date();
 	targetUser.activationKey = undefined;
 
-	const histroyItem = {
-		transactionTime: moment().toDate(),
-		transactionDescription: "User activated"
-	}
-	targetUser.history.push(histroyItem);
-
 	try {
-		return await targetUser.save();
+		targetUser = await targetUser.save();
 	} catch (err) {
 		logger.error("user.save Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+
+	//save userHistory
+	const historyItem = {
+		userId: targetUser._id.toString(),
+		transactionDescription: "User initiate forget password"
+	}
+
+	try {
+		await userHistoryService.addHistoryItem(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.addHistoryItem Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return userObjectMapper.toOutputObj(targetUser);
 }
 
 module.exports = {

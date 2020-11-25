@@ -22,7 +22,7 @@ async function releaseOccupancy(input, user) {
 		OCCUPANCY_POWER_USER_GROUP,
 		BOOKING_ADMIN_GROUP
 	]
-
+	
 	//validate user group
 	if (userAuthorization(user.groups, rightsGroup) == false) {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" }
@@ -30,10 +30,12 @@ async function releaseOccupancy(input, user) {
 
 	//validate input data
 	const schema = Joi.object({
-		occupancyId: Joi
+		bookingId: Joi
 			.string()
-			.min(1)
-			.required()
+			.required(),
+		bookingType: Joi
+			.string()
+			.valid("CUSTOMER_BOOKING","OWNER_BOOKING","MAINTAINANCE")
 	});
 
 	const result = schema.validate(input);
@@ -41,21 +43,31 @@ async function releaseOccupancy(input, user) {
 		throw{ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') }
 	}
 
-	//validate occupancyId
-	if (mongoose.Types.ObjectId.isValid(input.occupancyId) == false) {
-		throw{ name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid occupancyId" }
+	//validate bookingId
+	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" }
 	}
 
-	//delete target occupancy
-	Occupancy.findByIdAndDelete(input.occupancyId)
-		.then(() => {
-			logger.info("Successfully deleted Occupancy", input.occupancyId);
-			return { "result": "SUCCESS" };
-		})
-		.catch(err => {
-			logger.error("Occupancy.findByIdAndDelete() error : ", err);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete function not available" }
-		});
+	//find target occupancy
+	let targetOccupancy;
+	try {
+		targetOccupancy = await Occupancy.findOne({ bookingId: input.bookingId, bookingType: input.bookingType }) 
+	} catch (err) {
+		logger.error("Occupancy.findOne() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Occupancy.findOne not available" }
+	}
+
+	if (targetOccupancy == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId & bookingType" }
+	}
+
+	try {
+		await Occupancy.findByIdAndDelete(targetOccupancy._id);
+		return { "result": "SUCCESS" };
+	} catch (err) {
+		logger.error("Occupancy.findByIdAndDelete() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Occupancy.findOne not available" }
+	}
 }
 
 async function occupyAsset(input, user) {
@@ -80,7 +92,13 @@ async function occupyAsset(input, user) {
 		assetId: Joi
 			.string()
 			.required()
-			.valid("A001", "MC_NXT20")
+			.valid("A001", "MC_NXT20"),
+		bookingId: Joi
+			.string()
+			.min(1),
+		bookingType: Joi
+			.string()
+			.valid("CUSTOMER_BOOKING", "OWNER_BOOKING", "MAINTAINANCE",null)
 	});
 
 	const result = schema.validate(input);
@@ -127,6 +145,17 @@ async function occupyAsset(input, user) {
 	occupancy.endTime = endTime;
 	occupancy.assetId = input.assetId;
 
+	//set bookingId and bookingType if available
+	//bookingType is mandatory if bookingId is provided
+	if (input.bookingId != null) {
+		if (input.bookingType == null) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: "bookingType is mandatory" };
+		}
+
+		occupancy.bookingId = input.bookingId;
+		occupancy.bookingType = input.bookingType;
+	}
+
 	try {
 		occupancy = await occupancy.save();
 	} catch (err) {
@@ -161,7 +190,10 @@ async function updateBookingId(input, user) {
 		bookingId: Joi
 			.string()
 			.min(1)
-			.required()
+			.required(),
+		bookingType: Joi
+			.string()
+			.valid("CUSTOMER_BOOKING", "OWNER_BOOKING", "MAINTAINANCE")
 	});
 	
 	const result = schema.validate(input);
@@ -191,8 +223,9 @@ async function updateBookingId(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid occupancyId"}
 	}
 
-	//set bookingId
+	//set bookingId and bookingType
 	occupancy.bookingId = input.bookingId;
+	occupancy.bookingType = input.bookingType;
 
 	try {
 		occupancy = await occupancy.save();
@@ -273,6 +306,7 @@ function occupancyToOutputObj(occupancy) {
 	outputObj.endTime = occupancy.endTime;
 	outputObj.assetId = occupancy.assetId;
 	outputObj.bookingId = occupancy.bookingId;
+	outputObj.bookingType = occupancy.bookingType;
 
 	return outputObj;
 }

@@ -1,11 +1,33 @@
 "use strict";
 const moment = require("moment");
 
+const logger = require("../common/logger").logger;
+const bookingHistoryHelper = require("./bookingHistory_internal.helper");
+
 //constants for user groups
 const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 const BOOKING_USER_GROUP = "BOOKING_USER";
 
 const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
+
+async function addBookingHistoryItem(bookingId, description, user) {
+	let input = {
+		bookingId: bookingId,
+		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
+		utcOffset: 0,
+		transactionDescription: description,
+		userId: user.id,
+		userName: user.name,
+	};
+
+	try {
+		await bookingHistoryHelper.addHistoryItem(input, user);
+
+		return;
+	} catch (err) {
+		logger.error("bookingHistoryHelper.addHistoryItem Error", err);
+	}
+}
 
 function bookingToOutputObj(booking) {
 	var outputObj = new Object();
@@ -56,5 +78,6 @@ module.exports = {
 	BOOKING_ADMIN_GROUP,
 	BOOKING_USER_GROUP,
 	ACCEPTED_TELEPHONE_COUNTRY_CODES,
-	bookingToOutputObj
+	bookingToOutputObj,
+	addBookingHistoryItem
 }

@@ -18,8 +18,8 @@ const getOccupancies = asyncMiddleware(async (req) => {
 	return await occupancyService.getOccupancies(queryObject, req.user);
 });
 
-const cancelOccupancy = asyncMiddleware(async (req) => {
-	return await occupancyService.releaseOccupancy(req.body, req.user);
+const releaseOccupancy = asyncMiddleware(async (req) => {
+	return await occupancyService.releaseOccupancy(req.params, req.user);
 });
 
 const updateBookingId = asyncMiddleware(async (req) => {
@@ -30,6 +30,6 @@ module.exports = {
 	getOccupancies,
 	newOccupancy,
 	availability,
-	cancelOccupancy,
+	releaseOccupancy,
 	updateBookingId
 }

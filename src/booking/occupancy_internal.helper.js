@@ -19,10 +19,11 @@ async function occupyAsset(startTime, endTime, utcOffset, assetId){
     }
 }
 
-async function linkBookingToOccupancy(occupancyId, bookingId) {
+async function linkBookingToOccupancy(occupancyId, bookingId, bookingType) {
     input = {
         occupancyId: occupancyId,
-        bookingId: bookingId
+        bookingId: bookingId,
+        bookingType: bookingType
     }
 
     try {
@@ -33,9 +34,12 @@ async function linkBookingToOccupancy(occupancyId, bookingId) {
     }
 }
 
-async function releaseOccupancy(occupancyId) {
-    input = { occupancyId: occupancyId }
-
+async function releaseOccupancy(bookingId, bookingType) {
+    input = {
+        bookingId: bookingId,
+        bookingType: bookingType
+    }
+    
     try {
         return await occupancyService.releaseOccupancy(input, bookingAPIUser.userObject);
     } catch (err) {

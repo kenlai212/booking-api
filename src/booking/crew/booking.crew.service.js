@@ -3,7 +3,7 @@ const mongoose = require("mongoose");
 const Joi = require("joi");
 const moment = require("moment");
 
-const customError = require("../../common/customError")
+const customError = require("../../common/customError");
 const userAuthorization = require("../../common/middleware/userAuthorization");
 const logger = require("../../common/logger").logger;
 const Booking = require("../booking.model").Booking;
@@ -81,18 +81,10 @@ async function relieveCrew(input, user) {
 	}
 
 	//add transaction history
-	booking.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "Relieved crew : " + input.crewId,
-		userId: user.id,
-		userName: user.name
-	});
-
 	try {
-		booking = await booking.save();
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `"Relieved crew : ${input.crewId}`, user);
 	} catch (err) {
-		logger.error("booking.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);

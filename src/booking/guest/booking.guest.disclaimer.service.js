@@ -75,18 +75,10 @@ async function signDisclaimer(input) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: "Guest signed disclaimer. GuestId : " + guestId,
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Guest signed disclaimer. GuestId : ${guestId}`, user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -163,18 +155,10 @@ async function sendDisclaimer(input, user) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: "Send disclaimer to guest : " + guest.guestName + "(" + guest.telephoneNumber + ")",
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Send disclaimer to guest : ${guest.guestName} (${guest.telephoneNumber})`, user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	//send disclaimer notification

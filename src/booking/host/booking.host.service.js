@@ -106,18 +106,10 @@ async function editHost(input, user) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: "Edited host info",
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), "Edited host info", user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);

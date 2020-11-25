@@ -1,7 +1,6 @@
 "use strict";
 const uuid = require("uuid");
 const Joi = require("joi");
-const moment = require("moment");
 const mongoose = require("mongoose");
 const config = require("config");
 
@@ -10,15 +9,10 @@ const customError = require("../common/customError");
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
 const notificationHelper = require("./notification_internal.helper");
+const userHistoryService = require("./userHistory.service");
 
 const USER_ADMIN_GROUP = "USER_ADMIN";
 
-/**
- * By : Ken Lai
- * Date : Mar 15, 2020
- * 
- * find user by id or by accessToken, or provider with providerUserId
- */
 async function findUser(input) {
 	//validate input data
 	const schema = Joi.object({
@@ -90,7 +84,7 @@ async function findSocialUser(input) {
 	return userObjectMapper.toOutputObj(user);
 }
 
-async function forgetPassword(input){
+async function forgetPassword(input) {
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -109,30 +103,26 @@ async function forgetPassword(input){
 	}
 
 	//find targetUser
-	let user;
+	let targetUser;
 	try {
-		user = await User.findById(input.userId);
+		targetUser = await User.findById(input.userId);
 	} catch (err) {
 		logger.error("User.findById Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (user == null) {
+	if (targetUser == null) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
 	}
 
 	//set resetPasswordKey
-	user.resetPassordKey = uuid.v4();
-	user.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "Forget password email sent to user"
-	});
+	targetUser.resetPassordKey = uuid.v4();
 
 	//set reset password email
-	const resetPasswordURL = config.get("user.forgetPassword.resetPasswordURL") + user.resetPassordKey;
+	const resetPasswordURL = config.get("user.forgetPassword.resetPasswordURL") + targetUser.resetPassordKey;
 	const emailBody = `Follow this <a href="${resetPasswordURL}">link</a> to reset your password`;
 	try {
-		notificationHelper.sendEmail(config.get("user.forgetPassword.systemSenderEmailAddress"), user.emailAddress, emailBody, "Reset Password");
+		notificationHelper.sendEmail(config.get("user.forgetPassword.systemSenderEmailAddress"), targetUser.emailAddress, emailBody, "Reset Password");
 	} catch (err) {
 		logger.error("notificationHelper.sendEmail Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
@@ -140,11 +130,26 @@ async function forgetPassword(input){
 
 	//save user
 	try {
-		return await user.save();
+		targetUser = await targetUser.save();
 	} catch (err) {
 		logger.error("user.save Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+
+	//save userHistory
+	const historyItem = {
+		userId: targetUser._id.toString(),
+		transactionDescription: "User initiate forget password"
+	}
+
+	try {
+		await userHistoryService.addHistoryItem(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.addHistoryItem Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return {"result": "SUCCESS"}
 }
 
 async function updateContactInfo(input, user) {
@@ -220,19 +225,19 @@ async function updateContactInfo(input, user) {
 	}
 
 	if (hasDelta == true) {
-		//set history
+		//save userHistory
 		const historyItem = {
-			transactionTime: moment().toDate(),
-			transactionDescription: "Updated contact info"
+			userId: targetUser._id.toString(),
+			transactionDescription: "Updated user contact",
+			user: user
 		}
-		targetUser.history.push(historyItem);
 
 		try {
-			targetUser = await targetUser.save();
+			await userHistoryService.addHistoryItem(historyItem);
 		} catch (err) {
-			logger.error("user.save Error : ", err);
+			logger.error("userHistoryService.addHistoryItem Error : ", err);
 			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}
+		}	
 
 		return userObjectMapper.toOutputObj(targetUser);
 	} else {

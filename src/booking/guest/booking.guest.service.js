@@ -74,18 +74,10 @@ async function removeGuest(input, user) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: "Removed guest : " + targetGuest.guestName,
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Removed guest : ${targetGuest.guestName}`, user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 	
 	return bookingCommon.bookingToOutputObj(booking);
@@ -178,18 +170,10 @@ async function addGuest(input, user) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: `Added new guest : ${input.guestName}`,
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Added new guest : ${input.guestName}`, user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -268,19 +252,18 @@ async function editGuest(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid guestId" };
 	}
 
-	//add transaction history
-	booking.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "Edited guest : " + input.guestName,
-		userId: user.id,
-		userName: user.name
-	});
-
 	try {
 		booking = await booking.save();
 	} catch (err) {
 		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save bookingHistory
+	try {
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Edited guest : ${input.guestName}`, user);
+	} catch (err) {
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);

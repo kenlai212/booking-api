@@ -10,7 +10,7 @@ router.get("/occupancies", authenticateAccessToken, logIncommingRequest, control
 router.post("/occupancy", authenticateAccessToken, logIncommingRequest, controller.newOccupancy);
 router.put("/occupancy/bookingId", authenticateAccessToken, logIncommingRequest, controller.updateBookingId);
 router.get("/availability", authenticateAccessToken, logIncommingRequest, controller.availability);
-router.delete("/occupancy", authenticateAccessToken, logIncommingRequest, controller.cancelOccupancy);
+router.delete("/occupancy/:bookingId/:bookingType", authenticateAccessToken, logIncommingRequest, controller.releaseOccupancy);
 
 module.exports = router;
 

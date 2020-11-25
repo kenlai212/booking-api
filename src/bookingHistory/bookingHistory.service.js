@@ -1,8 +1,8 @@
 "use strict";
 const mongoose = require("mongoose");
 const Joi = require("joi");
-const moment = require("moment");
 
+const utility = require("../common/utility");
 const customError = require("../common/customError")
 const userAuthorization = require("../common/middleware/userAuthorization");
 const logger = require("../common/logger").logger;
@@ -70,6 +70,7 @@ async function initBookingHistory(input, user) {
 		transactionTime: Joi
 			.date()
 			.required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 		transactionDescription: Joi
 			.string()
 			.required(),
@@ -100,7 +101,7 @@ async function initBookingHistory(input, user) {
 	}
 
 	if (existingBookingHistory != null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: `Booking History for bookingId : ${existiingBookingHistory} alerady exist` };
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Booking History for bookingId : ${existingBookingHistory._id} alerady exist` };
 	}
 	
 	let bookingHistory = new BookingHistory();
@@ -108,7 +109,7 @@ async function initBookingHistory(input, user) {
 
 	bookingHistory.history = [];
 	const historyItem = {
-		transactionTime: moment(input.transactionTime).toDate(),
+		transactionTime: utility.isoStrToDate(input.transactionTime, input.utcOffset),
 		transactionDescription: input.transactionDescription,
 		userId: input.userId,
 		userName: input.userName
@@ -143,6 +144,7 @@ async function addHistoryItem(input, user) {
 		transactionTime: Joi
 			.date()
 			.required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 		transactionDescription: Joi
 			.string()
 			.required(),
@@ -179,7 +181,7 @@ async function addHistoryItem(input, user) {
 
 	//set new history item
 	const historyItem = {
-		transactionTime: moment(input.transactionTime).toDate(),
+		transactionTime: utility.isoStrToDate(input.transactionTime, input.utcOffset),
 		transactionDescription: input.transactionDescription,
 		userId: input.userId,
 		userName: input.userName

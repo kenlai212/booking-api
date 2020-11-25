@@ -211,7 +211,7 @@ async function addNewBooking(input, user) {
 	//save occupancy record
 	let occupancy;
 	try {
-		occupancy = await OccupancyHelper.occupyAsset(input.startTime, input.endTime, input.utcOffset, booking.assetId, booking.bookingType);
+		occupancy = await OccupancyHelper.occupyAsset(input.startTime, input.endTime, input.utcOffset, booking.assetId);
 	} catch (err) {
 		logger.error("OccupancyHelper.occupyAsset Error", err);
 		throw err;
@@ -227,7 +227,7 @@ async function addNewBooking(input, user) {
 
 	//link booking to occupancy
 	try {
-		await OccupancyHelper.linkBookingToOccupancy(occupancy.id.toString(), booking._id.toString());
+		await OccupancyHelper.linkBookingToOccupancy(occupancy.id.toString(), booking._id.toString(), booking.bookingType);
 	} catch (err) {
 		//rollback occupancy record and booking record
 		await OccupancyHelper.releaseOccupancy(occupancy.id);
@@ -240,7 +240,8 @@ async function addNewBooking(input, user) {
 	//save bookingHistory
 	let initBookingHistoryInput = {
 		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
+		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
+		utcOffset:0,
 		transactionDescription: "New booking",
 		userId: user.id,
 		userName: user.name,
@@ -331,6 +332,11 @@ async function fulfillBooking(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Fulfilled Hours cannot be longer then booking duration" };
 	}
 
+	//check if booking is cancelled
+	if (booking.status == CANCELLED_STATUS) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot fulfilled a cancelled booking" };
+	}
+
 	booking.fulfilledHours = input.fulfilledHours;
 	booking.status = FULFILLED_STATUS;
 
@@ -342,29 +348,15 @@ async function fulfillBooking(input, user) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: "Fulfilled booking",
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), "Fulfilled booking", user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
 }
 
-/**
- * By : Ken Lai
- * Date : Mar 12, 2020
- * 
- * delete booking from database, delete the corrisponding occupancy record by calling occupancy service.
- */
 async function cancelBooking(input, user) {
 	const rightsGroup = [
 		bookingCommon.BOOKING_ADMIN_GROUP
@@ -403,9 +395,19 @@ async function cancelBooking(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 	}
 
+	//check if booking is already CANCELLED
+	if (booking.status == CANCELLED_STATUS) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already cancelled" };
+	}
+
+	//check if booking is already FULFILLED
+	if (booking.status == FULFILLED_STATUS) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot cancel an already fulfilled booking" };
+	}
+
 	//release occupancy
 	try {
-		await OccupancyHelper.releaseOccupancy(booking.occupancyId);
+		await OccupancyHelper.releaseOccupancy(booking._id.toString(), booking.bookingType);
 	} catch (err) {
 		logger.error("OccupancyHelper.releaseOccupancy Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
@@ -417,26 +419,18 @@ async function cancelBooking(input, user) {
 	try {
 		booking = await booking.save();
 	} catch (err) {
-		logger.error("Booking.findByIdAndDelete Error", err);
+		logger.error("booking.save() Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
 	//add history item
-	let addHistoryItemInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: "Cancelled Booking",
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.addHistoryItem(addHistoryItemInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), "Cancelled Booking", user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.addHistoryItem Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 	
-	return booking;
+	return bookingCommon.bookingToOutputObj(booking);
 }
 
 /**

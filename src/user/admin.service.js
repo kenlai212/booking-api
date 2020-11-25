@@ -1,5 +1,4 @@
 const Joi = require("joi");
-const moment = require("moment");
 const mongoose = require("mongoose");
 const uuid = require("uuid");
 
@@ -10,6 +9,7 @@ const userAuthorization = require("../common/middleware/userAuthorization");
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
 const activationEmailHelper = require("./activationEmail.helper");
+const userHistoryService = require("./userHistory.service");
 
 const ACTIVE_STATUS = "ACTIVE";
 const INACTIVE_STATUS = "INACTIVE";
@@ -65,17 +65,29 @@ async function editStatus(input, user) {
 	targetUser.status = input.status;
 	targetUser.lastUpdateTime = new Date();
 	targetUser.activationKey = undefined;
-	targetUser.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: `Admin changed user status : ${input.status}`
-	});
 
 	try {
-		return targetUser.save();
+		targetUser = await targetUser.save();
 	} catch (err) {
 		logger.error("user.save() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+
+	//save userHistory
+	const historyItem = {
+		userId: targetUser._id.toString(),
+		transactionDescription: `Admin changed user status : ${input.status}`,
+		user: user
+	}
+
+	try {
+		await userHistoryService.addHistoryItem(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.addHistoryItem Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return userObjectMapper.toOutputObj(targetUser);
 }
 
 async function unassignGroup(input, user) {
@@ -141,17 +153,28 @@ async function unassignGroup(input, user) {
 		}
 	});
 
-	targetUser.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "Removed " + input.groupId + " from User"
-	});
-
 	try {
-		return await targetUser.save();
+		targetUser = await targetUser.save();
 	} catch (err) {
 		logger.error("Internal Server Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+
+	//save userHistory
+	const historyItem = {
+		userId: targetUser._id.toString(),
+		transactionDescription: "Removed " + input.groupId + " from User",
+		user: user
+	}
+
+	try {
+		await userHistoryService.addHistoryItem(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.addHistoryItem Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return userObjectMapper.toOutputObj(targetUser);
 }
 
 async function assignGroup(input, user) {
@@ -219,17 +242,29 @@ async function assignGroup(input, user) {
 
 	//add groupId to target.groups
 	targetUser.groups.push(input.groupId);
-	targetUser.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "Added " + input.groupId + " to User"
-	});
 
 	try {
-		return await targetUser.save();
+		targetUser = await targetUser.save();
 	} catch (err) {
 		logger.error("Internal Server Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-    }
+	}
+
+	//save userHistory
+	const historyItem = {
+		userId: targetUser._id.toString(),
+		transactionDescription: "Added " + input.groupId + " to User",
+		user: user
+	}
+
+	try {
+		await userHistoryService.addHistoryItem(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.addHistoryItem Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return userObjectMapper.toOutputObj(targetUser);
 }
 
 async function searchGroups(input, user) {
@@ -400,18 +435,28 @@ async function resendActivationEmail(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//set history to track send activation email
-	targetUser.history.push({
-		transactionTime: moment().toDate(),
-		transactionDescription: "Sent activation email to user. MessageID : " + sendActivationEmailResult.messageId
-	});
-
 	try {
-		return await targetUser.save();
+		targetUser = await targetUser.save();
 	} catch (err) {
 		logger.error("user.save() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+
+	//save userHistory
+	const historyItem = {
+		userId: targetUser._id.toString(),
+		transactionDescription: "Sent activation email to user. MessageID : " + sendActivationEmailResult.messageId,
+		user: user
+	}
+
+	try {
+		await userHistoryService.addHistoryItem(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.addHistoryItem Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return {"status": "SUCCESS"};
 }
 
 module.exports = {

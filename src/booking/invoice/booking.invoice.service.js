@@ -113,18 +113,10 @@ async function makePayment(input, user) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: "Payment made $" + totalPaymentAmount,
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Payment made $${totalPaymentAmount}`, user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -207,18 +199,10 @@ async function applyDiscount(input, user) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: `Gave ${input.discountCode} (${input.discountAmount})`,
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Gave ${input.discountCode} (${input.discountAmount})`, user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -313,18 +297,10 @@ async function removeDiscount(input, user) {
 	}
 
 	//save bookingHistory
-	let initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().format("YYYY-MM-DDTHH:mm:ss"),
-		transactionDescription: `Removed discount : ${targetDiscount.discountCode}, ${targetDiscount.amount}`,
-		userId: user.id,
-		userName: user.name,
-	};
-
 	try {
-		await bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user);
+		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Removed discount : ${targetDiscount.discountCode}, ${targetDiscount.amount}`, user);
 	} catch (err) {
-		logger.error("bookingHistorySerivce.initBookingHistory Error", err);
+		logger.error("bookingCommon.addBookingHistoryItem Error", err);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
