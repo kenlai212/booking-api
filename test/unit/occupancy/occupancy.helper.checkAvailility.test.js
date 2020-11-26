@@ -1,6 +1,6 @@
 const moment = require('moment');
 
-const checkAvailibility = require("../../../src/occupancy/checkAvailibility.helper");
+const checkAvailibility = require("../../../src/occupancy/occupancy.helper").checkAvailability;
 
 describe('Test checkAvailibility.helper', () => {
     var startTime = moment("2020-02-02T11:00:00Z");
@@ -27,7 +27,7 @@ describe('Test checkAvailibility.helper', () => {
         expect(isAvailable).toEqual(false);
     });
 
-    test("One occupancy in between overlap the startTime, expect return false", () => {
+    test("One occupancy in between overlaps the startTime, expect return false", () => {
         const occupancies = [
             {
                 startTime: moment("2020-02-02T10:00:00Z"),
@@ -40,7 +40,7 @@ describe('Test checkAvailibility.helper', () => {
         expect(isAvailable).toEqual(false);
     });
 
-    test("One occupancy in between overlap endTime, expect return false", () => {
+    test("One occupancy in between overlaps the endTime, expect return false", () => {
         const occupancies = [
             {
                 startTime: moment("2020-02-02T11:30:00Z"),
@@ -53,11 +53,24 @@ describe('Test checkAvailibility.helper', () => {
         expect(isAvailable).toEqual(false);
     });
 
-    test("One occupancy outside of startTime and endTime, expect return true", () => {
+    test("One occupancy before of startTime and endTime, expect return true", () => {
         const occupancies = [
             {
                 startTime: moment("2020-02-02T08:00:00Z"),
                 endTime: moment("2020-02-02T09:00:00Z")
+            }
+        ];
+
+        const isAvailable = checkAvailibility(startTime, endTime, occupancies);
+
+        expect(isAvailable).toEqual(true);
+    });
+
+    test("One occupancy after of startTime and endTime, expect return true", () => {
+        const occupancies = [
+            {
+                startTime: moment("2020-02-02T13:00:00Z"),
+                endTime: moment("2020-02-02T14:00:00Z")
             }
         ];
 

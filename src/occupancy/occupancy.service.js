@@ -6,28 +6,10 @@ const mongoose = require("mongoose");
 const utility = require("../common/utility");
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
-const userAuthorization = require("../common/middleware/userAuthorization");
 const Occupancy = require("./occupancy.model").Occupancy;
 const occupancyHelper = require("./occupancy.helper");
 
-const OCCUPANCY_ADMIN_GROUP = "OCCUPANCY_ADMIN";
-const OCCUPANCY_POWER_USER_GROUP = "OCCUPANCY_POWER_USER";
-const OCCUPANCY_USER_GROUP = "OCCUPANCY_USER";
-const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
-const BOOKING_USER_GROUP = "BOOKING_USER";
-
-async function releaseOccupancy(input, user) {
-	const rightsGroup = [
-		OCCUPANCY_ADMIN_GROUP,
-		OCCUPANCY_POWER_USER_GROUP,
-		BOOKING_ADMIN_GROUP
-	]
-	
-	//validate user group
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" }
-	}
-
+async function releaseOccupancy(input) {
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
@@ -70,20 +52,7 @@ async function releaseOccupancy(input, user) {
 	}
 }
 
-async function occupyAsset(input, user) {
-	const rightsGroup = [
-		OCCUPANCY_ADMIN_GROUP,
-		OCCUPANCY_POWER_USER_GROUP,
-		OCCUPANCY_USER_GROUP,
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
+async function occupyAsset(input) {
 	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
@@ -104,6 +73,19 @@ async function occupyAsset(input, user) {
 	const result = schema.validate(input);
 	if (result.error) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//check if bookingId is provided, bookingType is mandatorys
+	if (input.bookingId != null) {
+
+		//validate bookingId
+		if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+		}
+
+		if (input.bookingType == null) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: "bookingType is mandatory" };
+		}
 	}
 
 	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
@@ -166,21 +148,7 @@ async function occupyAsset(input, user) {
 	return occupancyToOutputObj(occupancy);
 }
 
-async function updateBookingId(input, user) {
-	
-	const rightsGroup = [
-		OCCUPANCY_ADMIN_GROUP,
-		OCCUPANCY_POWER_USER_GROUP,
-		OCCUPANCY_USER_GROUP,
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-	
+async function updateBookingId(input) {
 	//validate input data
 	const schema = Joi.object({
 		occupancyId: Joi
@@ -237,20 +205,7 @@ async function updateBookingId(input, user) {
 	return occupancy;
 }
 
-async function getOccupancies(input, user) {
-	const rightsGroup = [
-		OCCUPANCY_ADMIN_GROUP,
-		OCCUPANCY_POWER_USER_GROUP,
-		OCCUPANCY_USER_GROUP,
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	//validate user group
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
+async function getOccupancies(input) {
 	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
@@ -302,8 +257,8 @@ async function getOccupancies(input, user) {
 function occupancyToOutputObj(occupancy) {
 	var outputObj = new Object();
 	outputObj.id = occupancy._id;
-	outputObj.startTime = occupancy.startTime;
-	outputObj.endTime = occupancy.endTime;
+	outputObj.startTime = moment(occupancy.startTime).toISOString();
+	outputObj.endTime = moment(occupancy.endTime).toISOString();
 	outputObj.assetId = occupancy.assetId;
 	outputObj.bookingId = occupancy.bookingId;
 	outputObj.bookingType = occupancy.bookingType;

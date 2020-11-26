@@ -1,109 +1,85 @@
 const occupancyService = require("../../../src/occupancy/occupancy.service");
 const Occupancy = require("../../../src/occupancy/occupancy.model").Occupancy;
-const gogowakeCommon = require("gogowake-common");
-const customError = require("../../../src/errors/customError");
+const customError = require("../../../src/common/customError");
 
 describe('Test occupancy.getOccupancies()', () => {
     input = {};
-    user = {};
-
-    it("no user authorization, reject!", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(false);
-
-        expect.assertions(1);
-
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
-            name: customError.UNAUTHORIZED_ERROR,
-            message: "Insufficient Rights"
-        });
-    });
-
     it("missing startTime, reject!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
             message: "startTime is required"
         });
     });
 
     it("invalid startTime, reject!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
         input.startTime = "ABC";
 
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
             message: "startTime must be in ISO 8601 date format"
         });
     });
 
     it("missing endTime, reject!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
         input.startTime = "2020-02-02T23:59:59Z";
 
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
             message: "endTime is required"
         });
     });
 
-    it("invalid startTime, reject!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
+    it("invalid endTime, reject!", () => {
         input.endTime = "ABC";
 
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
             message: "endTime must be in ISO 8601 date format"
         });
     });
 
-    it("missing assetId, reject!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
+    it("missing utcOffset, reject!", () => {
         input.endTime = "2020-02-02T22:00:00Z";
 
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "utcOffset is required"
+        });
+    });
+
+    it("missing assetId, reject!", () => {
+        input.utcOffset = 8;
+
+        expect.assertions(1);
+
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
             message: "assetId is required"
         });
     });
 
     it("invalid assetId, reject!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
         input.assetId = "ABC";
 
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
             message: "assetId must be one of [A001, MC_NXT20]"
         });
     });
 
     it("startTime grater then endTime, reject!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
 
         input.assetId = "A001";
         input.startTime = "2020-02-02T23:59:59Z";
@@ -111,16 +87,13 @@ describe('Test occupancy.getOccupancies()', () => {
 
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
             message: "endTime cannot be earlier then startTime"
         });
     });
 
     it("occupancy.find() db error, reject!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
         //setup mock occupancy.find, reject
         Occupancy.find = jest.fn().mockRejectedValue(new Error());
 
@@ -129,7 +102,7 @@ describe('Test occupancy.getOccupancies()', () => {
 
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).rejects.toEqual({
+        return expect(occupancyService.getOccupancies(input)).rejects.toEqual({
             name: customError.INTERNAL_SERVER_ERROR,
             message: "Internal Server Error"
         });
@@ -137,9 +110,6 @@ describe('Test occupancy.getOccupancies()', () => {
     });
 
     it("success!!", () => {
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
         //setup mock occupancy.save, reject
         var occupancies = [
             {
@@ -155,22 +125,27 @@ describe('Test occupancy.getOccupancies()', () => {
 
         expect.assertions(1);
 
-        return expect(occupancyService.getOccupancies(input, user)).resolves.toEqual(
+        return expect(occupancyService.getOccupancies(input)).resolves.toEqual(
             {
+                "count":2,
                 "occupancies": [
                     {
+                        "bookingId": undefined,
+                        "bookingType": undefined,
                         "assetId": undefined,
-                        "endTime": "2020-02-02T08:30:00",
+                        "endTime": "2020-02-02T08:30:00.000Z",
                         "id": undefined,
                         "occupancyType": undefined,
-                        "startTime": "2020-02-02T08:00:00"
+                        "startTime": "2020-02-02T08:00:00.000Z"
                     },
                     {
+                        "bookingId": undefined,
+                        "bookingType": undefined,
                         "assetId": undefined,
-                        "endTime": "2020-02-02T09:30:00",
+                        "endTime": "2020-02-02T09:30:00.000Z",
                         "id": undefined,
                         "occupancyType": undefined,
-                        "startTime": "2020-02-02T09:00:00"
+                        "startTime": "2020-02-02T09:00:00.000Z"
                     }]
             }
         );

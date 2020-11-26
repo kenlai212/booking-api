@@ -1,3 +1,8 @@
+/*
+ * check if the time between startTime and endTime will
+ * overlap any entries in occupancies array.
+ * Returns ture or false
+ * */
 function checkAvailability(startTime, endTime, occupancies) {
 	var isAvailable = true;
 
