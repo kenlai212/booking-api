@@ -8,7 +8,6 @@ const registrationController = require("./registration.controller");
 const adminController = require("./admin.controller");
 
 const router = express.Router();
-router.put("/user/activate", logIncommingRequest, registrationController.activate);
 router.post("/user", logIncommingRequest, registrationController.register);
 router.post("/user/social", logIncommingRequest, registrationController.socialRegister);
 
@@ -25,6 +24,6 @@ router.get("/groups", authenticateAccessToken, logIncommingRequest, adminControl
 router.get("/user", authenticateAccessToken, logIncommingRequest, userController.findUser);
 router.get("/user/social", authenticateAccessToken, logIncommingRequest, userController.findSocialUser);
 router.put("/user/contact-info", authenticateAccessToken, logIncommingRequest, userController.updateContactInfo);
-
+router.put("/user/activate", logIncommingRequest, userController.activate);
 
 module.exports = router;

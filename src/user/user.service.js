@@ -138,7 +138,7 @@ async function forgetPassword(input) {
 
 	//save userHistory
 	const historyItem = {
-		userId: targetUser._id.toString(),
+		targetUserId: targetUser._id.toString(),
 		transactionDescription: "User initiate forget password"
 	}
 
@@ -227,9 +227,9 @@ async function updateContactInfo(input, user) {
 	if (hasDelta == true) {
 		//save userHistory
 		const historyItem = {
-			userId: targetUser._id.toString(),
+			targetUserId: targetUser._id.toString(),
 			transactionDescription: "Updated user contact",
-			user: user
+			triggerByUser: user
 		}
 
 		try {
@@ -245,9 +245,69 @@ async function updateContactInfo(input, user) {
 	}
 }
 
+async function activate(input) {
+	//validate input data
+	const schema = Joi.object({
+		activationKey: Joi
+			.string()
+			.required()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//find target user
+	let targetUser;
+	try {
+		targetUser = await User.findOne({
+			"activationKey": input.activationKey
+		});
+	} catch (err) {
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
+	}
+
+	//set user status to ACTIVE
+	//set new lastUpdateTime
+	//delete activationKey
+	targetUser.status = ACTIVE_STATUS;
+	targetUser.lastUpdateTime = new Date();
+	targetUser.activationKey = undefined;
+
+	try {
+		targetUser = await targetUser.save();
+	} catch (err) {
+		logger.error("user.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save userHistory
+	const historyItem = {
+		targetUserId: targetUser._id.toString(),
+		transactionDescription: "User initiate forget password",
+		triggerByUser: targetUser
+	}
+
+	try {
+		await userHistoryService.addHistoryItem(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.addHistoryItem Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return userObjectMapper.toOutputObj(targetUser);
+}
+
 module.exports = {
 	findUser,
 	findSocialUser,
 	forgetPassword,
 	updateContactInfo,
+	activate
 }

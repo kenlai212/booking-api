@@ -11,11 +11,15 @@ const OWNER_BOOKING = "OWNER_BOOKING";
 
 const PRICING_ADMIN_GROUP = "PRICING_ADMIN";
 const PRICING_USER_GROUP = "PRICING_USER";
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
+const BOOKING_USER_GROUP = "BOOKING_USER"
 
 function calculateTotalAmount(input, user) {
 	const rightsGroup = [
 		PRICING_ADMIN_GROUP,
-		PRICING_USER_GROUP
+		PRICING_USER_GROUP,
+		BOOKING_ADMIN_GROUP,
+		BOOKING_USER_GROUP
 	]
 	
 	//validate user group

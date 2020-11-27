@@ -22,9 +22,14 @@ const updateContactInfo = asyncMiddleware(async (req) => {
 	return await userService.updateContactInfo(req.body, req.user);
 });
 
+const activate = asyncMiddleware(async (req) => {
+	return await registrationService.activate(req.body);
+});
+
 module.exports = {
 	findUser,
 	findSocialUser,
 	forgetPassword,
-	updateContactInfo
+	updateContactInfo,
+	activate
 }

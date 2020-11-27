@@ -4,7 +4,6 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const customError = require("../common/customError");
 const logger = require("../common/logger").logger;
-const userAuthorization = require("../common/middleware/userAuthorization");
 const pricingHelper = require("../slot/pricing_internal.helper");
 const slotHelper = require("./slot.helper");
 const occupancyHelper = require("./occupancy_internal.helper");
@@ -16,9 +15,6 @@ const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
 const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
 
-const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
-const BOOKING_USER_GROUP = "BOOKING_USER";
-
 /**********************************************************
 By : Ken Lai
 Date : Mar 13 2020
@@ -27,16 +23,6 @@ Returns hourly slots of target date.
 Will include unitPrice and availability in each slot
 **********************************************************/
 async function getSlots(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-	
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw{ name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		targetDate: Joi.date().iso().required(),
@@ -113,16 +99,6 @@ By : Ken Lai
 Returns all immediate available end slots after the target start slot
 **********************************************************************/
 async function getEndSlots(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),

@@ -102,13 +102,13 @@ async function initUserHistory(input) {
 async function addHistoryItem(input) {
 	//validate input data
 	const schema = Joi.object({
-		userId: Joi
+		targetUserId: Joi
 			.string()
 			.required(),
 		transactionDescription: Joi
 			.string()
 			.required(),
-		user: Joi
+		triggerByUser: Joi
 			.object()
 	});
 
@@ -118,30 +118,30 @@ async function addHistoryItem(input) {
 	}
 
 	//validate targetUserId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid targetUserId" };
+	if (mongoose.Types.ObjectId.isValid(input.targetUserId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Invalid targetUserId : ${input.targetUserId}` };
 	}
 
 	//find userHistory
 	let userHistory;
 	try {
-		userHistory = await UserHistory.findOne({ userId: input.userId.toString() });
+		userHistory = await UserHistory.findOne({ userId: input.targetUserId });
 	} catch (err) {
 		logger.error("UserHistory.findOne Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
 	if (userHistory == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid userId" };
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: `Invalid targetUserId : ${input.userId}` };
 	}
 
 	//set new history item
 	const historyItem = new Object();
 	historyItem.transactionTime = moment().utcOffset(8).toDate();
 	historyItem.transactionDescription = input.transactionDescription;
-	if (input.user != null) {
-		historyItem.userId = input.user.id;
-		historyItem.userName = input.user.userName;
+	if (input.triggerByUser != null) {
+		historyItem.userId = input.triggerByUser.id;
+		historyItem.userName = input.triggerByUser.userName;
 	}
 
 	userHistory.history.push(historyItem);

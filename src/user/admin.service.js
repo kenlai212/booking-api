@@ -4,7 +4,6 @@ const uuid = require("uuid");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
-const userAuthorization = require("../common/middleware/userAuthorization");
 
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
@@ -15,18 +14,7 @@ const ACTIVE_STATUS = "ACTIVE";
 const INACTIVE_STATUS = "INACTIVE";
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
 
-const USER_ADMIN_GROUP = "USER_ADMIN";
-
 async function editStatus(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		USER_ADMIN_GROUP
-	]
-
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -72,12 +60,12 @@ async function editStatus(input, user) {
 		logger.error("user.save() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
+	
 	//save userHistory
 	const historyItem = {
-		userId: targetUser._id.toString(),
+		targetUserId: targetUser._id.toString(),
 		transactionDescription: `Admin changed user status : ${input.status}`,
-		user: user
+		triggerByUser: user
 	}
 
 	try {
@@ -91,15 +79,6 @@ async function editStatus(input, user) {
 }
 
 async function unassignGroup(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		USER_ADMIN_GROUP
-	]
-
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -162,9 +141,9 @@ async function unassignGroup(input, user) {
 
 	//save userHistory
 	const historyItem = {
-		userId: targetUser._id.toString(),
+		targetUserId: targetUser._id.toString(),
 		transactionDescription: "Removed " + input.groupId + " from User",
-		user: user
+		triggerByUser: user
 	}
 
 	try {
@@ -178,15 +157,6 @@ async function unassignGroup(input, user) {
 }
 
 async function assignGroup(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		USER_ADMIN_GROUP
-	]
-	
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-	
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -252,9 +222,9 @@ async function assignGroup(input, user) {
 
 	//save userHistory
 	const historyItem = {
-		userId: targetUser._id.toString(),
+		targetUserId: targetUser._id.toString(),
 		transactionDescription: "Added " + input.groupId + " to User",
-		user: user
+		triggerByUser: user
 	}
 
 	try {
@@ -268,15 +238,6 @@ async function assignGroup(input, user) {
 }
 
 async function searchGroups(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		USER_ADMIN_GROUP
-	]
-
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	return ["BOOKING_ADMIN",
 		"BOOKING_USER",
 		"PRICING_USER",
@@ -289,24 +250,8 @@ async function searchGroups(input, user) {
 		"CREW_USER"]
 }
 
-/**
-* By : Ken Lai
-* Date : Mar 30, 2020
-*
-* fetch all users, paginated
-* only callable for admin group
-*/
 async function searchUsers(user) {
 	//TODO!!!! add paginateion
-	const rightsGroup = [
-		USER_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	let users;
 	try {
 		users = await User.find();
@@ -327,15 +272,6 @@ async function searchUsers(user) {
 }
 
 async function deleteUser(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		USER_ADMIN_GROUP
-	]
-
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -377,23 +313,7 @@ async function deleteUser(input, user) {
 	return {"status": "SUCCESS"}
 }
 
-/*
-* By : Ken Lai
-* Date : Mar 31, 2020
-*
-* resend activation email
-* only callable by admin
-*/
 async function resendActivationEmail(input, user) {
-	//validate user group rights
-	const rightsGroup = [
-		USER_ADMIN_GROUP
-	]
-
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -444,9 +364,9 @@ async function resendActivationEmail(input, user) {
 
 	//save userHistory
 	const historyItem = {
-		userId: targetUser._id.toString(),
+		targetUserId: targetUser._id.toString(),
 		transactionDescription: "Sent activation email to user. MessageID : " + sendActivationEmailResult.messageId,
-		user: user
+		triggerByUser: user
 	}
 
 	try {

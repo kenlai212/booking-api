@@ -1,8 +1,6 @@
 const mongoose = require("mongoose");
 
-const gogowakeCommon = require("gogowake-common");
-const customError = require("../../../src/errors/customError");
-
+const customError = require("../../../src/common/customError");
 const occupancyService = require("../../../src/occupancy/occupancy.service");
 const Occupancy = require("../../../src/occupancy/occupancy.model").Occupancy;
 
@@ -10,54 +8,82 @@ describe('Test occupancy.releaseOccupancy()', () => {
     input = {};
     user = {};
 
-    it("no user authorization, reject!", () => {
-
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(false);
-
+    it("missing bookingId, reject!", () => {
         expect.assertions(1);
 
         return expect(occupancyService.releaseOccupancy(input, user)).rejects.toEqual({
-            name: customError.UNAUTHORIZED_ERROR,
-            message: "Insufficient Rights"
+            name: customError.BAD_REQUEST_ERROR,
+            message: "bookingId is required"
         });
     });
 
-    it("missing occupancyId, reject!", () => {
-
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
+    it("missing bookingType, reject!", () => {
+        input.bookingId = mongoose.Types.ObjectId().toHexString();
 
         expect.assertions(1);
 
         return expect(occupancyService.releaseOccupancy(input, user)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
-            message: "occupancyId is required"
+            message: "bookingType is required"
         });
+
     });
 
-    it("Invalid occupancyId, reject!", () => {
-
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.occupancyId = "INVALID_ID";
+    it("invalid bookingType, reject!", () => {
+        input.bookingType = "INVALID_BOOKING_TYPE";
 
         expect.assertions(1);
 
         return expect(occupancyService.releaseOccupancy(input, user)).rejects.toEqual({
-            name: customError.RESOURCE_NOT_FOUND_ERROR,
-            message: "Invalid occupancyId"
+            name: customError.BAD_REQUEST_ERROR,
+            message: "bookingType must be one of [CUSTOMER_BOOKING, OWNER_BOOKING, MAINTAINANCE]"
+        });
+
+    });
+
+    it("Invalid bookingId, reject!", () => {
+        input.bookingId = "INVALID_ID";
+
+        expect.assertions(1);
+
+        return expect(occupancyService.releaseOccupancy(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "Invalid bookingId"
+        });
+
+    });
+
+    it("Occupancy.findOne() error, reject!", () => {
+        input.bookingType = "CUSTOMER_BOOKING";
+
+        //setup mock Occupancy.findOne, reject
+        Occupancy.findOne = jest.fn().mockRejectedValue(new Error("findByIdAndDelete db error"));
+
+        expect.assertions(1);
+
+        return expect(occupancyService.releaseOccupancy(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "Occupancy.findOne not available"
+        });
+
+    });
+
+    it("Occupancy.findOne() returns none found, reject!", () => {
+        //setup mock Occupancy.findOne, resolve null
+        Occupancy.findOne = jest.fn().mockResolvedValue(null);
+
+        expect.assertions(1);
+
+        return expect(occupancyService.releaseOccupancy(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "Invalid bookingId & bookingType"
         });
 
     });
 
     it("Occupancy.findByIdAndDelete() error saving to db, reject!", () => {
-
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.occupancyId = mongoose.Types.ObjectId().toHexString();
+        //setup mock Occupancy.findOne, resolve null
+        Occupancy.findOne = jest.fn().mockResolvedValue({"":""});
 
         //setup mock Occupancy.findByIdAndDelete(), reject
         Occupancy.findByIdAndDelete = jest.fn().mockRejectedValue(new Error("findByIdAndDelete db error"));
@@ -66,16 +92,12 @@ describe('Test occupancy.releaseOccupancy()', () => {
 
         return expect(occupancyService.releaseOccupancy(input, user)).rejects.toEqual({
             name: customError.INTERNAL_SERVER_ERROR,
-            message: "Delete function not available"
+            message: "Occupancy.findByIdAndDelete not available"
         });
 
     });
 
     it("success!", () => {
-
-        //setup mock gogowakeCommon.userAuthorization, returning true
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
         //setup mock Occupancy.findByIdAndDelete(), resolve
         Occupancy.findByIdAndDelete = jest.fn().mockResolvedValue();
 

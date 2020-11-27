@@ -43,13 +43,16 @@ async function releaseOccupancy(input) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId & bookingType" }
 	}
 
+	//delete targetOccupancy
 	try {
 		await Occupancy.findByIdAndDelete(targetOccupancy._id);
-		return { "result": "SUCCESS" };
 	} catch (err) {
 		logger.error("Occupancy.findByIdAndDelete() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Occupancy.findOne not available" }
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Occupancy.findByIdAndDelete not available" }
 	}
+
+	return { "result": "SUCCESS" };
+
 }
 
 async function occupyAsset(input) {
