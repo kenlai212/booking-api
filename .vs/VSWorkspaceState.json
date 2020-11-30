@@ -1,9 +1,9 @@
 {
   "ExpandedNodes": [
     "",
-    "\\test\\unit",
-    "\\test\\unit\\occupancy"
+    "\\src",
+    "\\src\\crew"
   ],
-  "SelectedNode": "\\src",
+  "SelectedNode": "\\src\\crew\\crew.model.js",
   "PreviewInSolutionExplorer": false
 }

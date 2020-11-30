@@ -204,12 +204,12 @@ async function editGuest(input, user) {
 			.required(),
 		guestName: Joi
 			.string()
-			.required(),
+			.min(1),
 		telephoneCountryCode: Joi
 			.string()
-			.valid("852", "853", "86")
-			.required(),
-		telephoneNumber: Joi.string().required()
+			.valid("852", "853", "86", null),
+		telephoneNumber: Joi.string().min(1),
+		emailAddress: Joi.string().min(1)
 	});
 
 	const result = schema.validate(input);
@@ -241,10 +241,22 @@ async function editGuest(input, user) {
 		if (guest._id == input.guestId) {
 			guestFound = true;
 
-			guest.guestName = input.guestName;
-			guest.telephoneCountryCode = input.telephoneCountryCode;
-			guest.telephoneNumber = input.telephoneNumber;
-			guest.emailAddress = input.emailAddress;
+			if (input.guestName != null && input.guestName.length > 0) {
+				guest.guestName = input.guestName;
+			}
+
+			if (input.telephoneNumber != null && input.telephoneNumber.length > 0) {
+				if (input.telephoneCountryCode == null || input.telephoneCountryCode.length == 0) {
+					throw { name: customError.BAD_REQUEST_ERROR, message: "telephoneCountryCode is mandatory" };
+				}
+
+				guest.telephoneNumber = input.telephoneNumber;
+				guest.telephoneCountryCode = input.telephoneCountryCode;
+			}
+
+			if (input.emailAddress != null && input.emailAddress.length > 0) {
+				guest.emailAddress = input.emailAddress;
+			}
 		}
 	});
 

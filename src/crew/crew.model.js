@@ -6,15 +6,7 @@ const crewSchema = new mongoose.Schema({
 	status: String,
 	telephoneCountryCode: String,
 	telephoneNumber: String,
-	emailAddress: String,
-	createdBy: String,
-	createdTime: Date,
-	history: [{
-		transactionTime: Date,
-		transactionDescription: String,
-		userId: String,
-		userName: String
-	}]
+	emailAddress: String
 });
 
 const Crew = mongoose.model("Crew", crewSchema);

@@ -1,27 +1,12 @@
 "use strict";
 const Joi = require("joi");
 const mongoose = require("mongoose");
-const moment = require("moment");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
-const userAuthorization = require("../common/middleware/userAuthorization");
 const Crew = require("./crew.model").Crew;
 
-const CREW_ADMIN_GROUP = "CREW_ADMIN";
-const CREW_USER_GROUP = "CREW_USER";
-
 async function findCrew(input, user) {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP,
-		CREW_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		crewId: Joi
@@ -55,15 +40,6 @@ async function findCrew(input, user) {
 }
 
 async function searchCrews(input, user) {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-	
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	let crews;
 	try {
 		crews = await Crew.find();
@@ -86,15 +62,6 @@ async function searchCrews(input, user) {
 }
 
 async function newCrew(input, user) {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		crewName: Joi
@@ -120,45 +87,24 @@ async function newCrew(input, user) {
 	let crew = new Crew();
 	crew.status = "ACTIVE";
 	crew.crewName = input.crewName;
-	crew.createdBy = user.id;
-	crew.createdTime = moment().toDate();
-
 	crew.telephoneCountryCode = input.telephoneCountryCode;
 	crew.telephoneNumber = input.telephoneNumber;
 	if (input.emailAddress != null) {
 		crew.emailAddress = input.emailAddress;
 	}
-	
-	crew.history = [
-		{
-			transactionTime: moment().toDate(),
-			transactionDescription: "New Crew Record",
-			userId: user.id,
-			userName: user.name
-		}
-	]
 
 	//save to db
 	try {
 		crew = await crew.save();
 	} catch (err) {
-		logger.error("Internal Server Error : ", err);
-		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
+		logger.error("crew.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
 	return crewToOutputObj(crew);
 }
 
 async function deleteCrew(input, user) {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		crewId: Joi
@@ -201,15 +147,6 @@ async function deleteCrew(input, user) {
 }
 
 async function editStatus(input, user) {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		crewId: Joi
@@ -248,14 +185,6 @@ async function editStatus(input, user) {
 	//update status
 	targetCrew.status = input.status;
 
-	const historyItem = {
-		transactionTime: moment().toDate(),
-		transactionDescription: `Updated status : ${input.status}`,
-		userId: user.id,
-		userName: user.name
-	}
-	targetCrew.history.push(historyItem);
-
 	try {
 		targetCrew = await targetCrew.save();
 	} catch (err) {
@@ -263,7 +192,79 @@ async function editStatus(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	return targetCrew;
+	return crewToOutputObj(targetCrew);
+}
+
+async function editContact(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		crewId: Joi
+			.string()
+			.min(1)
+			.required(),
+		crewName: Joi
+			.string(),
+		telephoneCountryCode: Joi
+			.string()
+			.valid("852", "853", "86", null),
+		telephoneNumber: Joi
+			.string()
+			.min(1),
+		emailAddress: Joi
+			.string()
+			.min(1)
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate crewId
+	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//get target crew
+	let targetCrew;
+	try {
+		targetCrew = await Crew.findById(input.crewId);
+	} catch (err) {
+		logger.error("Crew.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetCrew == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
+	}
+
+	//update contact
+	if (input.crewName != null && input.crewName.length > 0 ){
+		targetCrew.crewName = input.crewName;
+	}
+
+	if (input.telephoneNumber != null && input.telephoneNumber.length > 0) {
+		if (input.telephoneCountryCode == null || input.telephoneCountryCode.length == 0) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: "telephoneCountryCode is mandatory" };
+		}
+
+		targetCrew.telephoneCountryCode = input.telephoneCountryCode;
+		targetCrew.telephoneNumber = input.telephoneNumber;
+	}
+
+	if (input.emailAddress != null && input.emailAddress.length > 0) {
+		targetCrew.emailAddress = input.emailAddress;
+	}
+
+	//save record
+	try {
+		targetCrew = await targetCrew.save();
+	} catch (err) {
+		logger.error("targetCrew.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
+	return crewToOutputObj(targetCrew);
 }
 
 function crewToOutputObj(crew) {
@@ -273,9 +274,7 @@ function crewToOutputObj(crew) {
 	outputObj.crewName = crew.crewName;
 	outputObj.telephoneCountryCode = crew.telephoneCountryCode;
 	outputObj.telephoneNumber = crew.telephoneNumber;
-	if (crew.emailAddress != null) {
-		outputObj.emailAddress;
-	}
+	outputObj.emailAddress = crew.emailAddress;
 
 	return outputObj;
 }
@@ -285,5 +284,6 @@ module.exports = {
 	newCrew,
 	findCrew,
 	deleteCrew,
-	editStatus
+	editStatus,
+	editContact
 }
