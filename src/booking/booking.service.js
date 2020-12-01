@@ -186,12 +186,13 @@ async function addNewBooking(input, user) {
 		if (booking.crews == null) {
 			booking.crews = new Array();
 		}
-
+		
 		booking.crews.push({
-			crewId: crew.id,
+			crewId: crew.crewId,
 			crewName: crew.crewName,
 			telephoneCountryCode: crew.telephoneCountryCode,
 			telephoneNumber: crew.telephoneNumber,
+			emailAddress: crew.emailAddress,
 			assignmentTime: moment().toDate(),
 			assignmentBy: user.id
 		});

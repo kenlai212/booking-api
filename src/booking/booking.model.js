@@ -46,6 +46,7 @@ const bookingSchema = new mongoose.Schema({
 		crewName: String,
 		telephoneCountryCode: String,
 		telephoneNumber: String,
+		emailAddress: String,
 		assignmentTime: Date,
 		assignmentBy: String
 	}]

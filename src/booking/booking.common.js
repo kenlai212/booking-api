@@ -40,19 +40,35 @@ function bookingToOutputObj(booking) {
 
 	outputObj.invoice = new Object();
 	outputObj.invoice.regularAmount = booking.invoice.regularAmount;
-	if (booking.invoice.discounts != null && booking.invoice.discounts.length > 0) {
-		outputObj.invoice.discounts = booking.invoice.discounts;
-	}
 	outputObj.invoice.totalAmount = booking.invoice.totalAmount;
-
-	if (booking.invoice.payments != null && booking.invoice.payments.length > 0) {
-		outputObj.invoice.payments = booking.invoice.payments;
-	}
-
 	outputObj.invoice.balance = booking.invoice.balance;
 	outputObj.invoice.currency = booking.invoice.currency;
 	outputObj.invoice.unitPrice = booking.invoice.unitPrice;
 	outputObj.invoice.paymentStatus = booking.invoice.paymentStatus;
+
+	if (booking.invoice.discounts != null && booking.invoice.discounts.length > 0) {
+		outputObj.invoice.discounts = [];
+
+		booking.invoice.discounts.forEach(discount => {
+			outputObj.invoice.discounts.push({
+				discountId: discount._id,
+				amount: discount.amount,
+				discountCode: discount.discountCode
+			});
+		});
+	}
+
+	if (booking.invoice.payments != null && booking.invoice.payments.length > 0) {
+		outputObj.invoice.payments = [];
+
+		booking.invoice.payments.forEach(payment => {
+			outputObj.invoice.payments.push({
+				paymentId: payment._id,
+				amount: payment.amount,
+				paymentCode: payment.paymentCode
+			});
+		});
+	}
 
 	outputObj.startTime = booking.startTime;
 	outputObj.endTime = booking.endTime;
@@ -65,10 +81,29 @@ function bookingToOutputObj(booking) {
 	outputObj.host.telephoneNumber = booking.host.telephoneNumber;
 	outputObj.host.emailAddress = booking.host.emailAddress;
 
-	outputObj.guests = booking.guests;
+	outputObj.guests = [];
+	booking.guests.forEach(guest => {
+		outputObj.guests.push({
+			guestId: guest._id,
+			guestName: guest.guestName,
+			telephoneCountryCode: guest.telephoneCountryCode,
+			telephoneNumber: guest.telephoneNumber,
+			emailAddress: guest.emailAddress
+		});
+	})
 
 	if (booking.crews != null && booking.crews.length > 0) {
-		outputObj.crews = booking.crews;
+		outputObj.crews = [];
+
+		booking.crews.forEach(crew => {
+			outputObj.crews.push({
+				crewId: crew.crewId,
+				crewName: crew.crewName,
+				telephoneCountryCode: crew.telephoneCountryCode,
+				telephoneNumber: crew.telephoneNumber,
+				emailAddress: crew.emailAddress
+			});
+		});
 	}
 
 	return outputObj;
