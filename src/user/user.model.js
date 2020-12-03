@@ -12,17 +12,10 @@ const userSchema = new mongoose.Schema({
 	status: String,
 	registrationTime: Date,
 	activationKey: String,
-	password: String,
 	resetPasswordKey: String,
-	lastUpdateTime: Date,
 	name: String,
-	groups: [{ type : String }],
-	history: [{
-		transactionTime: Date,
-		transactionDescription: String,
-		userId: String,
-		userName: String
-	}]
+	groups: [{ type: String }],
+	lastLoginTime: Date
 });
 
 const User = mongoose.model("User", userSchema);

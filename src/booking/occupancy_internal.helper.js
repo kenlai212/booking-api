@@ -14,7 +14,7 @@ async function occupyAsset(startTime, endTime, utcOffset, assetId){
     try {
         return await occupancyService.occupyAsset(input, bookingAPIUser.userObject);
     } catch (err) {
-        logger.error("Error while call occupancyService.occupyAsset : ", err);
+        logger.error("Error while calling occupancyService.occupyAsset : ", err);
         throw err;
     }
 }
@@ -29,7 +29,7 @@ async function linkBookingToOccupancy(occupancyId, bookingId, bookingType) {
     try {
         return await occupancyService.updateBookingId(input, bookingAPIUser.userObject);
     } catch (err) {
-        logger.error("Error while call occupancyService.updateBookingId : ", err);
+        logger.error("Error while calling occupancyService.updateBookingId : ", err);
         throw err;
     }
 }
@@ -43,7 +43,7 @@ async function releaseOccupancy(bookingId, bookingType) {
     try {
         return await occupancyService.releaseOccupancy(input, bookingAPIUser.userObject);
     } catch (err) {
-        logger.error("Error while call occupancyService.releaseOccupancy : ", err);
+        logger.error("Error while calling occupancyService.releaseOccupancy : ", err);
         throw err;
     }
 }

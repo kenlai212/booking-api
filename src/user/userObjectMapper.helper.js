@@ -16,6 +16,8 @@ function toOutputObj(user) {
 	outputObj.telephoneCountryCode = user.telephoneCountryCode;
 	outputObj.telephoneNumber = user.telephoneNumber;
 
+	outputObj.lastLoginTime = user.lastLoginTime;
+
 	return outputObj;
 }
 

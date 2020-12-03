@@ -157,8 +157,53 @@ async function addHistoryItem(input) {
 	return userHistory;
 }
 
+async function deleteUserHistory(input) {
+	//validate input data
+	const schema = Joi.object({
+		targetUserId: Joi
+			.string()
+			.required(),
+		triggerByUser: Joi
+			.object()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	//validate targetUserId
+	if (mongoose.Types.ObjectId.isValid(input.targetUserId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Invalid targetUserId : ${input.targetUserId}` };
+	}
+
+	//find userHistory
+	let userHistory;
+	try {
+		userHistory = await UserHistory.findOne({ userId: input.targetUserId });
+	} catch (err) {
+		logger.error("UserHistory.findOne Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (userHistory == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: `Invalid targetUserId : ${input.userId}` };
+	}
+
+	//delete userHistory record
+	try {
+		await UserHistory.findByIdAndDelete(userHistory._id.toString());
+	} catch (err) {
+		logger.error("UserHistory.findByIdAndDelete() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return {"status":"SUCCESS"}
+}
+
 module.exports = {
 	initUserHistory,
 	addHistoryItem,
-	getUserHistory
+	getUserHistory,
+	deleteUserHistory
 }

@@ -3,6 +3,7 @@ const uuid = require("uuid");
 const Joi = require("joi");
 const mongoose = require("mongoose");
 const config = require("config");
+const moment = require("moment");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
@@ -224,6 +225,14 @@ async function updateContactInfo(input, user) {
 		hasDelta = true
 	}
 
+	//save to db
+	try {
+		targetUser = await targetUser.save();
+	} catch (err) {
+		logger.error("targetUser.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
 	if (hasDelta == true) {
 		//save userHistory
 		const historyItem = {
@@ -304,10 +313,74 @@ async function activate(input) {
 	return userObjectMapper.toOutputObj(targetUser);
 }
 
+async function updateLastLogin(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required()
+	});
+
+	const result = schema.validate(input);
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+
+	let targetUser;
+	try {
+		targetUser = await User.findById(input.userId);
+	} catch (err) {
+		logger.error("User.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
+	}
+
+	//check for authorization. if USER_ADMIN or user.id is same as targetUser._id
+	let authorize = false;
+	if (targetUser.groups.includes(USER_ADMIN_GROUP) == true) {
+		authorize = true;
+	}
+
+	if (authorize == false) {
+		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	//update lastLoginTime
+	targetUser.lastLoginTime = moment().toDate();
+
+	//save to db
+	try {
+		targetUser = await targetUser.save();
+	} catch (err) {
+		logger.error("targetUser.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//save userHistory
+	const historyItem = {
+		targetUserId: targetUser._id.toString(),
+		transactionDescription: "Updated user contact",
+		triggerByUser: user
+	}
+
+	try {
+		await userHistoryService.addHistoryItem(historyItem);
+	} catch (err) {
+		logger.error("userHistoryService.addHistoryItem Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return userObjectMapper.toOutputObj(targetUser); 
+}
+
 module.exports = {
 	findUser,
 	findSocialUser,
 	forgetPassword,
 	updateContactInfo,
-	activate
+	activate,
+	updateLastLogin
 }

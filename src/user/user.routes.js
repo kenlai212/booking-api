@@ -25,5 +25,6 @@ router.get("/user", authenticateAccessToken, logIncommingRequest, userController
 router.get("/user/social", authenticateAccessToken, logIncommingRequest, userController.findSocialUser);
 router.put("/user/contact-info", authenticateAccessToken, logIncommingRequest, userController.updateContactInfo);
 router.put("/user/activate", logIncommingRequest, userController.activate);
+router.put("/user/last-login", logIncommingRequest, userController.updateLastLogin);
 
 module.exports = router;

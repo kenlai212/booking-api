@@ -57,7 +57,7 @@ async function editStatus(input, user) {
 	try {
 		targetUser = await targetUser.save();
 	} catch (err) {
-		logger.error("user.save() error : ", err);
+		logger.error("targetUser.save() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 	
@@ -303,13 +303,26 @@ async function deleteUser(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
 	}
 
+	//delete user record
 	try {
-		await User.deleteOne(targetUser._id);
+		await User.findByIdAndDelete(targetUser._id.toString());
 	} catch (err) {
-		logger.error("User.deleteOne() error : ", err);
+		logger.error("User.findByIdAndDelete() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
+	//delete userHistory record
+	const deleteUserHistoryInput = {
+		"targetUserId": targetUser._id.toString(),
+		"triggerByUser": user
+	}
+
+	try {
+		await userHistoryService.deleteUserHistory(deleteUserHistoryInput);
+	} catch (err) {
+		logger.error("userHistoryService.deleteUserHistory() error : ", err);
+	}
+	
 	return {"status": "SUCCESS"}
 }
 

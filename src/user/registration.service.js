@@ -151,7 +151,7 @@ async function register(input) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//save userHistory
+	//init userHistory
 	const histroyItem = {
 		userId: newUser._id.toString(),
 		transactionDescription: "New Social User registered"

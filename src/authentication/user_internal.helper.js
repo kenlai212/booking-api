@@ -21,7 +21,17 @@ async function getSocialUser(provider, providerUserId) {
     }
 }
 
+async function updateLastLogin(userId) {
+    try {
+        return await userService.updateLastLogin({ "userId": userId }, bookingAPIUser.userObject);
+    } catch (err) {
+        logger.error("userService.updateLastLogin() error", err);
+        throw err
+    }
+}
+
 module.exports = {
     getUser,
-    getSocialUser
+    getSocialUser,
+    updateLastLogin
 }

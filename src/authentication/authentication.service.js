@@ -133,13 +133,23 @@ async function socialLogin(input) {
 	}
 
 	//sign user into token
+	let token;
 	try {
-		return userToToken(user);
+		token = userToToken(user);
 	} catch (err) {
 		logger.error("jwt.sign error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+
+	//update last login time on user record
+	try {
+		await userHelper.updateLastLogin(user.id);
+	} catch (err) {
+		logger.error("userHelper.updateLastLogin error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 	
+	return token;
 }
 
 async function login(input){
@@ -198,25 +208,24 @@ async function login(input){
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Inactive User" };
 	}
 
-	const output = {
-		"id": user._id,
-		"name": user.name,
-		"emailAddress": user.emailAddress,
-		"telephoneCountryCode": user.telephoneCountryCode,
-		"telephoneNumber": user.telephoneNumber,
-		"provider": user.provider,
-		"providerUserId": user.providerUserId,
-		"status": user.status,
-		"groups": user.groups
-	}
-
 	//sign user into token
+	let token;
 	try {
-		return userToToken(user);
+		token = userToToken(user);
 	} catch (err) {
 		logger.error("jwt.sign error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+
+	//update last login time on user record
+	try {
+		await userHelper.updateLastLogin(user.id);
+	} catch (err) {
+		logger.error("userHelper.updateLastLogin error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return token;
 }
 
 function userToToken(user) {
