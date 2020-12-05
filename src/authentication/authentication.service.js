@@ -2,6 +2,8 @@
 const Joi = require("joi");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const moment = require("moment");
+const {OAuth2Client} = require("google-auth-library");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
@@ -96,14 +98,14 @@ async function addNewCredentials(input) {
 	return newCredentials;
 }
 
-async function socialLogin(input) {
+async function socialLogin(input){
 	//validate input data
 	const schema = Joi.object({
 		provider: Joi
 			.string()
 			.min(1)
 			.required(),
-		providerUserId: Joi
+		token: Joi
 			.string()
 			.min(1)
 			.required()
@@ -114,10 +116,42 @@ async function socialLogin(input) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
+	let providerUserId;
+	let name;
+	let emailAddress;
+	let image;
+	if(input.provider == "GOOGLE"){
+		const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+		let ticket;
+		try{
+			ticket = await client.verifyIdToken({
+				idToken: input.token,
+				audience: process.env.GOOGLE_CLIENT_ID
+			});
+		}catch(error){
+			logger.warn("Google Oauth2Client.verifyIdToken() error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
+		
+		const payload = ticket.getPayload();
+		
+		//google's payload.aud must match GOOGLE_CLIENT_ID
+		if(payload.aud != process.env.GOOGLE_CLIENT_ID){
+			logger.warn("Someone try to pass a google token with the wrong google Client ID");
+			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid GOOGEL_CLIENT_ID" };
+		}
+
+		providerUserId = payload.sub;
+		name = payload.name;
+		emailAddress = payload.email;
+		image = payload.picture;
+	}
+
 	//find user
 	let user;
 	try {
-		user = await userHelper.getSocialUser(input.provider, input.providerUserId);
+		user = await userHelper.getSocialUser(input.provider, providerUserId);
 	} catch (err) {
 		//if no user found, its a login error
 		if (err.name == customError.RESOURCE_NOT_FOUND_ERROR) {
@@ -127,11 +161,19 @@ async function socialLogin(input) {
 		}
 	}
 
+	//set user attributes from provider
+	user.name = name;
+	user.emailAddress = emailAddress;
+	if(image != null){
+		user.image = image;
+	}
+	user.lastLoginTime = moment().toDate();
+	
 	//check if user is activated
 	if (user.status != "ACTIVE") {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Inactive user" };
 	}
-
+	
 	//sign user into token
 	let token;
 	try {
@@ -146,6 +188,7 @@ async function socialLogin(input) {
 		await userHelper.updateLastLogin(user.id);
 	} catch (err) {
 		logger.error("userHelper.updateLastLogin error : ", err);
+		logger.error(`Token issued to User(${user_id}), but fialed to updateLastLogin()`);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 	
@@ -222,6 +265,7 @@ async function login(input){
 		await userHelper.updateLastLogin(user.id);
 	} catch (err) {
 		logger.error("userHelper.updateLastLogin error : ", err);
+		logger.error(`Token issued to User(${user_id}), but fialed to updateLastLogin()`);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
@@ -238,7 +282,9 @@ function userToToken(user) {
 		"provider": user.provider,
 		"providerUserId": user.providerUserId,
 		"status": user.status,
-		"groups": user.groups
+		"groups": user.groups,
+		"image": user.image,
+		"lastLoginTime": user.lastLoginTime
 	}
 
 	return jwt.sign(output, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });

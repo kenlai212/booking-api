@@ -1,6 +1,7 @@
 const moment = require("moment");
 const Joi = require("joi");
 const uuid = require("uuid");
+const {OAuth2Client} = require("google-auth-library");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
@@ -10,7 +11,6 @@ const activationEmailHelper = require("./activationEmail.helper");
 const userObjectMapper = require("./userObjectMapper.helper");
 const userHistoryService = require("./userHistory.service");
 
-const ACTIVE_STATUS = "ACTIVE";
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
 
 async function socialRegister(input) {
@@ -20,13 +20,7 @@ async function socialRegister(input) {
 			.string()
 			.valid("FACEBOOK", "GOOGLE")
 			.required(),
-		providerUserId: Joi
-			.string()
-			.required(),
-		emailAddress: Joi
-			.string()
-			.required(),
-		name: Joi
+		providerToken: Joi
 			.string()
 			.required()
 	});
@@ -36,11 +30,45 @@ async function socialRegister(input) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
+	//get user attributes form provider token
+	let providerUserId;
+	let name;
+	let emailAddress;
+	let image;
+	if(input.provider == "GOOGLE"){
+		const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+		let ticket;
+		try{
+			ticket = await client.verifyIdToken({
+				idToken: input.providerToken,
+				audience: process.env.GOOGLE_CLIENT_ID
+			});
+		}catch(error){
+			logger.warn("Google Oauth2Client.verifyIdToken() error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
+		
+		const payload = ticket.getPayload();
+		
+		//google's payload.aud must match GOOGLE_CLIENT_ID
+		if(payload.aud != process.env.GOOGLE_CLIENT_ID){
+			logger.warn("Someone try to pass a google token with the wrong google Client ID");
+			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid GOOGEL_CLIENT_ID" };
+		}
+
+		providerUserId = payload.sub;
+		name = payload.name;
+		emailAddress = payload.email;
+		image = payload.picture;
+	}
+
+	//check if user is already registered
 	try {
 		let existingSocialUser = await User.findOne(
 			{
 				provider: input.provider,
-				providerUserId: input.providerUserId
+				providerUserId: providerUserId
 			});
 		
 		if (existingSocialUser != null) {
@@ -53,9 +81,9 @@ async function socialRegister(input) {
 
 	var newUser = new User();
 	newUser.provider = input.provider;
-	newUser.providerUserId = input.providerUserId;
-	newUser.emailAddress = input.emailAddress;
-	newUser.name = input.name;
+	newUser.providerUserId = providerUserId;
+	newUser.emailAddress = emailAddress;
+	newUser.name = name;
 
 	newUser.status = AWAITING_ACTIVATION_STATUS;
 	newUser.registrationTime = moment().toDate();
@@ -79,6 +107,7 @@ async function socialRegister(input) {
 		await userHistoryService.initUserHistory(historyItem);
 	} catch (err) {
 		logger.error("userHistoryService.initUserHistory() error : ", err);
+		logger.error(`User record(${newUser._id.toString()}) created, but initUserHistory failed.`);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 

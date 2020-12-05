@@ -340,7 +340,7 @@ async function updateLastLogin(input, user) {
 
 	//check for authorization. if USER_ADMIN or user.id is same as targetUser._id
 	let authorize = false;
-	if (targetUser.groups.includes(USER_ADMIN_GROUP) == true) {
+	if (targetUser.groups.includes(USER_ADMIN_GROUP) == true || targetUser._id == input.userId) {
 		authorize = true;
 	}
 
