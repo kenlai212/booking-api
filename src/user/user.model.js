@@ -5,10 +5,15 @@ const userSchema = new mongoose.Schema({
 	userType: String,
 	provider: String,
 	providerUserId: String,
-	image: String,
-	telephoneCountryCode: String,
-	telephoneNumber: String,
-	emailAddress: String,
+	partyId: String,
+	contact: {
+		telephoneCountryCode: String,
+		telephoneNumber: String,
+		emailAddress: String
+	},
+	picture: {
+		url: String
+	},
 	status: String,
 	registrationTime: Date,
 	activationKey: String,

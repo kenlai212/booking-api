@@ -2,6 +2,7 @@ const moment = require("moment");
 const Joi = require("joi");
 const uuid = require("uuid");
 const {OAuth2Client} = require("google-auth-library");
+const axios = require("axios");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
@@ -10,8 +11,10 @@ const authenticationHelper = require("./authentication_internal.helper");
 const activationEmailHelper = require("./activationEmail.helper");
 const userObjectMapper = require("./userObjectMapper.helper");
 const userHistoryService = require("./userHistory.service");
+const partyHelper = require("./party_internal.helper");
 
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
+const FACEBOOK_GRAPH_API_URL = "https://graph.facebook.com";
 
 async function socialRegister(input) {
 	//validate input data
@@ -63,6 +66,18 @@ async function socialRegister(input) {
 		image = payload.picture;
 	}
 
+	if(input.provider == "FACEBOOK"){
+		const url = `${FACEBOOK_GRAPH_API_URL}/me?fields=id,name,email,picture&access_token=${input.providerToken}`;
+
+		const response = await axios.get(url);
+		const data = response.data;
+	
+		providerUserId = data.id;
+		name = data.name;
+		emailAddress = data.email;
+		image = data.picture.data.url;
+	}
+
 	//check if user is already registered
 	try {
 		let existingSocialUser = await User.findOne(
@@ -78,22 +93,33 @@ async function socialRegister(input) {
 		logger.error("User.findOne() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
+	
+	//save new party
+	let party;
+	try{
+		party = await partyHelper.createNewParty(name, null, null, emailAddress, image, null);
+	}catch(err){
+		logger.error("partyHelper.addNewParty() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
 	var newUser = new User();
-	newUser.provider = input.provider;
-	newUser.providerUserId = providerUserId;
-	newUser.emailAddress = emailAddress;
 	newUser.name = name;
-
 	newUser.status = AWAITING_ACTIVATION_STATUS;
 	newUser.registrationTime = moment().toDate();
 	newUser.activationKey = uuid.v4();
+	newUser.provider = input.provider;
+	newUser.providerUserId = providerUserId;
+	newUser.partyId = party.id;
+	newUser.contact = party.contact;
+	newUser.picture = party.picture;
 
 	//save newUser record to db
 	try {
 		newUser = await newUser.save();
 	} catch (err) {
 		logger.error("newUser.save() error : ", err);
+		logger.error(`New party(${party.id}) created, but newUser.save failed`);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 

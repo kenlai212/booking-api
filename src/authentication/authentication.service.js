@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const moment = require("moment");
 const {OAuth2Client} = require("google-auth-library");
+const axios = require("axios");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
@@ -120,34 +121,47 @@ async function socialLogin(input){
 	let name;
 	let emailAddress;
 	let image;
+
 	if(input.provider == "GOOGLE"){
 		const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
-		let ticket;
-		try{
-			ticket = await client.verifyIdToken({
-				idToken: input.token,
-				audience: process.env.GOOGLE_CLIENT_ID
-			});
-		}catch(error){
-			logger.warn("Google Oauth2Client.verifyIdToken() error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}
-		
-		const payload = ticket.getPayload();
-		
-		//google's payload.aud must match GOOGLE_CLIENT_ID
-		if(payload.aud != process.env.GOOGLE_CLIENT_ID){
-			logger.warn("Someone try to pass a google token with the wrong google Client ID");
-			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid GOOGEL_CLIENT_ID" };
-		}
+			let ticket;
+			try{
+				ticket = await client.verifyIdToken({
+					idToken: input.token,
+					audience: process.env.GOOGLE_CLIENT_ID
+				});
+			}catch(error){
+				logger.warn("Google Oauth2Client.verifyIdToken() error : ", error);
+				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+			}
+			
+			const payload = ticket.getPayload();
+			
+			//google's payload.aud must match GOOGLE_CLIENT_ID
+			if(payload.aud != process.env.GOOGLE_CLIENT_ID){
+				logger.warn("Someone try to pass a google token with the wrong google Client ID");
+				throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid GOOGEL_CLIENT_ID" };
+			}
 
-		providerUserId = payload.sub;
-		name = payload.name;
-		emailAddress = payload.email;
-		image = payload.picture;
+			providerUserId = payload.sub;
+			name = payload.name;
+			emailAddress = payload.email;
+			image = payload.picture;
 	}
 
+	if(input.provider == "FACEBOOK"){
+		const url = `https://graph.facebook.com/me?fields=id,name,email,picture&access_token=${input.token}`;
+
+		const response = await axios.get(url);
+		const data = response.data;
+	
+		providerUserId = data.id;
+		name = data.name;
+		emailAddress = data.email;
+		image = data.picture.data.url;
+	}
+	
 	//find user
 	let user;
 	try {

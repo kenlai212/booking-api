@@ -59,7 +59,7 @@ async function searchCrews(input, user) {
 			"status": input.status
 		}
 	}
-	console.log(searchCriteria);
+
 	let crews;
 	try {
 		crews = await Crew.find(searchCriteria);
@@ -149,7 +149,7 @@ async function deleteCrew(input, user) {
 
 	//validate crewId
 	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
 	}
 
 	//get target crew
