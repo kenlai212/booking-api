@@ -1,8 +1,10 @@
 "use strict";
-const moment = require("moment");
+const mongoose = require("mongoose");
 
+const customError = require("../common/customError");
 const logger = require("../common/logger").logger;
-const bookingHistoryHelper = require("./bookingHistory_internal.helper");
+
+const Booking = require("./booking.model").Booking;
 
 //constants for user groups
 const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
@@ -10,23 +12,27 @@ const BOOKING_USER_GROUP = "BOOKING_USER";
 
 const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
 
-async function addBookingHistoryItem(bookingId, description, user) {
-	let input = {
-		bookingId: bookingId,
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: description,
-		userId: user.id,
-		userName: user.name,
-	};
-
-	try {
-		await bookingHistoryHelper.addHistoryItem(input, user);
-
-		return;
-	} catch (err) {
-		logger.error("bookingHistoryHelper.addHistoryItem Error", err);
+async function getBooking(bookingId){
+	//valid booking id
+	if (mongoose.Types.ObjectId.isValid(bookingId) == false) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 	}
+
+	//find booking
+	let booking;
+	try {
+		booking = await Booking.findById(bookingId);
+	} catch (err) {
+		logger.error("Booking.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//if no booking found, it's a bad bookingId,
+	if (booking == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	}
+
+	return booking;
 }
 
 function bookingToOutputObj(booking) {
@@ -38,6 +44,7 @@ function bookingToOutputObj(booking) {
 	outputObj.occupancyId = booking.occupancyId;
 	outputObj.status = booking.status;
 
+	//set invoice
 	outputObj.invoice = new Object();
 	outputObj.invoice.regularAmount = booking.invoice.regularAmount;
 	outputObj.invoice.totalAmount = booking.invoice.totalAmount;
@@ -70,39 +77,63 @@ function bookingToOutputObj(booking) {
 		});
 	}
 
+	//set time
 	outputObj.startTime = booking.startTime;
 	outputObj.endTime = booking.endTime;
 	outputObj.durationByHours = booking.durationByHours;
 	outputObj.fulfilledHours = booking.fulfilledHours;
-
+	
+	//set host
 	outputObj.host = new Object();
-	outputObj.host.hostName = booking.host.hostName;
-	outputObj.host.telephoneCountryCode = booking.host.telephoneCountryCode;
-	outputObj.host.telephoneNumber = booking.host.telephoneNumber;
-	outputObj.host.emailAddress = booking.host.emailAddress;
+	outputObj.host.hostName = booking.host.name;
+	if(booking.host.contact != null && (booking.host.contact.telephoneNumber != null || booking.host.contact.emailAddress != null)){
+		outputObj.host.contact = booking.host.contact;
+	}
+	
+	if(booking.host.picture != null && booking.host.picture.url != null){
+		outputObj.host.picture = booking.host.picture;
+	}
 
+	//set guests
 	outputObj.guests = [];
 	booking.guests.forEach(guest => {
-		outputObj.guests.push({
-			guestId: guest._id,
-			guestName: guest.guestName,
-			telephoneCountryCode: guest.telephoneCountryCode,
-			telephoneNumber: guest.telephoneNumber,
-			emailAddress: guest.emailAddress
-		});
+		let tempGuest = new Object();
+		tempGuest.id = guest._id;
+		tempGuest.name = guest.name;
+		tempGuest.disclaimerId = guest.disclaimerId;
+		tempGuest.signedDisclaimerTimeStamp = guest.signedDisclaimerTimeStamp;
+
+		if(guest.contact != null && (guest.contact.telephoneNumber != null || guest.contact.emailAddress != null)){
+			tempGuest.contact = guest.contact;
+		}
+		
+		if(guest.picture != null && guest.picture.url != null){
+			tempGuest.picture = guest.picture;
+		}
+
+		outputObj.guests.push(tempGuest);
 	})
 
+	//set crews
 	if (booking.crews != null && booking.crews.length > 0) {
 		outputObj.crews = [];
 
 		booking.crews.forEach(crew => {
-			outputObj.crews.push({
-				crewId: crew.crewId,
-				crewName: crew.crewName,
-				telephoneCountryCode: crew.telephoneCountryCode,
-				telephoneNumber: crew.telephoneNumber,
-				emailAddress: crew.emailAddress
-			});
+			let tempCrew = new Object();
+			tempCrew.id = crew.crewId;
+			tempCrew.name = crew.name;
+			tempCrew.assignmentTime = crew.assignmentTime;
+			tempCrew.assignmentBy = crew.assignmentBy;
+	
+			if(crew.contact != null && (crew.contact.telephoneNumber != null || crew.contact.emailAddress != null)){
+				tempCrew.contact = crew.contact;
+			}
+			
+			if(crew.picture != null && crew.picture.url != null){
+				tempCrew.picture = crew.picture;
+			}
+
+			outputObj.crews.push(tempCrew);
 		});
 	}
 
@@ -114,5 +145,5 @@ module.exports = {
 	BOOKING_USER_GROUP,
 	ACCEPTED_TELEPHONE_COUNTRY_CODES,
 	bookingToOutputObj,
-	addBookingHistoryItem
+	getBooking
 }

@@ -1,35 +1,18 @@
 "use strict";
-const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
 
-const customError = require("../../common/customError")
-const userAuthorization = require("../../common/middleware/userAuthorization");
+const customError = require("../../common/customError");
 const logger = require("../../common/logger").logger;
 const bookingCommon = require("../booking.common");
-const Booking = require("../booking.model").Booking;
-const bookingHistroyHelper = require("../bookingHistory_internal.helper");
+const bookingHistoryHelper = require("../bookingHistory_internal.helper");
 
 
 const PAID_STATUS = "PAID";
 const PARTIAL_PAID_STATUS = "PARTIAL_PAID";
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 
-/**
- * By : Ken Lai
- * Date : July 3, 2020
- * 
- */
 async function makePayment(input, user) {
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		amount: Joi
@@ -49,28 +32,17 @@ async function makePayment(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	//valid booking id
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-	}
-
-	//find booking
+	//get booking
 	let booking;
-	try {
-		booking = await Booking.findById(input.bookingId);
-	} catch (err) {
-		logger.error("Booking.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	try{
+		booking = await bookingCommon.getBooking(input.bookingId);
+	}catch(error){
+		throw error;
 	}
 
 	//Validate currency
 	if (input.currency != booking.invoice.currency) {
-		throw { name: customError.BAD, message: "Cannot make payment in " + input.currency };
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Payment must be made in " + booking.invoice.currency };
 	}
 
 	//add payment to payments array
@@ -112,38 +84,36 @@ async function makePayment(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//save bookingHistory
+	//add history item
+	const addBookingHistoryItemInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
+		utcOffset: 0,
+		transactionDescription: `Payment made ${input.currency} ${input.amount}`
+	}
+
 	try {
-		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Payment made $${totalPaymentAmount}`, user);
+		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
 	} catch (err) {
 		logger.error("bookingCommon.addBookingHistoryItem Error", err);
+		logger.error(`Made payment to booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
 }
 
-/**
- * By : Ken Lai
- * Date : July 27, 2020
- * 
- */
 async function applyDiscount(input, user) {
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
 			.required(),
-		discountAmount: Joi
+		amount: Joi
 			.number()
+			.required(),
+		currency: Joi
+			.string()
+			.valid("HKD")
 			.required(),
 		discountCode: Joi
 			.string()
@@ -156,22 +126,17 @@ async function applyDiscount(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
-	}
-
-	//find booking
+	//get booking
 	let booking;
-	try {
-		booking = await Booking.findById(input.bookingId); 
-	} catch (err) {
-		logger.error("Booking.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	try{
+		booking = await bookingCommon.getBooking(input.bookingId);
+	}catch(error){
+		throw error;
 	}
 
-	if (booking == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	//check currency
+	if(booking.invoice.currency != input.currency){
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Must apply discount in ${booking.invoice.currency}` };
 	}
 	
 	//set discounts
@@ -180,7 +145,7 @@ async function applyDiscount(input, user) {
 	}
 
 	const discount = {
-		amount: input.discountAmount,
+		amount: input.amount,
 		discountCode: input.discountCode
 	}
 	booking.invoice.discounts.push(discount);
@@ -198,11 +163,19 @@ async function applyDiscount(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//save bookingHistory
+	//add history item
+	const addBookingHistoryItemInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
+		utcOffset: 0,
+		transactionDescription: `Applied discount ${input.discountCode} ${input.currency} ${input.amount}`
+	}
+
 	try {
-		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Gave ${input.discountCode} (${input.discountAmount})`, user);
+		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
 	} catch (err) {
 		logger.error("bookingCommon.addBookingHistoryItem Error", err);
+		logger.error(`Discount applied to booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);
@@ -225,15 +198,6 @@ function calculateTotalAmount(regularAmount, discounts) {
 }
 
 async function removeDiscount(input, user) {
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]
-	
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
@@ -249,22 +213,12 @@ async function removeDiscount(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
-	}
-	
-	//find booking
+	//get booking
 	let booking;
-	try {
-		booking = await Booking.findById(input.bookingId);
-	} catch (err) {
-		logger.error("Booking.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (booking == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	try{
+		booking = await bookingCommon.getBooking(input.bookingId);
+	}catch(error){
+		throw error;
 	}
 	
 	//find discount
@@ -296,11 +250,19 @@ async function removeDiscount(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//save bookingHistory
+	//add history item
+	const addBookingHistoryItemInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
+		utcOffset: 0,
+		transactionDescription: `Removed discount : ${targetDiscount.discountCode}, ${targetDiscount.amount}`
+	}
+
 	try {
-		await bookingCommon.addBookingHistoryItem(booking._id.toString(), `Removed discount : ${targetDiscount.discountCode}, ${targetDiscount.amount}`, user);
+		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
 	} catch (err) {
 		logger.error("bookingCommon.addBookingHistoryItem Error", err);
+		logger.error(`Removed discount from booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);

@@ -1,51 +1,24 @@
 "use strict";
-const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
 
 const customError = require("../../common/customError");
 const logger = require("../../common/logger").logger;
-const userAuthorization = require("../../common/middleware/userAuthorization");
 
 const bookingCommon = require("../booking.common");
+const profileHelper = require("../../common/profile/profile.helper");
+const bookingHistoryHelper = require("../bookingHistory_internal.helper");
 
-const Booking = require("../booking.model").Booking;
-
-/**
- * By : Ken Lai
- * Date : Jul 24, 2020
- */
 async function editHost(input, user) {
-	const rightsGroup = [
-		bookingCommon.BOOKING_ADMIN_GROUP,
-		bookingCommon.BOOKING_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
 			.min(1)
 			.required(),
-		hostName: Joi
-			.string()
-			.min(1)
-			.max(255),
-		telephoneCountryCode: Joi
-			.string()
-			.valid("852", "853", "86"),
-		telephoneNumber: Joi
-			.string()
-			.min(7),
-		emailAddress: Joi
-			.string()
-			.min(1)
-			.max(255)
+		profile: Joi
+			.object()
+			.required()
 	});
 
 	const result = schema.validate(input);
@@ -53,51 +26,25 @@ async function editHost(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
+	//validate profile input
+	try{
+		profileHelper.validateProfileInput(input.profile, false);
+	}catch(error){
+		throw { name: customError.BAD_REQUEST_ERROR, message: error };
 	}
 
-	//find booking
+	//get booking
 	let booking;
-	try {
-		booking = await Booking.findById(input.bookingId);
-	} catch (err) {
-		logger.error("Booking.findById Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	try{
+		booking = await bookingCommon.getBooking(input.bookingId);
+	}catch(error){
+		throw error;
 	}
 
-	if (booking == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-	}
+	//set host profile attributes
+	booking.host = profileHelper.setProfile(input.profile, booking.host);
 
-	//thow bad request if no contact attribute in input
-	if (
-		(input.hostName == null) &&
-		(input.telephoneCountryCode == null) &&
-		(input.telephoneNumber == null)) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Nothing to change for Contact" };
-	}
-
-	//set contactName if provided in input
-	if (input.hostName != null) {
-		booking.host.hostName = input.hostName;
-	}
-
-	//set telephoneCountryCode if provided in input
-	if (input.telephoneCountryCode != null && input.telephoneCountryCode.length > 0) {
-		booking.contact.telephoneCountryCode = input.telephoneCountryCode;
-	}
-
-	if (input.telephoneNumber != null && input.telephoneNumber.length > 0) {
-		booking.contact.telephoneNumber = input.telephoneNumber;
-	}
-
-	//set emailAddress
-	if (input.emailAddress != null && input.emailAddress.length > 0) {
-		booking.contact.emailAddress = input.emailAddress;
-	}
-
+	//update booking record
 	try {
 		booking = await booking.save();
 	} catch (err) {
@@ -105,11 +52,19 @@ async function editHost(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//save bookingHistory
+	//add history item
+	const addBookingHistoryItemInput = {
+		bookingId: booking._id.toString(),
+		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
+		utcOffset: 0,
+		transactionDescription: `Updated host profile`
+	}
+
 	try {
-		await bookingCommon.addBookingHistoryItem(booking._id.toString(), "Edited host info", user);
+		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
 	} catch (err) {
 		logger.error("bookingCommon.addBookingHistoryItem Error", err);
+		logger.error(`Updated host profile from booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
 	}
 
 	return bookingCommon.bookingToOutputObj(booking);

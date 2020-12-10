@@ -1,47 +1,31 @@
 const logger = require("../common/logger").logger;
 
-const bookingAPIUser = require("../common/bookingAPIUser");
 const occupancyService = require("../occupancy/occupancy.service");
 
-async function occupyAsset(startTime, endTime, utcOffset, assetId){
-    input = {
-        startTime: startTime,
-        endTime: endTime,
-        utcOffset: utcOffset,
-        assetId: assetId
+async function checkAvailability(input, user){
+    let result;
+    try {
+        result = await occupancyService.checkAvailability(input, user);
+    } catch (err) {
+        logger.error("Error while calling occupancyService.occupyAsset : ", err);
+        throw err;
     }
 
+    return result.isAvailable;
+}
+
+async function occupyAsset(input, user){
     try {
-        return await occupancyService.occupyAsset(input, bookingAPIUser.userObject);
+        return await occupancyService.occupyAsset(input, user);
     } catch (err) {
         logger.error("Error while calling occupancyService.occupyAsset : ", err);
         throw err;
     }
 }
 
-async function linkBookingToOccupancy(occupancyId, bookingId, bookingType) {
-    input = {
-        occupancyId: occupancyId,
-        bookingId: bookingId,
-        bookingType: bookingType
-    }
-
+async function releaseOccupancy(input, user) {
     try {
-        return await occupancyService.updateBookingId(input, bookingAPIUser.userObject);
-    } catch (err) {
-        logger.error("Error while calling occupancyService.updateBookingId : ", err);
-        throw err;
-    }
-}
-
-async function releaseOccupancy(bookingId, bookingType) {
-    input = {
-        bookingId: bookingId,
-        bookingType: bookingType
-    }
-    
-    try {
-        return await occupancyService.releaseOccupancy(input, bookingAPIUser.userObject);
+        return await occupancyService.releaseOccupancy(input, user);
     } catch (err) {
         logger.error("Error while calling occupancyService.releaseOccupancy : ", err);
         throw err;
@@ -49,7 +33,7 @@ async function releaseOccupancy(bookingId, bookingType) {
 }
 
 module.exports = {
+    checkAvailability,
     occupyAsset,
-    releaseOccupancy,
-    linkBookingToOccupancy
+    releaseOccupancy
 }

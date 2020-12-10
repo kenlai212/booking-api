@@ -6,14 +6,6 @@ const userSchema = new mongoose.Schema({
 	provider: String,
 	providerUserId: String,
 	partyId: String,
-	contact: {
-		telephoneCountryCode: String,
-		telephoneNumber: String,
-		emailAddress: String
-	},
-	picture: {
-		url: String
-	},
 	status: String,
 	registrationTime: Date,
 	activationKey: String,

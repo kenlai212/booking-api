@@ -1,6 +1,5 @@
 "use strict";
 const Joi = require("joi");
-const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const moment = require("moment");
 const {OAuth2Client} = require("google-auth-library");
@@ -8,96 +7,12 @@ const axios = require("axios");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
-const Credentials = require("./credentials.model").Credentials;
 const userHelper = require("./user_internal.helper");
+const partyHelper = require("./party_internal.helper");
+const { profile } = require("winston");
+const { Profile } = require("../common/profile/profile.class");
 
 const ACCESS_TOKEN_EXPIRES = "1h";
-const PASSWORD_HASH_STRENGTH = 10;
-
-async function checkLoginIdAvailability(input) {
-	//validate input data
-	const schema = Joi.object({
-		loginId: Joi
-			.string()
-			.min(1)
-			.max(255)
-			.required()
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//check loginId availability
-	try {
-		const credentials = await Credentials.findOne({ "loginId": input.loginId });
-
-		if (credentials == null) {
-			return { "isAvailable": true };
-		} else {
-			return { "isAvailable": false };
-		}
-	} catch (err) {
-		logger.error("Credentials.findOne Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-}
-
-async function addNewCredentials(input) {
-	//validate input data
-	const schema = Joi.object({
-		loginId: Joi
-			.string()
-			.required(),
-		password: Joi
-			.string()
-			.required(),
-		userId: Joi
-			.string()
-			.required()
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	try {
-		const existingCredentials = await Credentials.findOne({ "loginId": input.loginId });
-		//check loginId availability
-		if (existingCredentials != null) {
-			throw { name: "loginIdNotAvailableError", message: "loginId not available" };
-		}
-	} catch (err) {
-		logger.error("Credentials.findOne error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	//hash password
-	let hashedPassword;
-	try {
-		hashedPassword = await bcrypt.hash(input.password, PASSWORD_HASH_STRENGTH);
-	} catch (err) {
-		logger.error("bcrypt.hash error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	} 
-
-	var newCredentials = new Credentials();
-	newCredentials.hashedPassword = hashedPassword;
-	newCredentials.loginId = input.loginId;
-	newCredentials.userId = input.userId;
-	newCredentials.createdTime = new Date();
-
-	try {
-		newCredentials = await newCredentials.save();
-	} catch (err) {
-		logger.error("newCredentials.save error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return newCredentials;
-}
 
 async function socialLogin(input){
 	//validate input data
@@ -117,11 +32,13 @@ async function socialLogin(input){
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	let providerUserId;
-	let name;
-	let emailAddress;
-	let image;
-
+	let socialUser = {
+		provider: input.provider,
+		providerUserId: null,
+		name: null,
+		emailAddress: null,
+		image: null
+	}
 	if(input.provider == "GOOGLE"){
 		const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -144,10 +61,10 @@ async function socialLogin(input){
 				throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid GOOGEL_CLIENT_ID" };
 			}
 
-			providerUserId = payload.sub;
-			name = payload.name;
-			emailAddress = payload.email;
-			image = payload.picture;
+			socialUser.providerUserId = payload.sub;
+			socialUser.name = payload.name;
+			socialUser.emailAddress = payload.email;
+			socialUser.pictureUrl = payload.picture;
 	}
 
 	if(input.provider == "FACEBOOK"){
@@ -156,16 +73,20 @@ async function socialLogin(input){
 		const response = await axios.get(url);
 		const data = response.data;
 	
-		providerUserId = data.id;
-		name = data.name;
-		emailAddress = data.email;
-		image = data.picture.data.url;
+		socialUser.providerUserId = data.id;
+		socialUser.name = data.name;
+		socialUser.emailAddress = data.email;
+		socialUser.pictureUrl = data.picture.data.url;
 	}
 	
+	return await assembleToken(socialUser);
+}
+
+async function assembleToken(socialUser) {
 	//find user
-	let user;
+	let targetUser;
 	try {
-		user = await userHelper.getSocialUser(input.provider, providerUserId);
+		targetUser = await userHelper.getSocialUser(socialUser.provider, socialUser.providerUserId);
 	} catch (err) {
 		//if no user found, its a login error
 		if (err.name == customError.RESOURCE_NOT_FOUND_ERROR) {
@@ -175,84 +96,18 @@ async function socialLogin(input){
 		}
 	}
 
-	//set user attributes from provider
-	user.name = name;
-	user.emailAddress = emailAddress;
-	if(image != null){
-		user.image = image;
-	}
-	user.lastLoginTime = moment().toDate();
-	
-	//check if user is activated
-	if (user.status != "ACTIVE") {
+	//check if targetUser is activated
+	//cannot assemble a token if user is targetUser is inactive
+	if (targetUser.status != "ACTIVE") {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Inactive user" };
 	}
-	
-	//sign user into token
-	let token;
-	try {
-		token = userToToken(user);
-	} catch (err) {
-		logger.error("jwt.sign error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
 
-	//update last login time on user record
-	try {
-		await userHelper.updateLastLogin(user.id);
-	} catch (err) {
-		logger.error("userHelper.updateLastLogin error : ", err);
-		logger.error(`Token issued to User(${user_id}), but fialed to updateLastLogin()`);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	return token;
-}
-
-async function login(input){
-	//validate input data
-	const schema = Joi.object({
-		loginId: Joi
-			.string()
-			.required(),
-		password: Joi
-			.string()
-			.required()
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//find credentials
-	let credentials;
-	try {
-		credentials = await Credentials.findOne({ "loginId": input.loginId });
-	} catch (err) {
-		logger.error("newCredentials.save error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (credentials == null) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
-	}
-	
-	//compare input.password with credentials record
-	try {
-		if (await bcrypt.compare(input.password, credentials.hashedPassword) == false) {
-			throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
-		};
-	} catch (err) {
-		throw { name: customerError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//find user
-	let user;
-	try {
-		user = await userHelper.getUser(credentials.userId);
-	} catch (err) {
-		//if no user found, its a login error
+	//find party
+	let targetParty;
+	try{
+		targetParty = await partyHelper.getParty(targetUser.partyId);
+	}catch(err){
+		//if no party found, its a login error
 		if (err.name == customError.RESOURCE_NOT_FOUND_ERROR) {
 			throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
 		} else {
@@ -260,53 +115,93 @@ async function login(input){
 		}
 	}
 
-	//check user status
-	if (user.status != "ACTIVE") {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Inactive User" };
+	//update party profile if attributes are different then socialUser attributes
+	let profile = new ProfileInput();
+	let differenceDetected = false;
+
+	if(targetParty.name != socialUser.name){
+		differenceDetected = true;
+		profile.name = socialUser.name;
 	}
 
-	//sign user into token
+	if(targetParty.contact != null){
+		if(targetParty.contact.emailAddress != socialUser.emailAddress){
+			differenceDetected = true;
+			profile.emailAddress = socialUser.emailAddress;
+		}
+	}
+
+	if(targetParty.picture != null){
+		if(targetParty.picture.url != socialUser.pictureUrl){
+			differenceDetected = true;
+			profile.picture.url = socialUser.pictureUrl;
+		}
+	}
+
+	if(differenceDetected){
+		try{
+			partyHelper.updateProfile(targetParty.id, profile).then(() => {
+				logger.info(`Update Party record (${JSON.stringify(profile)})`);
+			});
+		}catch(error){
+			logger.error("partyHelper.updateProfile error : ", error);
+			logger.error(`Party record is outsync with provider record (${socialUser}), either patch manually or wait for user to login next time and trigger auto update again`);
+		}
+	}
+
+	//set output object
+	const output = {
+		"id": targetUser.id,
+		"name": targetUser.name,
+		"contact": targetParty.contact,
+		"picture": targetParty.picture,
+		"provider": targetUser.provider,
+		"providerUserId": targetUser.providerUserId,
+		"status": targetUser.status,
+		"groups": targetUser.groups,
+		"lastLoginTime": moment().toDate()
+	}
+
+	//sign output object into token
 	let token;
-	try {
-		token = userToToken(user);
-	} catch (err) {
+	try{
+		token = jwt.sign(output, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
+	}catch(error){
 		logger.error("jwt.sign error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
+	
 	//update last login time on user record
 	try {
-		await userHelper.updateLastLogin(user.id);
+		await userHelper.updateLastLogin(targetUser.id);
 	} catch (err) {
 		logger.error("userHelper.updateLastLogin error : ", err);
-		logger.error(`Token issued to User(${user_id}), but fialed to updateLastLogin()`);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		logger.error(`Token issued to User(${targetUser.id}) at ${output.lastLoginTime}, but fialed to updateLastLogin(). Please patch manually.`);
 	}
 
 	return token;
 }
 
-function userToToken(user) {
-	const output = {
-		"id": user._id,
-		"name": user.name,
-		"emailAddress": user.emailAddress,
-		"telephoneCountryCode": user.telephoneCountryCode,
-		"telephoneNumber": user.telephoneNumber,
-		"provider": user.provider,
-		"providerUserId": user.providerUserId,
-		"status": user.status,
-		"groups": user.groups,
-		"image": user.image,
-		"lastLoginTime": user.lastLoginTime
+class SocialUser{
+	constructor(provider, providerUserId, name, emailAddress, pictureUrl){
+		this.provider = provider;
+		this.providerUserId = providerUserId;
+		this.name = name;
+		this.emailAddress = emailAddress;
+		this.pictureUrl = pictureUrl;
 	}
+}
 
-	return jwt.sign(output, process.env.ACCESS_TOKEN_SECRET, { expiresIn: ACCESS_TOKEN_EXPIRES });
+class ProfileInput{
+	constructor(name, telephoneCountryCode, telephoneNumber, emailAddress, pictureUrl) {
+		this.name = name;
+		this.telephoneCountryCode = telephoneCountryCode;
+		this.telephoneNumber = telephoneNumber;
+		this.emailAddress = emailAddress;
+		this.pictureUrl = pictureUrl;
+	}	
 }
 
 module.exports = {
-	checkLoginIdAvailability,
-	addNewCredentials,
-	login,
 	socialLogin
 }

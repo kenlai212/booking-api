@@ -4,22 +4,12 @@ const moment = require("moment");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
-const userAuthorization = require("../common/middleware/userAuthorization");
 const Boat = require("./boat.model").Boat;
 
 const ASSET_ADMIN_GROUP = "ASSET_ADMIN";
 const ASSET_USER_GROUP = "ASSET_USER";
 
 async function newBoat(input, user) {
-	const rightsGroup = [
-		ASSET_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		boatName: Joi
@@ -44,7 +34,7 @@ async function newBoat(input, user) {
 	}
 
 	if (existingBoat != null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: `Boat with assetId(${input.assetId}) already exist` };
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Boat with assetId(${input.assetId}) already exist` };
 	}
 
 	let boat = new Boat();
@@ -65,16 +55,6 @@ async function newBoat(input, user) {
 }
 
 async function setFuelLevel(input, user) {
-	const rightsGroup = [
-		ASSET_ADMIN_GROUP,
-		ASSET_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		assetId: Joi
@@ -118,16 +98,6 @@ async function setFuelLevel(input, user) {
 }
 
 async function findBoat(input, user) {
-	const rightsGroup = [
-		ASSET_ADMIN_GROUP,
-		ASSET_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		assetId: Joi

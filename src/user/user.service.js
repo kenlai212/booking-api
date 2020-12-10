@@ -153,107 +153,6 @@ async function forgetPassword(input) {
 	return {"result": "SUCCESS"}
 }
 
-async function updateContactInfo(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		userId: Joi
-			.string()
-			.required(),
-		name: Joi
-			.string()
-			.min(1),
-		emailAddress: Joi
-			.string()
-			.min(1),
-		telephoneCountryCode: Joi
-			.string()
-			.valid("852", "853", "86", null),
-		telephoneNumber: Joi
-			.string()
-			.min(1)
-		//TODO validate telephoneNmber
-		//TODO validate email address format
-	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
-	}
-	
-	//check for authorization. if USER_ADMIN or user.id is same as targetUser._id
-	let authorize = false;
-	if (user.groups.includes(USER_ADMIN_GROUP) == true) {
-		authorize = true;
-	}
-	
-	if (authorize == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-	
-	//update contact info
-	let hasDelta = false;
-
-	if (input.name != null) {
-		targetUser.name = input.name;
-		hasDelta = true;
-	}
-
-	if (input.telephoneNumber != null) {
-		if (input.telephoneCountryCode == null) {
-			throw { name: customError.BAD_REQUEST_ERROR, message: "telephoneCountryCode is mandatory" };
-		}
-
-		targetUser.telephoneCountryCode = input.telephoneCountryCode;
-		targetUser.telephoneNumber = input.telephoneNumber;
-		hasDelta = true;
-	}
-	
-	if (input.emailAddress != null) {
-		targetUser.emailAddress = input.emailAddress;
-		hasDelta = true
-	}
-
-	//save to db
-	try {
-		targetUser = await targetUser.save();
-	} catch (err) {
-		logger.error("targetUser.save() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (hasDelta == true) {
-		//save userHistory
-		const historyItem = {
-			targetUserId: targetUser._id.toString(),
-			transactionDescription: "Updated user contact",
-			triggerByUser: user
-		}
-
-		try {
-			await userHistoryService.addHistoryItem(historyItem);
-		} catch (err) {
-			logger.error("userHistoryService.addHistoryItem Error : ", err);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}	
-
-		return userObjectMapper.toOutputObj(targetUser);
-	} else {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "No changes" };
-	}
-}
-
 async function activate(input) {
 	//validate input data
 	const schema = Joi.object({
@@ -380,7 +279,6 @@ module.exports = {
 	findUser,
 	findSocialUser,
 	forgetPassword,
-	updateContactInfo,
 	activate,
 	updateLastLogin
 }

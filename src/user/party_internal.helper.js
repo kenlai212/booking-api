@@ -11,12 +11,15 @@ async function createNewParty(name, telephoneCountryCode, telephoneNumber, email
         pictureUrl: pictureUrl
     }
 
+    let party;
     try {
-        return await partyService.createNewParty(input, user);
+        party = await partyService.createNewParty(input, user);
     } catch (err) {
         logger.error("Error while call partyService.createNewParty : ", err);
         throw err;
     }
+
+    return party
 }
 
 module.exports = {

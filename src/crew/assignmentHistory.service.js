@@ -6,6 +6,7 @@ const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const AssignmentHistory = require("./assignmentHistory.model").AssignmentHistory;
 const utility = require("../common/utility");
+const crewService = require("./crew.service");
 
 async function addAssignment(input, user) {
 	//validate input data
@@ -23,11 +24,6 @@ async function addAssignment(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	//check for valid crewId
-	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
-
 	//find assignmentHistory
 	let targetAssignmentHistroy;
 	try {
@@ -37,8 +33,18 @@ async function addAssignment(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
+	//can't find targetAssignmentHistory for this crewId. Call initAssignmentHistory 
 	if (targetAssignmentHistroy == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
+		//init assignment history for this crewId
+		targetAssignmentHistory = new AssignmentHistory();
+		targetAssignmentHistory.crewId = input.crewId;
+
+		try {
+			targetAssignmentHistory = await targetAssignmentHistory.save();
+		} catch (err) {
+			logger.error("assignmentHistory.save Error : ", err);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
 	}
 
 	//push new bookingAssignment into assignments
@@ -143,8 +149,21 @@ async function initAssignmentHistory(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
 	}
 
+	let targetCrew;
+	try{
+		targetCrew = await crewService.findCrew({crewId: input.crewId});
+	}catch(error){
+		logger.error("crewService.findCrew error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if(targetCrew == null){
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
+	}
+
+	//save assignamntHistory
 	let assignmentHistory = new AssignmentHistory();
-	assignmentHistory.crewId = input.crewId;
+	assignmentHistory.crewId = targetCrew.id;
 
 	try {
 		assignmentHistory = await assignmentHistory.save();

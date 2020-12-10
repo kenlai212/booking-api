@@ -2,11 +2,17 @@
 const mongoose = require("mongoose");
 
 const crewSchema = new mongoose.Schema({
-	crewName: String,
+	name: String,
+	partyId: String,
 	status: String,
-	telephoneCountryCode: String,
-	telephoneNumber: String,
-	emailAddress: String
+	contact: {
+		telephoneCountryCode: String,
+		telephoneNumber: String,
+		emailAddress: String
+	},
+	picture: {
+		url: String
+	}
 });
 
 const Crew = mongoose.model("Crew", crewSchema);

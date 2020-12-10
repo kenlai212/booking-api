@@ -12,7 +12,7 @@ router.get("/crews", logIncommingRequest, authenticateAccessToken, crewControlle
 router.get("/crew/:crewId", logIncommingRequest, authenticateAccessToken, crewController.findCrew);
 router.delete("/crew/:crewId", logIncommingRequest, authenticateAccessToken, crewController.deleteCrew);
 router.put("/crew/status", logIncommingRequest, authenticateAccessToken, crewController.editStatus);
-router.put("/crew/contact", logIncommingRequest, authenticateAccessToken, crewController.editContact);
+router.put("/crew/profile", logIncommingRequest, authenticateAccessToken, crewController.editProfile);
 
 router.post("/assignment-history", logIncommingRequest, authenticateAccessToken, assignmentHistoryController.initAssignmentHistory);
 router.put("/assignment-history/assignment", logIncommingRequest, authenticateAccessToken, assignmentHistoryController.addAssignment);

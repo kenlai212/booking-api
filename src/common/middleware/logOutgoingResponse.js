@@ -16,7 +16,7 @@ module.exports = function (res) {
         }
         const body = Buffer.concat(chunks).toString('utf8');
 
-        logger.info("Response : " + body);
+        //logger.info("Response : " + body);
 
         defaultEnd.apply(res, restArgs);
     };

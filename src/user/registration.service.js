@@ -111,8 +111,6 @@ async function socialRegister(input) {
 	newUser.provider = input.provider;
 	newUser.providerUserId = providerUserId;
 	newUser.partyId = party.id;
-	newUser.contact = party.contact;
-	newUser.picture = party.picture;
 
 	//save newUser record to db
 	try {

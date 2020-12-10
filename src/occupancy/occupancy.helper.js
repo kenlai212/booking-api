@@ -5,7 +5,7 @@
  * */
 function checkAvailability(startTime, endTime, occupancies) {
 	var isAvailable = true;
-
+	
 	occupancies.forEach((item) => {
 		if ((startTime >= item.startTime && startTime <= item.endTime) ||
 			(endTime >= item.startTime && endTime <= item.endTime) ||

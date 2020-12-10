@@ -74,7 +74,7 @@ const editStatus = asyncMiddleware(async (req, res) => {
 	return await crewService.editStatus(req.body, req.user);
 });
 
-const editContact = asyncMiddleware(async (req, res) => {
+const editProfile = asyncMiddleware(async (req, res) => {
 	const rightsGroup = [
 		CREW_ADMIN_GROUP
 	]
@@ -84,7 +84,7 @@ const editContact = asyncMiddleware(async (req, res) => {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 	}
 
-	return await crewService.editContact(req.body, req.user);
+	return await crewService.editProfile(req.body, req.user);
 });
 
 module.exports = {
@@ -93,5 +93,5 @@ module.exports = {
 	findCrew,
 	deleteCrew,
 	editStatus,
-	editContact
+	editProfile
 }

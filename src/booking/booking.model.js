@@ -28,27 +28,42 @@ const bookingSchema = new mongoose.Schema({
 		paymentStatus: String,
 	},
 	host: {
-		hostName: String,
-		telephoneCountryCode: String,
-		telephoneNumber: String,
-		emailAddress: String,
+		name: String,
+		contact: {
+			telephoneCountryCode: String,
+			telephoneNumber: String,
+			emailAddress: String
+		},
+		picture: {
+			url: String
+		}
 	},
 	guests: [{
-		guestName: String,
-		telephoneCountryCode: String,
-		telephoneNumber: String,
-		emailAddress: String,
+		name: String,
 		disclaimerId: String,
-		signedDisclaimerTimeStamp: Date
+		signedDisclaimerTimeStamp: Date,
+		contact: {
+			telephoneCountryCode: String,
+			telephoneNumber: String,
+			emailAddress: String
+		},
+		picture: {
+			url: String
+		}
 	}],
 	crews: [{
 		crewId: String,
-		crewName: String,
-		telephoneCountryCode: String,
-		telephoneNumber: String,
-		emailAddress: String,
+		name: String,
 		assignmentTime: Date,
-		assignmentBy: String
+		assignmentBy: String,
+		contact: {
+			telephoneCountryCode: String,
+			telephoneNumber: String,
+			emailAddress: String
+		},
+		picture: {
+			url: String
+		}
 	}]
 });
 

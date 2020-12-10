@@ -62,26 +62,8 @@ const releaseOccupancy = asyncMiddleware(async (req) => {
 	return await occupancyService.releaseOccupancy(req.params);
 });
 
-const updateBookingId = asyncMiddleware(async (req) => {
-	//validate user
-	const rightsGroup = [
-		OCCUPANCY_ADMIN_GROUP,
-		OCCUPANCY_POWER_USER_GROUP,
-		OCCUPANCY_USER_GROUP,
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	return await occupancyService.updateBookingId(req.body);
-});
-
 module.exports = {
 	getOccupancies,
 	occupyAsset,
-	releaseOccupancy,
-	updateBookingId
+	releaseOccupancy
 }

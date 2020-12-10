@@ -15,7 +15,7 @@ const router = express.Router();
 router.post("/booking", authenticateAccessToken, logIncommingRequest, bookingController.newBooking);
 router.put("/booking/status/cancel", authenticateAccessToken, logIncommingRequest, bookingController.cancelBooking);
 router.get("/bookings", authenticateAccessToken, logIncommingRequest, bookingController.searchBookings);
-router.get("/booking", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
+router.get("/booking/:bookingId", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
 router.put("/booking/status/fulfill", authenticateAccessToken, logIncommingRequest, bookingController.fulfillBooking);
 
 router.put("/booking/host", authenticateAccessToken, logIncommingRequest, hostController.editHost);

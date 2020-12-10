@@ -6,6 +6,8 @@ const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const Crew = require("./crew.model").Crew;
 const assignmentHistoryService = require("./assignmentHistory.service");
+const partyHelper = require("./party_internal.helper");
+const profileHelper = require("../common/profile/profile.helper");
 
 async function findCrew(input, user) {
 	//validate input data
@@ -84,19 +86,10 @@ async function searchCrews(input, user) {
 async function newCrew(input, user) {
 	//validate input data
 	const schema = Joi.object({
-		crewName: Joi
-			.string()
-			.required(),
-		telephoneCountryCode: Joi
-			.string()
-			.valid("852", "853", "86")
-			.required(),
-		telephoneNumber: Joi
-			.string()
-			.required(),
-		emailAddress: Joi
+		partyId: Joi
 			.string()
 			.min(1)
+			.required()
 	});
 
 	const result = schema.validate(input);
@@ -104,15 +97,39 @@ async function newCrew(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
-	let crew = new Crew();
-	crew.status = "ACTIVE";
-	crew.crewName = input.crewName;
-	crew.telephoneCountryCode = input.telephoneCountryCode;
-	crew.telephoneNumber = input.telephoneNumber;
-	if (input.emailAddress != null) {
-		crew.emailAddress = input.emailAddress;
+	//get party
+	let targetParty
+	try{
+		targetParty = await partyHelper.getParty(input.partyId);
+	}catch(error){
+		logger.error("partyHelper.getParty error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
+	if(targetParty == null){
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
+	}
+
+	//check if crew with the same partyId already exist
+	let existingCrew;
+	try{
+		existingCrew = await Crew.findOne({partyId: targetParty.id});
+	}catch(error){
+		logger.error("Crew.findOne error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if(existingCrew != null){
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Crew already exist" };
+	}
+
+	let crew = new Crew();
+	crew.status = "ACTIVE";
+	crew.partyId = targetParty.id;
+	crew.name = targetParty.name;
+	crew.contact = targetParty.contact;
+	crew.picture = targetParty.picture;
+	
 	//save to db
 	try {
 		crew = await crew.save();
@@ -233,34 +250,33 @@ async function editStatus(input, user) {
 	return crewToOutputObj(targetCrew);
 }
 
-async function editContact(input, user) {
+async function editProfile(input, user) {
 	//validate input data
 	const schema = Joi.object({
 		crewId: Joi
 			.string()
 			.min(1)
 			.required(),
-		crewName: Joi
-			.string(),
-		telephoneCountryCode: Joi
-			.string()
-			.valid("852", "853", "86", null),
-		telephoneNumber: Joi
-			.string()
-			.min(1),
-		emailAddress: Joi
-			.string()
-			.min(1)
+		profile: Joi
+			.object()
+			.required()
 	});
-
+	
 	const result = schema.validate(input);
 	if (result.error) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
 
+	//validate profile input
+	try{
+		profileHelper.validateProfileInput(input.profile, false);
+	}catch(error){
+		throw { name: customError.BAD_REQUEST_ERROR, message: error };
+	}
+
 	//validate crewId
 	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
 	}
 
 	//get target crew
@@ -276,23 +292,8 @@ async function editContact(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
 	}
 
-	//update contact
-	if (input.crewName != null && input.crewName.length > 0 ){
-		targetCrew.crewName = input.crewName;
-	}
-
-	if (input.telephoneNumber != null && input.telephoneNumber.length > 0) {
-		if (input.telephoneCountryCode == null || input.telephoneCountryCode.length == 0) {
-			throw { name: customError.BAD_REQUEST_ERROR, message: "telephoneCountryCode is mandatory" };
-		}
-
-		targetCrew.telephoneCountryCode = input.telephoneCountryCode;
-		targetCrew.telephoneNumber = input.telephoneNumber;
-	}
-
-	if (input.emailAddress != null && input.emailAddress.length > 0) {
-		targetCrew.emailAddress = input.emailAddress;
-	}
+	//set profile attributes
+	targetCrew = profileHelper.setProfile(input.profile, targetCrew);
 
 	//save record
 	try {
@@ -307,12 +308,17 @@ async function editContact(input, user) {
 
 function crewToOutputObj(crew) {
 	var outputObj = new Object();
-	outputObj.crewId = crew._id.toString();
+	outputObj.id = crew._id.toString();
 	outputObj.status = crew.status;
-	outputObj.crewName = crew.crewName;
-	outputObj.telephoneCountryCode = crew.telephoneCountryCode;
-	outputObj.telephoneNumber = crew.telephoneNumber;
-	outputObj.emailAddress = crew.emailAddress;
+	outputObj.name = crew.name;
+
+	if(crew.contact.telephoneNumber != null || crew.contact.emailAddress != null){
+		outputObj.contact = crew.contact;
+	}
+	
+	if(crew.picture.url != null){
+		outputObj.picture = crew.picture;
+	}
 
 	return outputObj;
 }
@@ -323,5 +329,5 @@ module.exports = {
 	findCrew,
 	deleteCrew,
 	editStatus,
-	editContact
+	editProfile
 }
