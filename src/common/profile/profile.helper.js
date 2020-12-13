@@ -1,20 +1,56 @@
 const Joi = require("joi");
+const moment = require("moment");
 
-const Contact = require("./profile.class").Contact;
-const Picture = require("./profile.class").Picture;
+const customError = require("../customError");
+const { PersonalInfo } = require("./profile.class");
+const { Contact } = require("./profile.class");
+const { Picture } = require("./profile.class");
 
-function validateProfileInput(profileInput, nameRequired){
+function validateInput(joiSchema, input){
+	const result = joiSchema.validate(input);
 	
-	if(nameRequired == true && (profileInput.name == null || profileInput.name.length == 0)){
-		throw "name is mandatory";
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
 	}
+}
 
+function validatePersonalInfoInput(input){
 	//validate input data
 	const schema = Joi.object({
 		name: Joi
             .string()
 			.min(1)
 			.allow(null),
+		nameRequired: Joi
+			.boolean()
+			.allow(null),
+		dob: Joi
+			.date()
+			.iso()
+			.allow(null),
+		utcOffset: Joi
+			.number()
+			.when("dob",{not: null, then: Joi.required()}),
+		gender: Joi
+			.string()
+			.valid("MALE", "FEMALE")
+			.allow(null)
+	});
+
+	validateInput(schema, input);
+
+	if(input.nameRequired == null){
+		input.nameRequired = true;
+	}
+
+	if(input.nameRequired == true && (input.name == null || input.name.length == 0)){
+		throw { name: customError.BAD_REQUEST_ERROR, message: "name is mandatory"};
+	}
+}
+
+function validateContactInput(input){
+	//validate input data
+	const schema = Joi.object({
 		telephoneNumber: Joi
 			.string()
 			.min(1)
@@ -33,56 +69,86 @@ function validateProfileInput(profileInput, nameRequired){
 			.min(1)
 			.allow(null)
 	});
-	
-	const result = schema.validate(profileInput);
-	
-	if (result.error) {
-		throw result.error.details[0].message.replace(/\"/g, '');
-	}
+
+	validateInput(schema, input);
 }
 
-function setProfile(profileInput, party){
+function validatePictureInput(input){
+	//validate input data
+	const schema = Joi.object({
+		url: Joi
+			.string()
+			.min(1)
+			.required()
+	});
+	
+	validateInput(schema, input);
+}
+
+function setPersonalInfo(input, party){
+	if(party.personalInfo == null){
+		party.personalInfo = new PersonalInfo();
+	}
+
 	//set name
-	if(profileInput.name != null && profileInput.name.length > 0){
-		party.name = profileInput.name;
+	if(input.name != null && input.name.length > 0){
+		party.personalInfo.name = input.name;
+	}
+	
+	//set dob
+	if(input.dob != null){
+		party.personalInfo.dob = moment(input.dob).utcOffset(input.utcOffset).toDate();
+	}
+
+	//set gender
+	if(input.gender != null && input.gender.length > 0){
+		party.personalInfo.gender = input.gender;
+	}
+
+	return party;
+}
+
+function setContact(input, party){
+	if(party.contact == null){
+		party.contact = new Contact();
 	}
 
 	//set telephoneNumber
-	if(profileInput.telephoneNumber != null && profileInput.telephoneNumber.length > 0){
-		if(profileInput.telephoneCountryCode == null || profileInput.telephoneCountryCode.length == 0){
-			throw { name: customError.BAD_REQUEST_ERROR, message: "telephoneCountryCode is mandatory" };
-		}
-		
-		if(party.contact == null){
-			party.contact = new Contact();
-		}
-		
-		party.contact.telephoneCountryCode = profileInput.telephoneCountryCode;
-		party.contact.telephoneNumber = profileInput.telephoneNumber;
+	if(input.telephoneNumber != null && input.telephoneNumber.length > 0){
+		party.contact.telephoneCountryCode = input.telephoneCountryCode;
+		party.contact.telephoneNumber = input.telephoneNumber;
 	}
 
 	//set emailAddress
-	if(profileInput.emailAddress!=null && profileInput.emailAddress.length > 0){
+	if(input.emailAddress!=null && input.emailAddress.length > 0){
 		if(party.contact == null){
 			party.contact = new Contact();
 		}
 
-		party.contact.emailAddress = profileInput.emailAddress;
+		party.contact.emailAddress = input.emailAddress;
+	}
+
+	return party;
+}
+
+function setPicture(input, party){
+	if(party.picture == null){
+		party.picture = new Picture();
 	}
 
 	//set picture
-	if(profileInput.pictureUrl != null && profileInput.pictureUrl.length > 0){
-		if(party.picture == null){
-			party.picture = new Picture();
-		}
-
-		party.picture.url = profileInput.pictureUrl;
+	if(input.url != null && input.url.length > 0){
+		party.picture.url = input.url;
 	}
 
 	return party;
 }
 
 module.exports = {
-    validateProfileInput,
-	setProfile
+	validatePersonalInfoInput,
+	validateContactInput,
+	validatePictureInput,
+	setPersonalInfo,
+	setContact,
+	setPicture
 }

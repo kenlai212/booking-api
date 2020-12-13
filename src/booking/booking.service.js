@@ -104,6 +104,7 @@ async function addNewBooking(input, user) {
 
 	//set invoice
 	const totalAmountObj = PricingHelper.calculateTotalAmount(input.startTime, input.endTime, input.utcOffset, booking.bookingType);
+	
 	booking.invoice = new Object();
 	booking.invoice.regularAmount = totalAmountObj.regularAmount;
 	booking.invoice.totalAmount = totalAmountObj.totalAmount;
@@ -402,7 +403,7 @@ async function viewBookings(input, user) {
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
 	});
-
+	
 	const result = schema.validate(input);
 	if (result.error) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
@@ -414,7 +415,7 @@ async function viewBookings(input, user) {
 	if (startTime > endTime) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be later then endTime" };
 	}
-
+	
 	//get bookings
 	let bookings;
 	try {

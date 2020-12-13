@@ -7,64 +7,130 @@ const customError = require("../common/customError");
 const Party = require("./party.model").Party;
 const profileHelper = require("../common/profile/profile.helper");
 
-async function editProfile(input, user){
+async function getTargetParty(partyId){
+	//validate partyId
+	if (mongoose.Types.ObjectId.isValid(partyId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
+	}
+
+	//get target party
+	let targetParty;
+	try {
+		targetParty = await Party.findById(partyId);
+	} catch (err) {
+		console.log(err);
+		logger.error("Party.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetParty == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid partyId" };
+	}
+
+	return targetParty;
+}
+
+async function saveParty(party){
+	try{
+		party = await party.save();
+	}catch(err){
+		logger.err("party.save error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return partyToOutputObj(party);	
+}
+
+function validateInput(joiSchema, input){
+	const result = joiSchema.validate(input);
+	
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+}
+
+async function editPicture(input, user){
 	//validate input data
 	const schema = Joi.object({
 		partyId: Joi
 			.string()
 			.min(1)
 			.required(),
-		profile: Joi
+		picture: Joi
 			.object()
 			.required()
 	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	validateInput(schema, input);
 
-	//validate profile input
-	try{
-		profileHelper.validateProfileInput(input.profile, false);
-	}catch(error){
-		console.log(error);
-		throw { name: customError.BAD_REQUEST_ERROR, message: error };
-	}
+	//validate picture input
+	profileHelper.validatePictureInput(input.contact, false);
 	
-	//validate partyId
-	if (mongoose.Types.ObjectId.isValid(input.partyId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
-	}
-
 	//get target party
-	let targetParty;
-	try {
-		targetParty = await Party.findById(input.partyId);
-	} catch (err) {
-		logger.error("Party.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	let targetParty = await getTargetParty(input.partyId);
 
-	if (targetParty == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
-	}
-
-	//set profile attributes
-	targetParty = profileHelper.setProfile(input.profile, targetParty);
+	//set picture attributes
+	targetParty = profileHelper.setPicture(input.picture, targetParty);
 
 	//save to db
-	try{
-		targetParty = await targetParty.save();
-	}catch(err){
-		logger.err("targetParty.save error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return partyToOutputObj(targetParty);
+	return saveParty(targetParty);	
 }
 
-async function getParty(input, user){
+async function editContact(input, user){
+	//validate input data
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		contact: Joi
+			.object()
+			.required()
+	});
+	validateInput(schema, input);
+
+	//validate contact input
+	profileHelper.validateContactInput(input.contact, false);
+	
+	//get target party
+	let targetParty = await getTargetParty(input.partyId);
+
+	//set contact attributes
+	targetParty = profileHelper.setContact(input.contact, targetParty);
+
+	//save to db
+	return saveParty(targetParty);
+}
+
+async function editPersonalInfo(input, user){
+	//validate input data
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		personalInfo: Joi
+			.object()
+			.required()
+	});
+	validateInput(schema, input);
+
+	//set personalInfo.nameRequired = false
+	input.personalInfo.nameRequired = false;
+
+	//validate personalInfo input
+	profileHelper.validatePersonalInfoInput(input.personalInfo);
+	
+	//get target party
+	let targetParty = await getTargetParty(input.partyId);
+
+	//set personalInfo attributes
+	targetParty = profileHelper.setPersonalInfo(input.personalInfo, targetParty);
+
+	//save to db
+	return saveParty(targetParty);
+}
+
+async function findParty(input, user){
 	//validate input data
 	const schema = Joi.object({
 		partyId: Joi
@@ -72,29 +138,10 @@ async function getParty(input, user){
 			.min(1)
 			.required()
 	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	validateInput(schema, input);
 
-	//validate partyId
-	if (mongoose.Types.ObjectId.isValid(input.partyId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
-	}
-
-	//get target party
-	let targetParty;
-	try {
-		targetParty = await Party.findById(input.partyId);
-	} catch (err) {
-		logger.error("Crew.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetParty == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
-	}
+	//get party
+	const targetParty = await getTargetParty(input.partyId);
 
 	return partyToOutputObj(targetParty);
 }
@@ -107,29 +154,10 @@ async function deleteParty(input, user) {
 			.min(1)
 			.required()
 	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	validateInput(schema, input);
 
-	//validate partyId
-	if (mongoose.Types.ObjectId.isValid(input.partyId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
-	}
-
-	//get target party
-	let targetParty;
-	try {
-		targetParty = await Party.findById(input.partyId);
-	} catch (err) {
-		logger.error("Crew.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetParty == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
-	}
+	//get party
+	const targetParty = await getTargetParty(input.partyId);
 
 	//delete party record
 	try {
@@ -149,11 +177,7 @@ async function searchParty(input, user){
             .string()
             .min(1)
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	validateInput(schema, input);
 
 	let searchCriteria;
 	if (input.status != null) {
@@ -184,32 +208,48 @@ async function searchParty(input, user){
 }
 
 async function createNewParty(input, user){
-	//validate profile input
-	try{
-		profileHelper.validateProfileInput(input, true);
-	}catch(err){
-		throw { name: customError.BAD_REQUEST_ERROR, message: err };
+	//validate input data
+	const schema = Joi.object({
+		personalInfo: Joi
+			.object()
+			.required(),
+		contact: Joi
+			.object()
+			.allow(null),
+		picture: Joi
+			.object()
+			.allow(null)
+		
+	});
+	validateInput(schema, input);
+
+	let party = new Party();
+
+	//validate and set personalInfo
+	profileHelper.validatePersonalInfoInput(input.personalInfo);
+	party = profileHelper.setPersonalInfo(input.personalInfo, party);
+
+	//validate and contact
+	if(input.contact != null){
+		profileHelper.validateContactInput(input.contact);
+		party = profileHelper.setContact(input.contact, party);
 	}
 	
-	//set profile attributes
-	let party = new Party();
-	party = profileHelper.setProfile(input, party);
+	//validate and picture
+	if(input.picture != null){
+		profileHelper.validatePictureInput(input.picture);
+		party = profileHelper.setPicture(input.picture, party);
+	}
 
 	//save to db
-	try {
-		party = await party.save();
-	} catch (err) {
-		logger.error("party.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-    
-	return partyToOutputObj(party);
+	return saveParty(party);
 }
 
 function partyToOutputObj(party){
     let outputObj = new Object();
 	outputObj.id = party._id.toString();
-	outputObj.name = party.name
+
+	outputObj.personalInfo = party.personalInfo;
 	
 	if(party.contact.telephoneNumber != null || party.contact.emailAddress != null){
 		outputObj.contact = party.contact;
@@ -227,6 +267,8 @@ module.exports = {
     createNewParty,
 	searchParty,
 	deleteParty,
-	getParty,
-	editProfile
+	findParty,
+	editPersonalInfo,
+	editContact,
+	editPicture
 }

@@ -1,7 +1,8 @@
-class Profile{
-    constructor(contact, picture){
-        this.contact = contact;
-        this.picture = picture;
+class PersonalInfo{
+    constructor(name, dob, gender){
+        this.name = name;
+        this.dob = dob;
+        this.gender = gender;
     }
 }
 
@@ -20,7 +21,7 @@ class Picture{
 }
 
 module.exports = {
-    Profile,
+    PersonalInfo,
     Contact,
     Picture
 }

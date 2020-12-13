@@ -158,7 +158,7 @@ async function editGuest(input, user) {
 			.object()
 			.required()
 	});
-
+console.log(input);
 	const result = schema.validate(input);
 	if (result.error) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
@@ -170,7 +170,7 @@ async function editGuest(input, user) {
 	}catch(error){
 		throw { name: customError.BAD_REQUEST_ERROR, message: error };
 	}
-
+	console.log("diu");
 	//get booking
 	let booking;
 	try{

@@ -8,7 +8,7 @@ const userAuthorization = require("../common/middleware/userAuthorization");
 const PARTY_ADMIN_GROUP = "PARTY_ADMIN";
 const PARTY_USER_GROUP = "PARTY_USER";
 
-const editProfile = asyncMiddleware(async (req) => {
+const editPicture = asyncMiddleware(async (req) => {
 	//validate user group
 	const rightsGroup = [
 		PARTY_ADMIN_GROUP,
@@ -19,10 +19,10 @@ const editProfile = asyncMiddleware(async (req) => {
 		return { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 	}
 
-	return await partyService.editProfile(req.body, req.user);
+	return await partyService.editPicture(req.body, req.user);
 });
 
-const getParty = asyncMiddleware(async (req) => {
+const editContact = asyncMiddleware(async (req) => {
 	//validate user group
 	const rightsGroup = [
 		PARTY_ADMIN_GROUP,
@@ -33,7 +33,35 @@ const getParty = asyncMiddleware(async (req) => {
 		return { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 	}
 
-	return await partyService.getParty(req.params, req.user);
+	return await partyService.editContact(req.body, req.user);
+});
+
+const editPersonalInfo = asyncMiddleware(async (req) => {
+	//validate user group
+	const rightsGroup = [
+		PARTY_ADMIN_GROUP,
+		PARTY_USER_GROUP
+	]
+
+	if (userAuthorization(req.user.groups, rightsGroup) == false) {
+		return { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	return await partyService.editPersonalInfo(req.body, req.user);
+});
+
+const findParty = asyncMiddleware(async (req) => {
+	//validate user group
+	const rightsGroup = [
+		PARTY_ADMIN_GROUP,
+		PARTY_USER_GROUP
+	]
+
+	if (userAuthorization(req.user.groups, rightsGroup) == false) {
+		return { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+	}
+
+	return await partyService.findParty(req.params, req.user);
 });
 
 const deleteParty = asyncMiddleware(async (req) => {
@@ -81,6 +109,8 @@ module.exports = {
 	createNewParty,
 	searchParty,
 	deleteParty,
-	getParty,
-	editProfile
+	findParty,
+	editPersonalInfo,
+	editContact,
+	editPicture
 }

@@ -1,8 +1,13 @@
 "use strict";
+const { string } = require("joi");
 const mongoose = require("mongoose");
 
 const partySchema = new mongoose.Schema({
-	name: String,
+	personalInfo: {
+		name: String,
+		dob: Date,
+		gender: String
+	},
 	contact: {
 		telephoneCountryCode: String,
 		telephoneNumber: String,

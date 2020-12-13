@@ -9,11 +9,19 @@ function toOutputObj(user) {
 	outputObj.providerUserId = user.providerUserId;
 	outputObj.userType = user.userType;
 	outputObj.lastLoginTime = user.lastLoginTime;
-
+	
 	if (user.groups != null && user.groups.length > 0) {
 		outputObj.groups = user.groups;
 	}
 
+	if(user.contact != null && (user.contact.telephoneNumber != null || user.contact.emailAddress != null)){
+		outputObj.contact = user.contact;
+	}
+	
+	if(user.picture != null && user.picture.url != null){
+		outputObj.picture = user.picture;
+	}
+	
 	return outputObj;
 }
 

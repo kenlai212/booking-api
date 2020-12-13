@@ -5,6 +5,7 @@ const userAuthorization = require("../common/middleware/userAuthorization");
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const customError = require("../common/customError");
 const bookingService = require("./booking.service");
+const bookingCommon = require("./booking.common");
 
 const newBooking = asyncMiddleware(async (req) => {
 	//validate user
@@ -51,7 +52,7 @@ const searchBookings = asyncMiddleware(async (req) => {
 	const rightsGroup = [
 		bookingCommon.BOOKING_ADMIN_GROUP
 	]
-
+	
 	if (userAuthorization(req.user.groups, rightsGroup) == false) {
 		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
 	}

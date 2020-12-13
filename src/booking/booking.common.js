@@ -85,7 +85,7 @@ function bookingToOutputObj(booking) {
 	
 	//set host
 	outputObj.host = new Object();
-	outputObj.host.hostName = booking.host.name;
+	outputObj.host.name = booking.host.name;
 	if(booking.host.contact != null && (booking.host.contact.telephoneNumber != null || booking.host.contact.emailAddress != null)){
 		outputObj.host.contact = booking.host.contact;
 	}

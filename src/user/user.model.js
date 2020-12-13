@@ -12,7 +12,16 @@ const userSchema = new mongoose.Schema({
 	resetPasswordKey: String,
 	name: String,
 	groups: [{ type: String }],
-	lastLoginTime: Date
+	lastLoginTime: Date,
+	contact: {
+		telephoneCountryCode: String,
+		telephoneNumber: String,
+		emailAddress: String
+	},
+	picture: {
+		url: String
+	}
+
 });
 
 const User = mongoose.model("User", userSchema);

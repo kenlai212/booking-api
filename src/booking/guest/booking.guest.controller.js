@@ -3,6 +3,7 @@ const guestService = require("./booking.guest.service");
 const userAuthorization = require("../../common/middleware/userAuthorization");
 const asyncMiddleware = require("../../common/middleware/asyncMiddleware");
 const customError = require("../../common/customError");
+const bookingCommon = require("../booking.common");
 
 const removeGuest = asyncMiddleware(async (req) => {
 	//validate user group
