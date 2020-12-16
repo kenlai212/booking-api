@@ -7,10 +7,10 @@ const axios = require("axios");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
+const utility = require("../common/utility");
+
 const userHelper = require("./user_internal.helper");
 const partyHelper = require("./party_internal.helper");
-const { profile } = require("winston");
-const { Profile } = require("../common/profile/profile.class");
 
 const ACCESS_TOKEN_EXPIRES = "1h";
 
@@ -26,11 +26,7 @@ async function socialLogin(input){
 			.min(1)
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	let socialUser = {
 		provider: input.provider,
