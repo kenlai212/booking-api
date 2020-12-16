@@ -19,7 +19,6 @@ async function getTargetParty(partyId){
 	try {
 		targetParty = await Party.findById(partyId);
 	} catch (err) {
-		console.log(err);
 		logger.error("Party.findById() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
