@@ -18,21 +18,19 @@ async function addAssignment(input, user) {
 	try {
 		return await assignmentHistoryService.addAssignment(addAssignmentInput, user);
 	} catch (err) {
+		console.log(err);
 		logger.error("Error while calling assignmentHistoryService.addAssignment : ", err);
 		throw err;
 	}
 }
 
-async function removeAssignment(crewId, bookingId, user) {
-	let input = new Object();
-
-	input.crewId = crewId;
-	input.itemId = bookingId;
+async function removeAssignment(input, user) {
 	input.assignmentType = "BOOKING";
 
 	try {
 		return await assignmentHistoryService.removeAssignment(input, user);
 	} catch (err) {
+		console.log(err);
 		logger.error("Error while calling assignmentHistoryService.removeAssignment : ", err);
 		throw err;
 	}

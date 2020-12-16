@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
+const utility = require("../common/utility");
 
 const Party = require("./party.model").Party;
 const profileHelper = require("../common/profile/profile.helper");
@@ -41,14 +42,6 @@ async function saveParty(party){
 	return partyToOutputObj(party);	
 }
 
-function validateInput(joiSchema, input){
-	const result = joiSchema.validate(input);
-	
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-}
-
 async function editPicture(input, user){
 	//validate input data
 	const schema = Joi.object({
@@ -60,7 +53,7 @@ async function editPicture(input, user){
 			.object()
 			.required()
 	});
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 
 	//validate picture input
 	profileHelper.validatePictureInput(input.contact, false);
@@ -86,7 +79,7 @@ async function editContact(input, user){
 			.object()
 			.required()
 	});
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 
 	//validate contact input
 	profileHelper.validateContactInput(input.contact, false);
@@ -112,7 +105,7 @@ async function editPersonalInfo(input, user){
 			.object()
 			.required()
 	});
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 
 	//set personalInfo.nameRequired = false
 	input.personalInfo.nameRequired = false;
@@ -138,7 +131,7 @@ async function findParty(input, user){
 			.min(1)
 			.required()
 	});
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 
 	//get party
 	const targetParty = await getTargetParty(input.partyId);
@@ -154,7 +147,7 @@ async function deleteParty(input, user) {
 			.min(1)
 			.required()
 	});
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 
 	//get party
 	const targetParty = await getTargetParty(input.partyId);
@@ -177,7 +170,7 @@ async function searchParty(input, user){
             .string()
             .min(1)
 	});
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 
 	let searchCriteria;
 	if (input.status != null) {
@@ -221,7 +214,7 @@ async function createNewParty(input, user){
 			.allow(null)
 		
 	});
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 
 	let party = new Party();
 

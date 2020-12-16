@@ -4,32 +4,22 @@ const mongoose = require("mongoose");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
-const Crew = require("./crew.model").Crew;
+const utility = require("../common/utility");
+const { Crew } = require("./crew.model");
 const assignmentHistoryService = require("./assignmentHistory.service");
 const partyHelper = require("./party_internal.helper");
 const profileHelper = require("../common/profile/profile.helper");
 
-async function findCrew(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		crewId: Joi
-			.string()
-			.required()
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//check for valid crewId
-	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
+//private function
+async function getTargetCrew(crewId){
+	//validate crewId
+	if (mongoose.Types.ObjectId.isValid(crewId) == false) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
 	}
 
 	let crew;
 	try {
-		crew = await Crew.findById(input.crewId);
+		crew = await Crew.findById(crewId);
 	} catch (err) {
 		logger.error("Crew.findById Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
@@ -39,7 +29,35 @@ async function findCrew(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
 	}
 
+	return crew;
+}
+
+//private function
+async function saveCrew(crew){
+	//save to db
+	try {
+		crew = await crew.save();
+	} catch (err) {
+		logger.error("crew.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
 	return crewToOutputObj(crew);
+}
+
+async function findCrew(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		crewId: Joi
+			.string()
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	//check for valid crewId
+	const targetCrew = await getTargetCrew(input.crewId);
+
+	return crewToOutputObj(targetCrew);
 }
 
 async function searchCrews(input, user) {
@@ -49,11 +67,7 @@ async function searchCrews(input, user) {
 			.string()
 			.valid("ACTIVE", "INACTIVE", null)
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	let searchCriteria;
 	if (input.status != null) {
@@ -91,24 +105,10 @@ async function newCrew(input, user) {
 			.min(1)
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//get party
-	let targetParty
-	try{
-		targetParty = await partyHelper.getParty(input.partyId);
-	}catch(error){
-		logger.error("partyHelper.getParty error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if(targetParty == null){
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
-	}
+	let targetParty = await partyHelper.getParty(input.partyId);
 
 	//check if crew with the same partyId already exist
 	let existingCrew;
@@ -126,28 +126,31 @@ async function newCrew(input, user) {
 	let crew = new Crew();
 	crew.status = "ACTIVE";
 	crew.partyId = targetParty.id;
-	crew.name = targetParty.name;
-	crew.contact = targetParty.contact;
-	crew.picture = targetParty.picture;
+	crew.personalInfo = targetParty.personalInfo;
+
+	if(targetParty.contact != null){
+		crew.contact = targetParty.contact;
+	}
+	
+	if(targetParty.picture != null){
+		crew.picture = targetParty.picture;
+	}
 	
 	//save to db
-	try {
-		crew = await crew.save();
-	} catch (err) {
-		logger.error("crew.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	const crewOutput = await saveCrew(crew);
 
 	//init assignment
 	try {
-		await assignmentHistoryService.initAssignmentHistory({ crewId: crew._id.toString() }, user);
+		const initInput = { "crewId": crewOutput.id }
+
+		await assignmentHistoryService.initAssignmentHistory(initInput, user);
 	} catch (err) {
-		logger.error("assignmentService.initAssignment Error : ", err);
-		logger.error(`Crew record (id : ${crew._id.toString()}) has been created, but initAssignmentHistory failed... Please handle manually. Either roll back the crew recoard or manually trigger initAssignmentHistory from API`);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		console.log(err);
+		logger.error("assignmentService.initAssignmentHistory Error : ", err);
+		logger.error(`Crew record (id : ${crewOutput.id}) has been created, but initAssignmentHistory failed... Please manually trigger initAssignmentHistory from API`);
 	}
 
-	return crewToOutputObj(crew);
+	return crewOutput;
 }
 
 async function deleteCrew(input, user) {
@@ -158,34 +161,16 @@ async function deleteCrew(input, user) {
 			.min(1)
 			.required()
 	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate crewId
-	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
-	}
+	utility.validateInput(schema, input);
 
 	//get target crew
-	let targetCrew;
-	try {
-		targetCrew = await Crew.findById(input.crewId);
-	} catch (err) {
-		logger.error("Crew.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetCrew == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
-	}
+	const targetCrew = await getTargetCrew(input.crewId);
 
 	//delete crew record
 	try {
 		await Crew.findByIdAndDelete(targetCrew._id.toString());
 	} catch (err) {
+		console.log(err);
 		logger.error("Crew.findByIdAndDelete() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
@@ -213,104 +198,103 @@ async function editStatus(input, user) {
 			.valid("ACTIVE","INACTIVE")
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate crewId
-	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
+	utility.validateInput(schema, input);
 
 	//get target crew
-	let targetCrew;
-	try {
-		targetCrew = await Crew.findById(input.crewId);
-	} catch (err) {
-		logger.error("Crew.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetCrew == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
-	}
+	let targetCrew = await getTargetCrew(input.crewId);
 
 	//update status
 	targetCrew.status = input.status;
 
-	try {
-		targetCrew = await targetCrew.save();
-	} catch (err) {
-		logger.error("targetCrew.save() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return crewToOutputObj(targetCrew);
+	return await saveCrew(targetCrew);
 }
 
-async function editProfile(input, user) {
+async function editPersonalInfo(input, user) {
 	//validate input data
 	const schema = Joi.object({
 		crewId: Joi
 			.string()
 			.min(1)
 			.required(),
-		profile: Joi
+		personalInfo: Joi
 			.object()
 			.required()
 	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
-	//validate profile input
-	try{
-		profileHelper.validateProfileInput(input.profile, false);
-	}catch(error){
-		throw { name: customError.BAD_REQUEST_ERROR, message: error };
-	}
-
-	//validate crewId
-	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
-	}
+	//validate personalInfo input
+	input.personalInfo.nameRequired = false;
+	profileHelper.validatePersonalInfoInput(input.personalInfo);
 
 	//get target crew
-	let targetCrew;
-	try {
-		targetCrew = await Crew.findById(input.crewId);
-	} catch (err) {
-		logger.error("Crew.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetCrew == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
-	}
-
-	//set profile attributes
-	targetCrew = profileHelper.setProfile(input.profile, targetCrew);
+	let targetCrew = await getTargetCrew(input.crewId);
+	
+	//set personalInfo attributes
+	targetCrew = profileHelper.setPersonalInfo(input.personalInfo, targetCrew);
 
 	//save record
-	try {
-		targetCrew = await targetCrew.save();
-	} catch (err) {
-		logger.error("targetCrew.save() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	return crewToOutputObj(targetCrew);
+	return await saveCrew(targetCrew);
+}
+
+async function editContact(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		crewId: Joi
+			.string()
+			.min(1)
+			.required(),
+		contact: Joi
+			.object()
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	//validate contact input
+	profileHelper.validateContactInput(input.contact);
+
+	//get target crew
+	let targetCrew = await getTargetCrew(input.crewId);
+
+	//set contact attributes
+	targetCrew = profileHelper.setContact(input.contact, targetCrew);
+
+	//save record
+	return await saveCrew(targetCrew);
+}
+
+async function editPicture(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		crewId: Joi
+			.string()
+			.min(1)
+			.required(),
+		picture: Joi
+			.object()
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	//validate picture input
+	profileHelper.validatePictureInput(input.picture);
+
+	//get target crew
+	let targetCrew = await getTargetCrew(input.crewId);
+
+	//set pictuer attributes
+	targetCrew = profileHelper.setPicture(input.picture, targetCrew);
+
+	//save record
+	return await saveCrew(targetCrew);
 }
 
 function crewToOutputObj(crew) {
 	var outputObj = new Object();
 	outputObj.id = crew._id.toString();
 	outputObj.status = crew.status;
-	outputObj.name = crew.name;
+	outputObj.partyId = crew.partyId;
+
+	outputObj.personalInfo = crew.personalInfo;
 
 	if(crew.contact.telephoneNumber != null || crew.contact.emailAddress != null){
 		outputObj.contact = crew.contact;
@@ -329,5 +313,7 @@ module.exports = {
 	findCrew,
 	deleteCrew,
 	editStatus,
-	editProfile
+	editPersonalInfo,
+	editContact,
+	editPicture
 }

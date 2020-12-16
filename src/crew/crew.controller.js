@@ -2,89 +2,66 @@
 const url = require("url");
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const crewService = require("./crew.service");
-const userAuthorization = require("../common/middleware/userAuthorization");
+const utility = require("../common/utility");
 
 const CREW_ADMIN_GROUP = "CREW_ADMIN";
 const CREW_USER_GROUP = "CREW_USER";
 
 const newCrew = asyncMiddleware(async (req) => {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-
 	//validate user
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
 
 	return await crewService.newCrew(req.body, req.user);
 });
 
 const findCrew = asyncMiddleware(async (req) => {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP,
-		CREW_USER_GROUP
-	]
-
 	//validate user
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP, CREW_USER_GROUP]);
 
 	return await crewService.findCrew(req.params, req.user);
 });
 
-const searchCrews = asyncMiddleware(async (req, res) => {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-
+const searchCrews = asyncMiddleware(async (req) => {
 	//validate user
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
 
 	const queryObject = url.parse(req.url, true).query;
 	return await crewService.searchCrews(queryObject, req.user);
 });
 
-const deleteCrew = asyncMiddleware(async (req, res) => {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-
+const deleteCrew = asyncMiddleware(async (req) => {
 	//validate user
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
 
 	return await crewService.deleteCrew(req.params, req.user);
 });
 
-const editStatus = asyncMiddleware(async (req, res) => {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-
+const editStatus = asyncMiddleware(async (req) => {
 	//validate user
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
 
 	return await crewService.editStatus(req.body, req.user);
 });
 
-const editProfile = asyncMiddleware(async (req, res) => {
-	const rightsGroup = [
-		CREW_ADMIN_GROUP
-	]
-
+const editPersonalInfo = asyncMiddleware(async (req) => {
 	//validate user
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
 
-	return await crewService.editProfile(req.body, req.user);
+	return await crewService.editPersonalInfo(req.body, req.user);
+});
+
+const editContact = asyncMiddleware(async (req) => {
+	//validate user
+	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
+
+	return await crewService.editContact(req.body, req.user);
+});
+
+const editPicture = asyncMiddleware(async (req) => {
+	//validate user
+	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
+
+	return await crewService.editPicture(req.body, req.user);
 });
 
 module.exports = {
@@ -93,5 +70,7 @@ module.exports = {
 	findCrew,
 	deleteCrew,
 	editStatus,
-	editProfile
+	editPersonalInfo,
+	editContact,
+	editPicture
 }

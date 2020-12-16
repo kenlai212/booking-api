@@ -1,4 +1,5 @@
 "use strict";
+const { util } = require("config");
 const Joi = require("joi");
 const mongoose = require("mongoose");
 
@@ -6,7 +7,41 @@ const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
 const AssignmentHistory = require("./assignmentHistory.model").AssignmentHistory;
 const utility = require("../common/utility");
-const crewService = require("./crew.service");
+
+//private function
+async function getAssignmentHistory(crewId){
+	//check for valid crewId
+	if (mongoose.Types.ObjectId.isValid(crewId) == false) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
+	}
+
+	let targetAssignmentHistory;
+	try {
+		targetAssignmentHistory = await AssignmentHistory.findOne({crewId : crewId});
+	} catch (err) {
+		logger.error("AssignmentHistory.findOnd Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (targetAssignmentHistory == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
+	}
+
+	return targetAssignmentHistory;
+}
+
+//private function
+async function saveAssignmentHistory(assignmentHistory){
+	try {
+		assignmentHistory = await assignmentHistory.save();
+	} catch (err) {
+		console.log(err);
+		logger.error("targetAssignmentHistory.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return outputObjMapper(assignmentHistory);
+}
 
 async function addAssignment(input, user) {
 	//validate input data
@@ -18,32 +53,30 @@ async function addAssignment(input, user) {
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//find assignmentHistory
 	let targetAssignmentHistroy;
 	try {
-		targetAssignmentHistroy = await AssignmentHistory.findOne({ crewId: input.crewId });
+		targetAssignmentHistroy = await getAssignmentHistory(input.crewId);
 	} catch (err) {
-		logger.error("AssignmentHistory.findOne Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+		if(err.name == customError.RESOURCE_NOT_FOUND_ERROR){
+			//can't find targetAssignmentHistory for this crewId. Call initAssignmentHistory
 
-	//can't find targetAssignmentHistory for this crewId. Call initAssignmentHistory 
-	if (targetAssignmentHistroy == null) {
-		//init assignment history for this crewId
-		targetAssignmentHistory = new AssignmentHistory();
-		targetAssignmentHistory.crewId = input.crewId;
+			//init assignment history for this crewId
+			targetAssignmentHistory = new AssignmentHistory();
+			targetAssignmentHistory.crewId = input.crewId;
 
-		try {
-			targetAssignmentHistory = await targetAssignmentHistory.save();
-		} catch (err) {
-			logger.error("assignmentHistory.save Error : ", err);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+			try {
+				targetAssignmentHistory = await targetAssignmentHistory.save();
+			} catch (err) {
+				console.log(err);
+				logger.error("assignmentHistory.save Error : ", err);
+				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+			}
+		}else{
+			//system error
+			throw err;
 		}
 	}
 
@@ -61,14 +94,7 @@ async function addAssignment(input, user) {
 	targetAssignmentHistroy.assignments.push(assignment);
 
 	//save to db
-	try {
-		targetAssignmentHistroy = await targetAssignmentHistroy.save();
-	} catch (err) {
-		logger.error("targetAssignmentHistory.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return outputObjMapper(targetAssignmentHistroy);
+	return await saveAssignmentHistory(targetAssignmentHistroy);
 }
 
 async function removeAssignment(input, user) {
@@ -78,29 +104,10 @@ async function removeAssignment(input, user) {
 		assignmentType: Joi.string().valid("BOOKING").required(),
 		itemId: Joi.string().required()
 	});
+	utility.validateInput(schema, input);
 
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//check for valid crewId
-	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
-
-	//find assignmentHistory
-	let targetAssignmentHistory;
-	try {
-		targetAssignmentHistory = await AssignmentHistory.findOne({ crewId: input.crewId });
-	} catch (err) {
-		logger.error("AssignmentHistory Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetAssignmentHistory == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
+	//get target assignmentHistory
+	let targetAssignmentHistory = await getAssignmentHistory(input.crewId);
 
 	//check if assignment has any assignments
 	if (targetAssignmentHistory.assignments == null || targetAssignmentHistory.assignments.length == 0) {
@@ -120,15 +127,8 @@ async function removeAssignment(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "No assignments found" };
 	}
 
-	//save assignment record
-	try {
-		targetAssignmentHistory = await targetAssignmentHistory.save();
-	} catch (err) {
-		logger.error("targetAssignmentHistory.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return outputObjMapper(targetAssignmentHistory);
+	//save to db
+	return await saveAssignmentHistory(targetAssignmentHistroy);
 }
 
 async function initAssignmentHistory(input, user) {
@@ -138,72 +138,41 @@ async function initAssignmentHistory(input, user) {
 			.string()
 			.required()
 	});
+	utility.validateInput(schema, input);
 
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	//check existing assignmentHistory
+	let existingAssignmentHistory;
 
-	//check for valid crewId
-	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
-
-	let targetCrew;
-	try{
-		targetCrew = await crewService.findCrew({crewId: input.crewId});
-	}catch(error){
-		logger.error("crewService.findCrew error : ", error);
+	try {
+		existingAssignmentHistory = await AssignmentHistory.findOne({crewId : input.crewId});
+	} catch (err) {
+		logger.error("AssignmentHistory.findOnd Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
-	if(targetCrew == null){
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid crewId" };
+	
+	if(existingAssignmentHistory!=null){
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Assignment History already exist" };
 	}
 
 	//save assignamntHistory
 	let assignmentHistory = new AssignmentHistory();
-	assignmentHistory.crewId = targetCrew.id;
+	assignmentHistory.crewId = input.crewId;
 
-	try {
-		assignmentHistory = await assignmentHistory.save();
-	} catch (err) {
-		logger.error("assignmentHistory.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return outputObjMapper(assignmentHistory);
+	//save to db
+	return await saveAssignmentHistory(assignmentHistroy);
 }
 
-async function getAssignmentHistory(input, user) {
+async function findAssignmentHistory(input, user) {
 	//validate input data
 	const schema = Joi.object({
 		crewId: Joi
 			.string()
 			.required()
 	});
+	utility.validateInput(schema, input);
 
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//check for valid crewId
-	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
-
-	let targetAssignmentHistory;
-	try {
-		targetAssignmentHistory = await AssignmentHistory.findOne({crewId : input.crewId});
-	} catch (err) {
-		logger.error("AssignmentHistory.findOnd Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetAssignmentHistory == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
+	//get target assignmentHistory
+	let targetAssignmentHistory = await getAssignmentHistory(input.crewId);
 
 	return outputObjMapper(targetAssignmentHistory);
 }
@@ -215,28 +184,15 @@ async function deleteAssignmentHistory(input, user) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//check for valid crewId
 	if (mongoose.Types.ObjectId.isValid(input.crewId) == false) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
 	}
 
-	let targetAssignmentHistory;
-	try {
-		targetAssignmentHistory = await AssignmentHistory.findOne({ crewId: input.crewId });
-	} catch (err) {
-		logger.error("AssignmentHistory.findOne Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetAssignmentHistory == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
+	//get target assignmentHistory
+	let targetAssignmentHistory = await getAssignmentHistory(input.crewId);
 
 	//delete assignment record
 	try {
@@ -274,7 +230,6 @@ module.exports = {
 	initAssignmentHistory,
 	addAssignment,
 	removeAssignment,
-	getAssignmentHistory,
+	findAssignmentHistory,
 	deleteAssignmentHistory
-	
 }

@@ -1,75 +1,95 @@
 "use strict";
-const moment = require("moment");
 const Joi = require("joi");
 
-const customError = require("../../common/customError");
-const logger = require("../../common/logger").logger;
+const utility = require("../../common/utility");
 
 const bookingCommon = require("../booking.common");
 const profileHelper = require("../../common/profile/profile.helper");
-const bookingHistoryHelper = require("../bookingHistory_internal.helper");
 
-async function editHost(input, user) {
+async function addHost(input, user){
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
 			.min(1)
 			.required(),
-		profile: Joi
+		personalInfo: Joi
+			.object()
+			.required(),
+		contact: Joi
+			.object()
+			.allow(null),
+		picture: Joi
+			.object()
+			.allow(null)
+	});
+	utility.validateInput(schema, input);
+	
+	//get booking
+	let booking = await bookingCommon.getBooking(input.bookingId);
+
+	//set host
+	let host = new Object();
+
+	//validate and set personalInfo input
+	profileHelper.validatePersonalInfoInput(input.personalInfo);
+	host = profileHelper.setPersonalInfo(input.personalInfo, host);
+
+	//validate and set contact input
+	if(input.contact !=null){
+		profileHelper.validateContactInput(input.contact);
+		host = profileHelper.setContact(input.contact, host);
+	}
+
+	//validate and set picture input
+	if(input.picture != null){
+		profileHelper.validatePictureInput(input.picture);
+		host = profileHelper.setPicture(input.picture, host);
+	}
+
+	booking.host = host;
+
+	//update booking record
+	const bookingOutput = await bookingCommon.saveBooking(booking);
+
+	//add history item
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Added host ${JSON.stringify(host)} to booking(${bookingOutput.id})`, user);
+
+	return bookingOutput;
+}
+
+async function editPersonalInfo(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi
+			.string()
+			.min(1)
+			.required(),
+		personalInfo: Joi
 			.object()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate profile input
-	try{
-		profileHelper.validateProfileInput(input.profile, false);
-	}catch(error){
-		throw { name: customError.BAD_REQUEST_ERROR, message: error };
-	}
+	profileHelper.validatePersonalInfoInput(input.personalInfo, false);
 
 	//get booking
-	let booking;
-	try{
-		booking = await bookingCommon.getBooking(input.bookingId);
-	}catch(error){
-		throw error;
-	}
-
-	//set host profile attributes
-	booking.host = profileHelper.setProfile(input.profile, booking.host);
+	let booking = await bookingCommon.getBooking(input.bookingId);
+	
+	//set host personalInfo attributes
+	booking.host = profileHelper.setPersonalInfo(input.personalInfo, booking.host);
 
 	//update booking record
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	const bookingOutput = await bookingCommon.saveBooking(booking);
 
 	//add history item
-	const addBookingHistoryItemInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: `Updated host profile`
-	}
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Updated booking(${bookingOutput.id}) host personalInfo ${JSON.stringify(personalInfo)}`, user);
 
-	try {
-		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
-	} catch (err) {
-		logger.error("bookingCommon.addBookingHistoryItem Error", err);
-		logger.error(`Updated host profile from booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
-	}
-
-	return bookingCommon.bookingToOutputObj(booking);
+	return bookingOutput;
 }
 
 module.exports = {
-	editHost
+	addHost,
+	editPersonalInfo
 }

@@ -1,12 +1,11 @@
 "use strict";
 const Joi = require("joi");
-const moment = require("moment");
 
 const customError = require("../../common/customError")
 const bookingCommon = require("../booking.common");
-const logger = require("../../common/logger").logger;
+const utility = require("../../common/utility");
+
 const profileHelper = require("../../common/profile/profile.helper");
-const bookingHistoryHelper = require("../bookingHistory_internal.helper");
 
 async function removeGuest(input, user) {
 	//validate input data
@@ -14,19 +13,10 @@ async function removeGuest(input, user) {
 		bookingId: Joi.string().min(1).required(),
 		guestId: Joi.string().min(1).required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//get booking
-	let booking;
-	try{
-		booking = await bookingCommon.getBooking(input.bookingId);
-	}catch(error){
-		throw error;
-	}
+	let booking = await bookingCommon.getBooking(input.bookingId);
 
 	//find targetGuest and remove from guests array
 	var targetGuest;
@@ -43,29 +33,13 @@ async function removeGuest(input, user) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Guest not found" };
 	}
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	//update booking record
+	const bookingOutput = await bookingCommon.saveBooking(booking);
 
 	//add history item
-	const addBookingHistoryItemInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: `Removed guest ${targetGuest.name}`
-	}
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Removed guest ${JSON.stringify(targetGuest)} from booking(${bookingOutput.id})`, user);
 
-	try {
-		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
-	} catch (err) {
-		logger.error("bookingCommon.addBookingHistoryItem Error", err);
-		logger.error(`Removed guest(${JSON.stringify(targetGuest)}) from booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
-	}
-	
-	return bookingCommon.bookingToOutputObj(booking);
+	return bookingOutput;
 }
 
 async function addGuest(input, user) {
@@ -74,30 +48,20 @@ async function addGuest(input, user) {
 		bookingId: Joi
 			.string()
 			.required(),
-		profile: Joi
+		personalInfo: Joi
 			.object()
-			.required()
+			.required(),
+		contact: Joi
+			.object()
+			.allow(null),
+		picture: Joi
+			.object()
+			.allow(null)
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate profile input
-	try{
-		profileHelper.validateProfileInput(input.profile, false);
-	}catch(error){
-		throw { name: customError.BAD_REQUEST_ERROR, message: error };
-	}
-
+	utility.validateInput(schema, input);
+	
 	//get booking
-	let booking;
-	try{
-		booking = await bookingCommon.getBooking(input.bookingId);
-	}catch(error){
-		throw error;
-	}
+	let booking = await bookingCommon.getBooking(input.bookingId);
 
 	if (booking.guests == null) {
 		booking.guests = [];
@@ -106,7 +70,7 @@ async function addGuest(input, user) {
 	//check if guest already exist
 	var foundExistingGuest = false;
 	booking.guests.forEach(guest => {
-		if (guest.name == input.profile.name) {
+		if (guest.name == input.personalInfo.name) {
 			foundExistingGuest = true;
 		}
 	});
@@ -115,37 +79,35 @@ async function addGuest(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Guest already exist" };
 	}
 
-	//set guest profile attributes, and add to guests array
+	//set guest
 	let guest = new Object();
-	guest = profileHelper.setProfile(input.profile, guest);
+
+	//validate profile input
+	profileHelper.validatePersonalInfoInput(input.personalInfo);
+	guest = profileHelper.setPersonalInfo(input.personalInfo, guest);
+
+	if(input.contact != null){
+		profileHelper.validateContactInput(input.contact);
+		guest = profileHelper.setContact(input.contact, guest);
+	}
+
+	if(input.picture != null){
+		profileHelper.validatePictureInput(input.picture);
+		guest = profileHelper.setPicture(input.picture, guest);
+	}
+	
 	booking.guests.push(guest);
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	//update booking record
+	const bookingOutput = await bookingCommon.saveBooking(booking);
 
 	//add history item
-	const addBookingHistoryItemInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: `Add guest ${guest.name}`
-	}
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Added guest ${JSON.stringify(guest)} to booking(${bookingOutput.id})`, user);
 
-	try {
-		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
-	} catch (err) {
-		logger.error("bookingCommon.addBookingHistoryItem Error", err);
-		logger.error(`Removed guest(${JSON.stringify(guest)}) to booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
-	}
-
-	return bookingCommon.bookingToOutputObj(booking);
+	return bookingOutput;
 }
 
-async function editGuest(input, user) {
+async function editPersonalInfo(input, user) {
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
@@ -154,72 +116,43 @@ async function editGuest(input, user) {
 		guestId: Joi
 			.string()
 			.required(),
-		profile: Joi
+		personalInfo: Joi
 			.object()
 			.required()
 	});
-console.log(input);
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
-	//validate profile input
-	try{
-		profileHelper.validateProfileInput(input.profile, false);
-	}catch(error){
-		throw { name: customError.BAD_REQUEST_ERROR, message: error };
-	}
-	console.log("diu");
+	//validate personalInfo input
+	profileHelper.validatePersonalInfoInput(input.profile, false);
+
 	//get booking
-	let booking;
-	try{
-		booking = await bookingCommon.getBooking(input.bookingId);
-	}catch(error){
-		throw error;
-	}
+	let booking = await bookingCommon.getBooking(input.bookingId);
 
-	let guestFound = false;
+	let targetGuest;
 	booking.guests.forEach(guest => {
 		if (guest._id == input.guestId) {
-			guestFound = true;
+			//set personalInfo
+			guest = profileHelper.setPersonalInfo(input.personalInfo, guest);
 
-			//set profile attributes
-			guest = profileHelper.setProfile(input.profile, guest);
+			targetGuest = guest;
 		}
 	});
 
-	if (guestFound == false) {
+	if (targetGuest == null) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid guestId" };
 	}
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	//update booking record
+	const bookingOutput = bookingCommon.saveBooking(booking);
 
 	//add history item
-	const addBookingHistoryItemInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: `Edit guest ${input.guestId}`
-	}
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Updated guest personalInfo ${JSON.stringify(targetGuest)} from booking(${bookingOutput.id})`, user);
 
-	try {
-		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
-	} catch (err) {
-		logger.error("bookingCommon.addBookingHistoryItem Error", err);
-		logger.error(`Edit guest(${input.guestId}) to booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
-	}
-
-	return bookingCommon.bookingToOutputObj(booking);
+	return bookingOutput;
 }
 
 module.exports = {
 	addGuest,
 	removeGuest,
-	editGuest
+	editPersonalInfo
 }

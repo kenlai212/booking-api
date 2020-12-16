@@ -1,54 +1,42 @@
 "use strict";
-const guestService = require("./booking.guest.service");
-const userAuthorization = require("../../common/middleware/userAuthorization");
 const asyncMiddleware = require("../../common/middleware/asyncMiddleware");
-const customError = require("../../common/customError");
+const utility = require("../../common/utility");
+
 const bookingCommon = require("../booking.common");
+const guestService = require("./booking.guest.service");
 
 const removeGuest = asyncMiddleware(async (req) => {
-	//validate user group
-	const rightsGroup = [
+	//validate user
+	utility.userGroupAuthorization(req.user.groups, [
 		bookingCommon.BOOKING_ADMIN_GROUP,
 		bookingCommon.BOOKING_USER_GROUP
-	]
-
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	]);
 
 	return await guestService.removeGuest(req.params, req.user);
 });
 
 const addGuest = asyncMiddleware(async (req) => {
-	const rightsGroup = [
+	//validate user
+	utility.userGroupAuthorization(req.user.groups, [
 		bookingCommon.BOOKING_ADMIN_GROUP,
 		bookingCommon.BOOKING_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	]);
 
 	return await guestService.addGuest(req.body, req.user);
 });
 
-const editGuest = asyncMiddleware(async (req) => {
+const editPersonalInfo = asyncMiddleware(async (req) => {
 	//validate user
-	const rightsGroup = [
+	utility.userGroupAuthorization(req.user.groups, [
 		bookingCommon.BOOKING_ADMIN_GROUP,
 		bookingCommon.BOOKING_USER_GROUP
-	]
+	]);
 
-	if (userAuthorization(req.user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	return await guestService.editGuest(req.body, req.user);
+	return await guestService.editPersonalInfo(req.body, req.user);
 });
 
 module.exports = {
 	addGuest,
 	removeGuest,
-	editGuest
+	editPersonalInfo
 }

@@ -1,5 +1,7 @@
 const moment = require("moment");
 
+const customError = require("./customError");
+
 function isoStrToDate(isoStr, utcOffset) {
 	const dateStr = isoStr.substr(0, 10);
 	const dateRes = dateStr.split("-");
@@ -22,6 +24,28 @@ function isoStrToDate(isoStr, utcOffset) {
 	return targetDateTime;
 }
 
+function validateInput(schema, input){
+	const result = schema.validate(input);
+	
+	if (result.error) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	}
+}
+
+function userGroupAuthorization(userGroups, allowGroups){
+	if (userGroups == null) {
+        userGroups = [];
+    }
+
+    const targetGroup = userGroups.filter(value => allowGroups.includes(value));
+
+    if (targetGroup.length == 0) {
+        throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
+    }
+}
+
 module.exports = {
-	isoStrToDate
+	isoStrToDate,
+	validateInput,
+	userGroupAuthorization
 }

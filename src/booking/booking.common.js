@@ -1,16 +1,43 @@
 "use strict";
 const mongoose = require("mongoose");
+const moment = require("moment");
 
 const customError = require("../common/customError");
 const logger = require("../common/logger").logger;
 
 const Booking = require("./booking.model").Booking;
+const bookingHistoryHelper = require("./bookingHistory_internal.helper");
 
 //constants for user groups
 const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 const BOOKING_USER_GROUP = "BOOKING_USER";
 
 const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
+
+function addBookingHistoryItem(bookingId, transactionDescription, user){
+	const addBookingHistoryItemInput = {
+		bookingId: bookingId,
+		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
+		utcOffset: 0,
+		transactionDescription: transactionDescription
+	}
+
+	bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user)
+	.catch(() => {
+		logger.error(`${transactionDescription}, but failed to addHistoryItem. Please trigger addHistoryItem manually.`);
+	});
+}
+
+async function saveBooking(booking){
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return bookingToOutputObj(booking);
+}
 
 async function getBooking(bookingId){
 	//valid booking id
@@ -37,7 +64,7 @@ async function getBooking(bookingId){
 
 function bookingToOutputObj(booking) {
 	var outputObj = new Object();
-	outputObj.id = booking._id;
+	outputObj.id = booking._id.toString();
 	outputObj.bookingType = booking.bookingType;
 	outputObj.creationTime = booking.creationTime;
 	outputObj.createdBy = booking.createdBy;
@@ -58,7 +85,7 @@ function bookingToOutputObj(booking) {
 
 		booking.invoice.discounts.forEach(discount => {
 			outputObj.invoice.discounts.push({
-				discountId: discount._id,
+				discountId: discount._id.toString(),
 				amount: discount.amount,
 				discountCode: discount.discountCode
 			});
@@ -70,7 +97,7 @@ function bookingToOutputObj(booking) {
 
 		booking.invoice.payments.forEach(payment => {
 			outputObj.invoice.payments.push({
-				paymentId: payment._id,
+				paymentId: payment._id.toString(),
 				amount: payment.amount,
 				paymentCode: payment.paymentCode
 			});
@@ -85,7 +112,8 @@ function bookingToOutputObj(booking) {
 	
 	//set host
 	outputObj.host = new Object();
-	outputObj.host.name = booking.host.name;
+	outputObj.host.personalInfo = booking.host.personalInfo;
+
 	if(booking.host.contact != null && (booking.host.contact.telephoneNumber != null || booking.host.contact.emailAddress != null)){
 		outputObj.host.contact = booking.host.contact;
 	}
@@ -98,10 +126,10 @@ function bookingToOutputObj(booking) {
 	outputObj.guests = [];
 	booking.guests.forEach(guest => {
 		let tempGuest = new Object();
-		tempGuest.id = guest._id;
-		tempGuest.name = guest.name;
+		tempGuest.id = guest._id.toString();
 		tempGuest.disclaimerId = guest.disclaimerId;
 		tempGuest.signedDisclaimerTimeStamp = guest.signedDisclaimerTimeStamp;
+		tempGuest.personalInfo = guest.personalInfo;
 
 		if(guest.contact != null && (guest.contact.telephoneNumber != null || guest.contact.emailAddress != null)){
 			tempGuest.contact = guest.contact;
@@ -145,5 +173,7 @@ module.exports = {
 	BOOKING_USER_GROUP,
 	ACCEPTED_TELEPHONE_COUNTRY_CODES,
 	bookingToOutputObj,
-	getBooking
+	getBooking,
+	saveBooking,
+	addBookingHistoryItem
 }

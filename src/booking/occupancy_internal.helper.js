@@ -1,4 +1,5 @@
 const logger = require("../common/logger").logger;
+const customError = require("../common/customError");
 
 const occupancyService = require("../occupancy/occupancy.service");
 
@@ -11,15 +12,18 @@ async function checkAvailability(input, user){
         throw err;
     }
 
-    return result.isAvailable;
+    if(result.isAvailable == false){
+        throw { name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" };
+    }
 }
 
 async function occupyAsset(input, user){
-    try {
-        return await occupancyService.occupyAsset(input, user);
-    } catch (err) {
-        logger.error("Error while calling occupancyService.occupyAsset : ", err);
-        throw err;
+    try{
+        await occupancyService.occupyAsset(input, user);
+    }catch(error){
+        console.log(error);
+        logger.error("Error while calling occupancyService.occupyAsset : ", error);
+        throw error;
     }
 }
 

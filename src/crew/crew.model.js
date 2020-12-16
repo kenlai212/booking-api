@@ -2,9 +2,13 @@
 const mongoose = require("mongoose");
 
 const crewSchema = new mongoose.Schema({
-	name: String,
 	partyId: String,
 	status: String,
+	personalInfo: {
+		name: String,
+		dob: Date,
+		gender: String
+	},
 	contact: {
 		telephoneCountryCode: String,
 		telephoneNumber: String,

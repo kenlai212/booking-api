@@ -57,9 +57,16 @@ function checkLatestEndTime(endTime, utcOffset){
     return true;
 }
 
+function calculateTotalDuration(startTime, endTime){
+    const diffTime = Math.abs(endTime - startTime);
+	const durationByMinutes = Math.ceil(diffTime / (1000 * 60));
+	return Math.round((durationByMinutes / 60) * 2) / 2;
+}
+
 module.exports = {
     checkMimumDuration,
     checkMaximumDuration,
     checkEarliestStartTime,
-    checkLatestEndTime
+    checkLatestEndTime,
+    calculateTotalDuration
 }

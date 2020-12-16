@@ -2,15 +2,64 @@
 const moment = require("moment");
 const Joi = require("joi");
 
+const utility = require("../../common/utility");
 const customError = require("../../common/customError");
-const logger = require("../../common/logger").logger;
-const bookingCommon = require("../booking.common");
-const bookingHistoryHelper = require("../bookingHistory_internal.helper");
 
+const bookingCommon = require("../booking.common");
+const PricingHelper = require("../pricing_internal.helper");
 
 const PAID_STATUS = "PAID";
 const PARTIAL_PAID_STATUS = "PARTIAL_PAID";
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
+
+const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
+const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
+
+async function initBookingInvoice(input, user){
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi
+			.string()
+			.required(),
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
+		bookingType: Joi
+			.string()
+			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	//get booking
+	let booking = await bookingCommon.getBooking(input.bookingId);
+
+	const totalAmountObj = PricingHelper.calculateTotalAmount(input.startTime, input.endTime, input.utcOffset, booking.bookingType);
+	
+	let invoice = new Object();
+	invoice.regularAmount = totalAmountObj.regularAmount;
+	invoice.totalAmount = totalAmountObj.totalAmount;
+
+	if (totalAmountObj.discounts != null && totalAmountObj.discounts.length > 0) {
+		invoice.discounts = totalAmountObj.discounts;
+	}
+
+	invoice.paidAmount = 0;
+	invoice.balance = totalAmountObj.totalAmount;
+	invoice.unitPrice = totalAmountObj.unitPrice;
+	invoice.currency = totalAmountObj.currency;
+	invoice.paymentStatus = AWAITING_PAYMENT_STATUS;
+
+	booking.invoice = invoice
+
+	//update booking record
+	const bookingOutput = await bookingCommon.saveBooking(booking);
+
+	//add history item
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Added invoice ${JSON.stringify(invoice)} to booking(${booking._id.toString()})`, user);
+
+	return bookingOutput;
+}
 
 async function makePayment(input, user) {
 	//validate input data
@@ -26,19 +75,10 @@ async function makePayment(input, user) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//get booking
-	let booking;
-	try{
-		booking = await bookingCommon.getBooking(input.bookingId);
-	}catch(error){
-		throw error;
-	}
+	let booking = await bookingCommon.getBooking(input.bookingId);
 
 	//Validate currency
 	if (input.currency != booking.invoice.currency) {
@@ -77,29 +117,13 @@ async function makePayment(input, user) {
 	}
 	booking.invoice.paymentStatus = paymentStatus;
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save() Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	//update booking record
+	const bookingOutput = await bookingCommon.saveBooking(booking);
 
 	//add history item
-	const addBookingHistoryItemInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: `Payment made ${input.currency} ${input.amount}`
-	}
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Made payment ${JSON.stringify(payment)} to booking(${booking._id.toString()})`, user);
 
-	try {
-		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
-	} catch (err) {
-		logger.error("bookingCommon.addBookingHistoryItem Error", err);
-		logger.error(`Made payment to booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
-	}
-
-	return bookingCommon.bookingToOutputObj(booking);
+	return bookingOutput;
 }
 
 async function applyDiscount(input, user) {
@@ -120,19 +144,10 @@ async function applyDiscount(input, user) {
 			.valid("WEEKDAY_DISCOUNT", "OWNER_DISCOUNT", "VIP_DISCOUNT")
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//get booking
-	let booking;
-	try{
-		booking = await bookingCommon.getBooking(input.bookingId);
-	}catch(error){
-		throw error;
-	}
+	let booking = await bookingCommon.getBooking(input.bookingId);
 
 	//check currency
 	if(booking.invoice.currency != input.currency){
@@ -156,35 +171,21 @@ async function applyDiscount(input, user) {
 	//calculate balance
 	booking.invoice.balance = calculateBalance(booking.invoice.totalAmount, booking.invoice.paidAmount);
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	//update booking record
+	const bookingOutput = await bookingCommon.saveBooking(booking);
 
 	//add history item
-	const addBookingHistoryItemInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: `Applied discount ${input.discountCode} ${input.currency} ${input.amount}`
-	}
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Discount ${JSON.stringify(discount)} applied to booking(${booking._id.toString()})`, user);
 
-	try {
-		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
-	} catch (err) {
-		logger.error("bookingCommon.addBookingHistoryItem Error", err);
-		logger.error(`Discount applied to booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
-	}
-
-	return bookingCommon.bookingToOutputObj(booking);
+	return bookingOutput;
 }
 
+//private function
 function calculateBalance(totalAmount, paidAmount) {
 	return totalAmount - paidAmount;
 }
 
+//private function
 function calculateTotalAmount(regularAmount, discounts) {
 	let totalDiscountAmount = 0;
 
@@ -207,19 +208,10 @@ async function removeDiscount(input, user) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//get booking
-	let booking;
-	try{
-		booking = await bookingCommon.getBooking(input.bookingId);
-	}catch(error){
-		throw error;
-	}
+	let booking = await bookingCommon.getBooking(input.bookingId);
 	
 	//find discount
 	let targetDiscount;
@@ -243,32 +235,17 @@ async function removeDiscount(input, user) {
 	//calculate balance
 	booking.invoice.balance = calculateBalance(booking.invoice.totalAmount, booking.invoice.paidAmount);
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	//update booking record
+	const bookingOutput = await bookingCommon.saveBooking(booking);
 
 	//add history item
-	const addBookingHistoryItemInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: `Removed discount : ${targetDiscount.discountCode}, ${targetDiscount.amount}`
-	}
+	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Removed discount ${JSON.stringify(targetDiscount)} from booking(${booking._id.toString()})`, user);
 
-	try {
-		await bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user);
-	} catch (err) {
-		logger.error("bookingCommon.addBookingHistoryItem Error", err);
-		logger.error(`Removed discount from booking(${booking._id.toString()}), but failed to addHistoryItem. Please trigger addHistoryItem manually. ${JSON.stringify(addBookingHistoryItemInput)}`);
-	}
-
-	return bookingCommon.bookingToOutputObj(booking);
+	return bookingOutput;
 }
 
 module.exports = {
+	initBookingInvoice,
 	makePayment,
 	applyDiscount,
 	removeDiscount

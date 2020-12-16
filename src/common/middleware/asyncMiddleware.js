@@ -6,7 +6,6 @@ module.exports = function (handler) {
 		try {
 			const response = await handler(req, res);
 
-			logger.info("Response Body : " + JSON.stringify(response));
 			res.json(response);
 			res.status(200);
 

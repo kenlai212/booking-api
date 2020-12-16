@@ -28,7 +28,11 @@ const bookingSchema = new mongoose.Schema({
 		paymentStatus: String,
 	},
 	host: {
-		name: String,
+		personalInfo: {
+			name: String,
+			dob: Date,
+			gender: String
+		},
 		contact: {
 			telephoneCountryCode: String,
 			telephoneNumber: String,
@@ -39,9 +43,13 @@ const bookingSchema = new mongoose.Schema({
 		}
 	},
 	guests: [{
-		name: String,
 		disclaimerId: String,
 		signedDisclaimerTimeStamp: Date,
+		personalInfo: {
+			name: String,
+			dob: Date,
+			gender: String
+		},
 		contact: {
 			telephoneCountryCode: String,
 			telephoneNumber: String,
@@ -53,9 +61,13 @@ const bookingSchema = new mongoose.Schema({
 	}],
 	crews: [{
 		crewId: String,
-		name: String,
 		assignmentTime: Date,
 		assignmentBy: String,
+		personalInfo: {
+			name: String,
+			dob: Date,
+			gender: String
+		},
 		contact: {
 			telephoneCountryCode: String,
 			telephoneNumber: String,
