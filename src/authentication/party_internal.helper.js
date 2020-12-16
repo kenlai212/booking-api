@@ -7,7 +7,7 @@ async function getParty(partyId){
     try {
         return await partyService.findParty({ "partyId": partyId }, bookingAPIUser.userObject);
     } catch (error) {
-        logger.error("partyService.getParty() error", error);
+        logger.error("partyService.findParty() error", error);
         throw error;
     }
 }
