@@ -10,9 +10,9 @@ const userSchema = new mongoose.Schema({
 	registrationTime: Date,
 	activationKey: String,
 	resetPasswordKey: String,
-	name: String,
 	groups: [{ type: String }],
 	lastLoginTime: Date,
+	name: String,
 	contact: {
 		telephoneCountryCode: String,
 		telephoneNumber: String,

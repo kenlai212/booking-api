@@ -1,18 +1,78 @@
 "use strict";
 const uuid = require("uuid");
 const Joi = require("joi");
+const uuid = require("uuid");
 const mongoose = require("mongoose");
-const config = require("config");
 const moment = require("moment");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
+const utility = require("../common/utility");
+
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
-const notificationHelper = require("./notification_internal.helper");
 const userHistoryService = require("./userHistory.service");
 
 const USER_ADMIN_GROUP = "USER_ADMIN";
+
+const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
+
+async function createNewUser(input){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.required(),
+		name: Joi
+			.string()
+			.required(),
+		provider: Joi
+			.string()
+			.valid("GOOGLE","FACEBOOK", null),
+		providerUserId: Joi
+			.string()
+			.allow(null),
+	});
+	utility.validateInput(schema, input);
+
+	//save new user
+	let newUser = new User();
+	newUser.name = input.name;
+	newUser.partyId = input.partyId;
+
+	newUser.status = AWAITING_ACTIVATION_STATUS;
+	newUser.registrationTime = moment().toDate();
+	newUser.activationKey = uuid.v4();
+
+	if(input.providerUserId != null && input.providerUserId.length > 0){
+		newUser.provider = input.provider;
+		newUser.providerUserId = providerUserId;
+	}
+
+	try {
+		newUser = await newUser.save();
+	} catch (error) {
+		logger.error("newUser.save() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//init userHistory
+	const historyItem = {
+		userId: newUser._id.toString(),
+		transactionDescription: "New User registered"
+	}
+
+	userHistoryService.initUserHistory(historyItem)
+	.catch(() => {
+		logger.error(`User record(${newUser._id.toString()}) created, but initUserHistory failed ${JSON.stringify(historyItem)}.`);
+	});
+
+	//map to output obj
+	let userOutput = userObjectMapper.toOutputObj(newUser);
+	//add activation key to userOutput
+	userOutput.activationKey = newUser.activationKey;
+
+	return userOutput;
+}
 
 async function findUser(input) {
 	//validate input data
@@ -21,11 +81,7 @@ async function findUser(input) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
@@ -60,11 +116,7 @@ async function findSocialUser(input) {
 			.max(255)
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//find user with provider and providerUserId
 	let user;
@@ -85,74 +137,6 @@ async function findSocialUser(input) {
 	return userObjectMapper.toOutputObj(user);
 }
 
-async function forgetPassword(input) {
-	//validate input data
-	const schema = Joi.object({
-		userId: Joi
-			.string()
-			.required()
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate userId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
-	//find targetUser
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
-	}
-
-	//set resetPasswordKey
-	targetUser.resetPassordKey = uuid.v4();
-
-	//set reset password email
-	const resetPasswordURL = config.get("user.forgetPassword.resetPasswordURL") + targetUser.resetPassordKey;
-	const emailBody = `Follow this <a href="${resetPasswordURL}">link</a> to reset your password`;
-	try {
-		notificationHelper.sendEmail(config.get("user.forgetPassword.systemSenderEmailAddress"), targetUser.emailAddress, emailBody, "Reset Password");
-	} catch (err) {
-		logger.error("notificationHelper.sendEmail Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//save user
-	try {
-		targetUser = await targetUser.save();
-	} catch (err) {
-		logger.error("user.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//save userHistory
-	const historyItem = {
-		targetUserId: targetUser._id.toString(),
-		transactionDescription: "User initiate forget password"
-	}
-
-	try {
-		await userHistoryService.addHistoryItem(historyItem);
-	} catch (err) {
-		logger.error("userHistoryService.addHistoryItem Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return {"result": "SUCCESS"}
-}
-
 async function activate(input) {
 	//validate input data
 	const schema = Joi.object({
@@ -160,11 +144,7 @@ async function activate(input) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//find target user
 	let targetUser;
@@ -202,12 +182,10 @@ async function activate(input) {
 		triggerByUser: targetUser
 	}
 
-	try {
-		await userHistoryService.addHistoryItem(historyItem);
-	} catch (err) {
-		logger.error("userHistoryService.addHistoryItem Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	userHistoryService.addHistoryItem(historyItem)
+	.catch(() => {
+		logger.error(`User(${targetUser._id.toString()}) activated, but failed to addHistoryItem ${JSON.stringify(historyItem)}`);
+	});
 
 	return userObjectMapper.toOutputObj(targetUser);
 }
@@ -219,11 +197,7 @@ async function updateLastLogin(input, user) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	let targetUser;
 	try {
@@ -258,27 +232,13 @@ async function updateLastLogin(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//save userHistory
-	const historyItem = {
-		targetUserId: targetUser._id.toString(),
-		transactionDescription: "Updated user contact",
-		triggerByUser: user
-	}
-
-	try {
-		await userHistoryService.addHistoryItem(historyItem);
-	} catch (err) {
-		logger.error("userHistoryService.addHistoryItem Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
 	return userObjectMapper.toOutputObj(targetUser); 
 }
 
 module.exports = {
+	createNewUser,
 	findUser,
 	findSocialUser,
-	forgetPassword,
 	activate,
 	updateLastLogin
 }

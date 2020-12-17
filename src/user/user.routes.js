@@ -8,10 +8,7 @@ const registrationController = require("./registration.controller");
 const adminController = require("./admin.controller");
 
 const router = express.Router();
-router.post("/user", logIncommingRequest, registrationController.register);
 router.post("/user/social", logIncommingRequest, registrationController.socialRegister);
-
-router.post("/user/forget-password", logIncommingRequest, userController.forgetPassword);
 
 router.put("/user/status/admin", authenticateAccessToken, logIncommingRequest, adminController.editStatus);
 router.post("/user/activation-email", authenticateAccessToken, logIncommingRequest, adminController.resendActivationEmail);

@@ -14,10 +14,6 @@ const findSocialUser = asyncMiddleware(async (req) => {
 	return await userService.findSocialUser(queryObject);
 });
 
-const forgetPassword = asyncMiddleware(async (req) => {
-	return await userService.forgetPassword(req.body);
-});
-
 const activate = asyncMiddleware(async (req) => {
 	return await userService.activate(req.body);
 });
@@ -29,7 +25,6 @@ const updateLastLogin = asyncMiddleware(async (req) => {
 module.exports = {
 	findUser,
 	findSocialUser,
-	forgetPassword,
 	activate,
 	updateLastLogin
 }

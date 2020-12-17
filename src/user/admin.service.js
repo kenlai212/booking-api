@@ -4,6 +4,7 @@ const uuid = require("uuid");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
+const utility = require("../common/utility");
 
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
@@ -25,11 +26,7 @@ async function editStatus(input, user) {
 			.valid(ACTIVE_STATUS, INACTIVE_STATUS)
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
@@ -101,11 +98,7 @@ async function unassignGroup(input, user) {
 			.required()
 		//TODO add more valid groups
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
@@ -179,11 +172,7 @@ async function assignGroup(input, user) {
 			.required()
 		//TODO add more valid groups
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
@@ -279,11 +268,7 @@ async function deleteUser(input, user) {
 			.min(1)
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
@@ -333,11 +318,7 @@ async function resendActivationEmail(input, user) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
