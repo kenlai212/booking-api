@@ -12,21 +12,6 @@ async function getParty(partyId){
     }
 }
 
-async function updateProfile(partyId, profile){
-    const input = {
-        partyId: partyId,
-        profile: profile
-    }
-    
-    try{
-        return await partyService.editProfile(input, bookingAPIUser.userObject);
-    }catch (error){
-        logger.error("partyService.getParty() error", error);
-        throw error;
-    }
-}
-
 module.exports = {
-    getParty,
-    updateProfile
+    getParty
 }

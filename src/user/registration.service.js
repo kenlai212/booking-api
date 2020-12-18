@@ -1,7 +1,4 @@
-const moment = require("moment");
 const Joi = require("joi");
-const {OAuth2Client} = require("google-auth-library");
-const axios = require("axios");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
@@ -10,8 +7,7 @@ const utility = require("../common/utility");
 const User = require("./user.model").User;
 const userService = require("./user.service");
 const partyHelper = require("./party_internal.helper");
-
-const FACEBOOK_GRAPH_API_URL = "https://graph.facebook.com";
+const socialProfileHelper = require("../common/profile/socialProfile.helper");
 
 async function socialRegister(input) {
 	//validate input data
@@ -27,56 +23,24 @@ async function socialRegister(input) {
 	utility.validateInput(schema, input);
 
 	//get user attributes form provider token
-	let providerUserId;
-	let name;
-	let emailAddress;
-	let image;
-	if(input.provider == "GOOGLE"){
-		const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-		let ticket;
-		try{
-			ticket = await client.verifyIdToken({
-				idToken: input.providerToken,
-				audience: process.env.GOOGLE_CLIENT_ID
-			});
-		}catch(error){
-			logger.warn("Google Oauth2Client.verifyIdToken() error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}
-		
-		const payload = ticket.getPayload();
-		
-		//google's payload.aud must match GOOGLE_CLIENT_ID
-		if(payload.aud != process.env.GOOGLE_CLIENT_ID){
-			logger.warn("Someone try to pass a google token with the wrong google Client ID");
-			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid GOOGEL_CLIENT_ID" };
-		}
-
-		providerUserId = payload.sub;
-		name = payload.name;
-		emailAddress = payload.email;
-		image = payload.picture;
-	}
-
-	if(input.provider == "FACEBOOK"){
-		const url = `${FACEBOOK_GRAPH_API_URL}/me?fields=id,name,email,picture&access_token=${input.providerToken}`;
-
-		const response = await axios.get(url);
-		const data = response.data;
-	
-		providerUserId = data.id;
-		name = data.name;
-		emailAddress = data.email;
-		image = data.picture.data.url;
+	let socialProfile;
+	switch(input.provider){
+		case "GOOGLE":
+			socialProfile = await socialProfileHelper.getSocialProfileFromGoogle(input.providerToken);
+			break;
+		case "FACEBOOK":
+			socialProfile = await socialProfileHelper.getSocialProfileFromFacebook(input.providerToken);
+			break;
+		default:
+			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid Profider" };
 	}
 
 	//check if user is already registered
 	try {
 		let existingSocialUser = await User.findOne(
 			{
-				provider: input.provider,
-				providerUserId: providerUserId
+				provider: socialProfile.provider,
+				providerUserId: socialProfile.providerUserId
 			});
 		
 		if (existingSocialUser != null) {
@@ -86,36 +50,44 @@ async function socialRegister(input) {
 		logger.error("User.findOne() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-	
+
 	//save new party
 	const createNewPartyInput = {
 		personalInfo:{
-			name: name
+			name: socialProfile.name
 		},
 		contact:{
-			emailAddress: emailAddress
+			emailAddress: socialProfile.emailAddress
 		},
 		picture:{
-			url: image
+			url: socialProfile.pictureUrl
 		}
 	}
 
-	const party = await partyHelper.createNewParty(createNewPartyInput, null);
+	const newParty = await partyHelper.createNewParty(createNewPartyInput, null);
 
 	//save new user
+	let newUser;
 	const addNewUserInput = {
-		partyId: party.id,
-		name: party.personalInfo.name,
-		provider: input.provider,
-		providerUserId: providerUserId
+		partyId: newParty.id,
+		personalInfo: newParty.personalInfo,
+		contact: newParty.contact,
+		picture: newParty.picture,
+		provider: socialProfile.provider,
+		providerUserId: socialProfile.providerUserId
 	}
 
 	try{
-		return await userService.createNewUser(addNewUserInput);
+		newUser =  await userService.createNewUser(addNewUserInput);
 	}catch(error){
-		logger.error(`Party(${party.id}) create, but addNewUser failed ${JSON.stringify(addNewUserInput)}`);
+		logger.error(`Party(${newParty.id}) create, but addNewUser failed ${JSON.stringify(addNewUserInput)}`);
+
+		//Roll back party
+
 		throw error;
 	}
+
+	return newUser;
 }
 
 module.exports = {

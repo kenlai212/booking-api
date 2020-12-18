@@ -8,12 +8,34 @@ const utility = require("../common/utility");
 
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
-const activationEmailHelper = require("./activationEmail.helper");
 const userHistoryService = require("./userHistory.service");
+const notificationHelper = require("./notification_internal.helper");
 
 const ACTIVE_STATUS = "ACTIVE";
 const INACTIVE_STATUS = "INACTIVE";
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
+
+async function getTargetUser(userId){
+	//validate userId
+	if (mongoose.Types.ObjectId.isValid(userId) == false) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	//get target user
+	let targetUser;
+	try {
+		targetUser = await User.findById(userId);
+	} catch (err) {
+		logger.error("User.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+	}
+
+	if (targetUser == null) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	}
+
+	return targetUser;
+}
 
 async function editStatus(input, user) {
 	//validate input data
@@ -28,23 +50,8 @@ async function editStatus(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//validate userId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
 	//get target user
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
-	}
-
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
+	let targetUser = await getTargetUser(input.userId);
 
 	//update user status
 	targetUser.status = input.status;
@@ -65,12 +72,8 @@ async function editStatus(input, user) {
 		triggerByUser: user
 	}
 
-	try {
-		await userHistoryService.addHistoryItem(historyItem);
-	} catch (err) {
-		logger.error("userHistoryService.addHistoryItem Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	userHistoryService.addHistoryItem(historyItem)
+	.catch(`Edited user(${input.userId}) status to ${input.status}, but failed to addHistoryItem ${JSON.stringify(historyItem)}`);
 
 	return userObjectMapper.toOutputObj(targetUser);
 }
@@ -100,23 +103,8 @@ async function unassignGroup(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//validate userId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
 	//get target user
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
-	}
-
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
+	let targetUser = await getTargetUser(input.userId);
 
 	//remove groupId from targetUSer.groups
 	targetUser.groups.forEach(function (groupId, index, object) {
@@ -139,17 +127,14 @@ async function unassignGroup(input, user) {
 		triggerByUser: user
 	}
 
-	try {
-		await userHistoryService.addHistoryItem(historyItem);
-	} catch (err) {
-		logger.error("userHistoryService.addHistoryItem Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	userHistoryService.addHistoryItem(historyItem)
+	.catch(`Unassigned group ${input.groupId} from user(${input.userId}), but failed to addHistoryItem ${JSON.stringify(historyItem)}`);
 
 	return userObjectMapper.toOutputObj(targetUser);
 }
 
 async function assignGroup(input, user) {
+	
 	//validate input data
 	const schema = Joi.object({
 		userId: Joi
@@ -174,23 +159,8 @@ async function assignGroup(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//validate userId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
 	//get target user
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
-	}
-
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
+	let targetUser = await getTargetUser(input.userId);
 
 	//see if target group already assigned to target user
 	targetUser.groups.forEach(group => {
@@ -216,12 +186,8 @@ async function assignGroup(input, user) {
 		triggerByUser: user
 	}
 
-	try {
-		await userHistoryService.addHistoryItem(historyItem);
-	} catch (err) {
-		logger.error("userHistoryService.addHistoryItem Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	userHistoryService.addHistoryItem(historyItem)
+	.catch(`Assigned group ${input.groupId} from user(${input.userId}), but failed to addHistoryItem ${JSON.stringify(historyItem)}`);
 
 	return userObjectMapper.toOutputObj(targetUser);
 }
@@ -270,23 +236,8 @@ async function deleteUser(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//validate userId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
 	//get target user
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
+	let targetUser = await getTargetUser(input.userId);
 
 	//delete user record
 	try {
@@ -302,11 +253,10 @@ async function deleteUser(input, user) {
 		"triggerByUser": user
 	}
 
-	try {
-		await userHistoryService.deleteUserHistory(deleteUserHistoryInput);
-	} catch (err) {
-		logger.error("userHistoryService.deleteUserHistory() error : ", err);
-	}
+	userHistoryService.deleteUserHistory(deleteUserHistoryInput)
+	.catch(() => {
+		logger.error(`Deleted user ${input.userId}, but failed to deleteUserHistory ${JSON.stringify(deleteUserHistoryInput)}`);
+	});
 	
 	return {"status": "SUCCESS"}
 }
@@ -320,34 +270,13 @@ async function resendActivationEmail(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//validate userId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
 	//get user
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	}
-	catch (err) {
-		logger.error("User.findById error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	let targetUser = await getTargetUser(input.userId);
 
 	//set activation key and set AWAITING_ACTIVATION status
 	targetUser.activationKey = uuid.v4();
 	targetUser.lastUpdateTime = new Date();
 	targetUser.status = AWAITING_ACTIVATION_STATUS;
-
-	//send activation email
-	let sendActivationEmailResult;
-	try {
-		sendActivationEmailResult = activationEmailHelper.sendActivationEmail(targetUser.activationKey, targetUser.emailAddress);
-	} catch (err) {
-		logger.error("this.sendActivationEmail error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
 
 	try {
 		targetUser = await targetUser.save();
@@ -356,6 +285,21 @@ async function resendActivationEmail(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
+	//assemble and send activation email
+	const activationURL = config.get("user.activation.activationURL") + "/" + activationKey;
+    const bodyHTML = "<p>Click <a href='" + activationURL + "'>here</a> to activate your account!</p>";
+	const sendEmailInput = {
+        sender: config.get("user.activation.systemSenderEmailAddress"),
+        recipient: recipient,
+        emailBody: bodyHTML,
+        subject: "GoGoWake Account Activation"
+    }
+
+	notificationHelper.sendEmail(sendEmailInput, user)
+	.catch(() => {
+		logger.error(`Activation Key resetted for user(${input.userId}), but failed to sendEmail ${JSON.stringify(sendEmailInput)}`);
+	});
+
 	//save userHistory
 	const historyItem = {
 		targetUserId: targetUser._id.toString(),
@@ -363,12 +307,10 @@ async function resendActivationEmail(input, user) {
 		triggerByUser: user
 	}
 
-	try {
-		await userHistoryService.addHistoryItem(historyItem);
-	} catch (err) {
-		logger.error("userHistoryService.addHistoryItem Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	userHistoryService.addHistoryItem(historyItem)
+	.catch(() => {
+		logger.error(`Resended activation email to user(${input.userId}), but failed to addHistoryItem ${historyItem}`);	
+	});
 
 	return {"status": "SUCCESS"};
 }

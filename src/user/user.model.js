@@ -12,7 +12,11 @@ const userSchema = new mongoose.Schema({
 	resetPasswordKey: String,
 	groups: [{ type: String }],
 	lastLoginTime: Date,
-	name: String,
+	personalInfo: {
+		name: String,
+		dob: Date,
+		gender: String
+	},
 	contact: {
 		telephoneCountryCode: String,
 		telephoneNumber: String,

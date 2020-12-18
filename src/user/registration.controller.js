@@ -9,6 +9,5 @@ const socialRegister = asyncMiddleware(async (req) => {
 });
 
 module.exports = {
-	socialRegister,
-	register
+	socialRegister
 }

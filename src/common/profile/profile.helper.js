@@ -2,17 +2,11 @@ const Joi = require("joi");
 const moment = require("moment");
 
 const customError = require("../customError");
+const utility = require("../utility");
+
 const { PersonalInfo } = require("./profile.class");
 const { Contact } = require("./profile.class");
 const { Picture } = require("./profile.class");
-
-function validateInput(joiSchema, input){
-	const result = joiSchema.validate(input);
-	
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-}
 
 function validatePersonalInfoInput(input){
 	//validate input data
@@ -36,8 +30,7 @@ function validatePersonalInfoInput(input){
 			.valid("MALE", "FEMALE")
 			.allow(null)
 	});
-
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 
 	if(input.nameRequired == null){
 		input.nameRequired = true;
@@ -69,8 +62,7 @@ function validateContactInput(input){
 			.min(1)
 			.allow(null)
 	});
-
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 }
 
 function validatePictureInput(input){
@@ -81,8 +73,7 @@ function validatePictureInput(input){
 			.min(1)
 			.required()
 	});
-	
-	validateInput(schema, input);
+	utility.validateInput(schema, input);
 }
 
 function setPersonalInfo(input, party){

@@ -1,7 +1,6 @@
 "use strict";
 const uuid = require("uuid");
 const Joi = require("joi");
-const uuid = require("uuid");
 const mongoose = require("mongoose");
 const moment = require("moment");
 
@@ -12,6 +11,7 @@ const utility = require("../common/utility");
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
 const userHistoryService = require("./userHistory.service");
+const profileHelper = require("../common/profile/profile.helper");
 
 const USER_ADMIN_GROUP = "USER_ADMIN";
 
@@ -22,22 +22,43 @@ async function createNewUser(input){
 		partyId: Joi
 			.string()
 			.required(),
-		name: Joi
-			.string()
-			.required(),
 		provider: Joi
 			.string()
 			.valid("GOOGLE","FACEBOOK", null),
 		providerUserId: Joi
 			.string()
 			.allow(null),
+		personalInfo: Joi
+			.object()
+			.required(),
+		contact: Joi
+			.object()
+			.allow(null),
+		picture: Joi
+			.object()
+			.allow(null)	
 	});
 	utility.validateInput(schema, input);
 
 	//save new user
 	let newUser = new User();
-	newUser.name = input.name;
 	newUser.partyId = input.partyId;
+
+	//validate and set personalInfo
+	profileHelper.validatePersonalInfoInput(input.personalInfo);
+	newUser = profileHelper.setPersonalInfo(input.personalInfo, newUser);
+
+	//validate and set contact
+	if(input.contact!= null){
+		profileHelper.validateContactInput(input.contact);
+		newUser = profileHelper.setContact(input.contact, newUser);
+	}
+
+	//validate and set picture
+	if(input.picture != null){
+		profileHelper.validatePictureInput(input.picture);
+		newUser = profileHelper.setPicture(input.picture, newUser);
+	}
 
 	newUser.status = AWAITING_ACTIVATION_STATUS;
 	newUser.registrationTime = moment().toDate();
@@ -45,7 +66,7 @@ async function createNewUser(input){
 
 	if(input.providerUserId != null && input.providerUserId.length > 0){
 		newUser.provider = input.provider;
-		newUser.providerUserId = providerUserId;
+		newUser.providerUserId = input.providerUserId;
 	}
 
 	try {
@@ -178,7 +199,7 @@ async function activate(input) {
 	//save userHistory
 	const historyItem = {
 		targetUserId: targetUser._id.toString(),
-		transactionDescription: "User initiate forget password",
+		transactionDescription: "User activation",
 		triggerByUser: targetUser
 	}
 

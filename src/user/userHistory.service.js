@@ -4,6 +4,8 @@ const mongoose = require("mongoose");
 
 const logger = require("../common/logger").logger;
 const customError = require("../common/customError");
+const utility = require("../common/utility");
+
 const UserHistory = require("./userHistory.model").UserHistory;
 
 async function getUserHistory(input) {
@@ -13,11 +15,7 @@ async function getUserHistory(input) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
@@ -51,11 +49,7 @@ async function initUserHistory(input) {
 		user: Joi
 			.object()
 	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
@@ -111,11 +105,7 @@ async function addHistoryItem(input) {
 		triggerByUser: Joi
 			.object()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate targetUserId
 	if (mongoose.Types.ObjectId.isValid(input.targetUserId) == false) {
@@ -166,11 +156,7 @@ async function deleteUserHistory(input) {
 		triggerByUser: Joi
 			.object()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	//validate targetUserId
 	if (mongoose.Types.ObjectId.isValid(input.targetUserId) == false) {
