@@ -56,9 +56,9 @@ async function addAssignment(input, user) {
 	utility.validateInput(schema, input);
 
 	//find assignmentHistory
-	let targetAssignmentHistroy;
+	let targetAssignmentHistory;
 	try {
-		targetAssignmentHistroy = await getAssignmentHistory(input.crewId);
+		targetAssignmentHistory = await getAssignmentHistory(input.crewId);
 	} catch (err) {
 		if(err.name == customError.RESOURCE_NOT_FOUND_ERROR){
 			//can't find targetAssignmentHistory for this crewId. Call initAssignmentHistory
@@ -81,8 +81,8 @@ async function addAssignment(input, user) {
 	}
 
 	//push new bookingAssignment into assignments
-	if (targetAssignmentHistroy.assignments == null) {
-		targetAssignmentHistroy.assignments = [];
+	if (targetAssignmentHistory.assignments == null) {
+		targetAssignmentHistory.assignments = [];
 	}
 
 	let assignment = {
@@ -91,10 +91,10 @@ async function addAssignment(input, user) {
 		startTime: utility.isoStrToDate(input.startTime, input.utcOffset),
 		endTime: utility.isoStrToDate(input.endTime, input.utcOffset)
 	}
-	targetAssignmentHistroy.assignments.push(assignment);
+	targetAssignmentHistory.assignments.push(assignment);
 
 	//save to db
-	return await saveAssignmentHistory(targetAssignmentHistroy);
+	return await saveAssignmentHistory(targetAssignmentHistory);
 }
 
 async function removeAssignment(input, user) {
@@ -159,7 +159,7 @@ async function initAssignmentHistory(input, user) {
 	assignmentHistory.crewId = input.crewId;
 
 	//save to db
-	return await saveAssignmentHistory(assignmentHistroy);
+	return await saveAssignmentHistory(assignmentHistory);
 }
 
 async function findAssignmentHistory(input, user) {

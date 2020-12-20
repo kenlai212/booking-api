@@ -6,6 +6,8 @@ const utility = require("../common/utility");
 
 const CREW_ADMIN_GROUP = "CREW_ADMIN";
 const CREW_USER_GROUP = "CREW_USER";
+const BOOKING_USER_GROUP = "BOOKING_USER";
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 
 const newCrew = asyncMiddleware(async (req) => {
 	//validate user
@@ -16,14 +18,26 @@ const newCrew = asyncMiddleware(async (req) => {
 
 const findCrew = asyncMiddleware(async (req) => {
 	//validate user
-	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP, CREW_USER_GROUP]);
+	utility.userGroupAuthorization(req.user.groups, 
+		[
+			CREW_ADMIN_GROUP, 
+			CREW_USER_GROUP,
+			BOOKING_USER_GROUP,
+			BOOKING_ADMIN_GROUP
+		]);
 
 	return await crewService.findCrew(req.params, req.user);
 });
 
 const searchCrews = asyncMiddleware(async (req) => {
 	//validate user
-	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.user.groups,
+		[
+			CREW_ADMIN_GROUP, 
+			CREW_USER_GROUP,
+			BOOKING_USER_GROUP,
+			BOOKING_ADMIN_GROUP
+		]);
 
 	const queryObject = url.parse(req.url, true).query;
 	return await crewService.searchCrews(queryObject, req.user);

@@ -129,6 +129,7 @@ function bookingToOutputObj(booking) {
 		tempGuest.id = guest._id.toString();
 		tempGuest.disclaimerId = guest.disclaimerId;
 		tempGuest.signedDisclaimerTimeStamp = guest.signedDisclaimerTimeStamp;
+		
 		tempGuest.personalInfo = guest.personalInfo;
 
 		if(guest.contact != null && (guest.contact.telephoneNumber != null || guest.contact.emailAddress != null)){
@@ -149,10 +150,11 @@ function bookingToOutputObj(booking) {
 		booking.crews.forEach(crew => {
 			let tempCrew = new Object();
 			tempCrew.id = crew.crewId;
-			tempCrew.name = crew.name;
 			tempCrew.assignmentTime = crew.assignmentTime;
 			tempCrew.assignmentBy = crew.assignmentBy;
 	
+			tempCrew.personalInfo = crew.personalInfo;
+
 			if(crew.contact != null && (crew.contact.telephoneNumber != null || crew.contact.emailAddress != null)){
 				tempCrew.contact = crew.contact;
 			}
