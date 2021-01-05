@@ -97,7 +97,8 @@ async function unassignGroup(input, user) {
 				"ASSET_ADMIN",
 				"ASSET_USER",
 				"CREW_ADMIN",
-				"CREW_USER")
+				"CREW_USER",
+				"PARTY_ADMIN")
 			.required()
 		//TODO add more valid groups
 	});
@@ -153,7 +154,8 @@ async function assignGroup(input, user) {
 				"ASSET_ADMIN",
 				"ASSET_USER",
 				"CREW_ADMIN",
-				"CREW_USER")
+				"CREW_USER",
+				"PARTY_ADMIN")
 			.required()
 		//TODO add more valid groups
 	});
@@ -202,7 +204,8 @@ async function searchGroups(input, user) {
 		"ASSET_ADMIN",
 		"ASSET_USER",
 		"CREW_ADMIN",
-		"CREW_USER"]
+		"CREW_USER",
+		"PARTY_ADMIN"]
 }
 
 async function searchUsers(user) {
