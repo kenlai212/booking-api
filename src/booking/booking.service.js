@@ -125,7 +125,7 @@ async function addNewBooking(input, user) {
 			bookingId: bookingOutput.id
 		}
 
-		confirmBooking(confirmBookingInput, user)
+		statusService.confirmBooking(confirmBookingInput, user)
 		.catch(() => {
 			logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to confirmBooking`);
 		});
