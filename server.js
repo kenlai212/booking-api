@@ -17,6 +17,7 @@ const notificationRoutes = require("./src/notification/notification.routes");
 const assetRoutes = require("./src/asset/asset.routes");
 const bookingHistoryRoutes = require("./src/bookingHistory/bookingHistroy.routes");
 const partyRoutes = require("./src/party/party.routes");
+const customerRoutes = require("./src/customer/customer.routes");
 
 const app = express();
 app.use(cors());
@@ -34,6 +35,7 @@ app.use("/", notificationRoutes);
 app.use("/", assetRoutes);
 app.use("/", bookingHistoryRoutes);
 app.use("/", partyRoutes);
+app.use("/", customerRoutes);
 
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {

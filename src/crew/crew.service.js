@@ -108,7 +108,7 @@ async function newCrew(input, user) {
 	utility.validateInput(schema, input);
 
 	//get party
-	let targetParty = await partyHelper.getParty(input.partyId);
+	let targetParty = await partyHelper.getParty(input.partyId, user);
 
 	//check if crew with the same partyId already exist
 	let existingCrew;

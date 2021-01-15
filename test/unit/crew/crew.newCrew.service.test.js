@@ -1,9 +1,8 @@
-const gogowakeCommon = require("gogowake-common");
 const customError = require("../../../src/errors/customError");
 const crewService = require("../../../src/crew/crew.service");
 const Crew = require("../../../src/crew/crew.model").Crew;
 
-describe('Test occupancy.newCrew()', () => {
+describe('Test crewService.newCrew()', () => {
     input = {};
     user = {};
 

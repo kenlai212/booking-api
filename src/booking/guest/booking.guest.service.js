@@ -45,12 +45,16 @@ async function removeGuest(input, user) {
 async function addGuest(input, user) {
 	//validate input data
 	const schema = Joi.object({
+		customerId: Joi
+			.string()
+			.min(1)
+			.allow(null),
 		bookingId: Joi
 			.string()
 			.required(),
 		personalInfo: Joi
 			.object()
-			.required(),
+			.when("customerId", { is: null, then: Joi.required() }),
 		contact: Joi
 			.object()
 			.allow(null),
@@ -79,22 +83,43 @@ async function addGuest(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Guest already exist" };
 	}
 
+	let targetCustomer;
+	if(input.customerId){
+		//customerId provided. This will be an existing customer
+		targetCustomer = await customerHelper.findCustomer(input.customerId);
+
+		if(!targetCustomer){
+			throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
+		}
+
+	}else{
+		//no customerId provided. This will be a new customer
+
+		profileHelper.validatePersonalInfoInput(input.personalInfo);
+
+		if(input.contact){
+			profileHelper.validateContactInput(input.contact);
+		}
+
+		if(input.picture){
+			profileHelper.validatePictureInput(input.picture);
+		}
+
+		const newCustomerInput = {
+			personalInfo: input.personalInfo,
+			contact: input.contact,
+			picture: input.picture
+		}
+
+		targetCustomer = await customerHelper.newCustomer(newCustomerInput);
+	}
+
 	//set guest
 	let guest = new Object();
-
-	//validate profile input
-	profileHelper.validatePersonalInfoInput(input.personalInfo);
-	guest = profileHelper.setPersonalInfo(input.personalInfo, guest);
-
-	if(input.contact != null){
-		profileHelper.validateContactInput(input.contact);
-		guest = profileHelper.setContact(input.contact, guest);
-	}
-
-	if(input.picture != null){
-		profileHelper.validatePictureInput(input.picture);
-		guest = profileHelper.setPicture(input.picture, guest);
-	}
+	guest.customerId = targetCustomer.id;
+	guest.personalInfo = targetCustomer.personalInfo;
+	guest.contact = targetCustomer.contact;
+	guest.picture = targetCustomer.picture;
 	
 	booking.guests.push(guest);
 

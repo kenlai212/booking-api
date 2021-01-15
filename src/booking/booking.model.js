@@ -28,6 +28,7 @@ const bookingSchema = new mongoose.Schema({
 		paymentStatus: String,
 	},
 	host: {
+		customerId: String,
 		personalInfo: {
 			name: String,
 			dob: Date,
@@ -43,6 +44,7 @@ const bookingSchema = new mongoose.Schema({
 		}
 	},
 	guests: [{
+		customerId: String,
 		disclaimerId: String,
 		signedDisclaimerTimeStamp: Date,
 		personalInfo: {

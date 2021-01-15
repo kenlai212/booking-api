@@ -112,6 +112,7 @@ function bookingToOutputObj(booking) {
 	
 	//set host
 	outputObj.host = new Object();
+	outputObj.host.customerId = booking.host.customerId;
 	outputObj.host.personalInfo = booking.host.personalInfo;
 
 	if(booking.host.contact != null && (booking.host.contact.telephoneNumber != null || booking.host.contact.emailAddress != null)){
@@ -127,6 +128,7 @@ function bookingToOutputObj(booking) {
 	booking.guests.forEach(guest => {
 		let tempGuest = new Object();
 		tempGuest.id = guest._id.toString();
+		tempGuest.customerId = guest.customerId;
 		tempGuest.disclaimerId = guest.disclaimerId;
 		tempGuest.signedDisclaimerTimeStamp = guest.signedDisclaimerTimeStamp;
 		

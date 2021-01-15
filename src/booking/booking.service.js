@@ -34,21 +34,24 @@ async function addNewBooking(input, user) {
 			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
 			.required(),
 		crewId: Joi.string().min(1),
-		personalInfo: Joi.object().required(),
+		customerId: Joi.string().min(1).allow(null),
+		personalInfo: Joi.object().when("customerId", { is: null, then: Joi.required() }),
 		contact: Joi.object().allow(null),
 		picture: Joi.object().allow(null)
 	});
 	utility.validateInput(schema, input);
 
 	//validate host data
-	profileHelper.validatePersonalInfoInput(input.personalInfo);
+	if(!input.customerId){
+		profileHelper.validatePersonalInfoInput(input.personalInfo);
 
-	if(input.contact != null){
-		profileHelper.validateContactInput(input.contact);
-	}
-
-	if(input.picture != null){
-		profileHelper.validatePictureInput(input.picture);
+		if(input.contact != null){
+			profileHelper.validateContactInput(input.contact);
+		}
+	
+		if(input.picture != null){
+			profileHelper.validatePictureInput(input.picture);
+		}
 	}
 
 	//validate assetId
@@ -131,9 +134,10 @@ async function addNewBooking(input, user) {
 		});
 	}
 
-	//add host
+	//add host and first guest
 	const addHostInput = {
 		bookingId: bookingOutput.id,
+		customerId: input.customerId,
 		personalInfo: input.personalInfo,
 		contact: input.contact,
 		picture: input.picture
@@ -142,19 +146,6 @@ async function addNewBooking(input, user) {
 	hostService.addHost(addHostInput, user)
 	.catch(() => {
 		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to addHost ${JSON.stringify(addHostInput)}`);
-	});
-
-	//add first guest
-	const addGuestInput = {
-		bookingId: bookingOutput.id,
-		personalInfo: input.personalInfo,
-		contact: input.contact,
-		picture: input.picture
-	}
-
-	guestService.addGuest(addGuestInput, user)
-	.catch(error => {
-		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to addGuest ${JSON.stringify(addGuestInput)}`);
 	});
 
 	//assign crew
