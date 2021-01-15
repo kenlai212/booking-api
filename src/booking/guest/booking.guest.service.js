@@ -6,6 +6,7 @@ const bookingCommon = require("../booking.common");
 const utility = require("../../common/utility");
 
 const profileHelper = require("../../common/profile/profile.helper");
+const customerHelper = require("../customer_internal.helper");
 
 async function removeGuest(input, user) {
 	//validate input data
@@ -45,13 +46,12 @@ async function removeGuest(input, user) {
 async function addGuest(input, user) {
 	//validate input data
 	const schema = Joi.object({
-		customerId: Joi
-			.string()
-			.min(1)
-			.allow(null),
 		bookingId: Joi
 			.string()
 			.required(),
+		customerId: Joi
+			.string()
+			.min(1),
 		personalInfo: Joi
 			.object()
 			.when("customerId", { is: null, then: Joi.required() }),
@@ -69,18 +69,6 @@ async function addGuest(input, user) {
 
 	if (booking.guests == null) {
 		booking.guests = [];
-	}
-
-	//check if guest already exist
-	var foundExistingGuest = false;
-	booking.guests.forEach(guest => {
-		if (guest.name == input.personalInfo.name) {
-			foundExistingGuest = true;
-		}
-	});
-
-	if (foundExistingGuest == true) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Guest already exist" };
 	}
 
 	let targetCustomer;
@@ -112,6 +100,18 @@ async function addGuest(input, user) {
 		}
 
 		targetCustomer = await customerHelper.newCustomer(newCustomerInput);
+	}
+
+	//check if guest already exist
+	var foundExistingGuest = false;
+	booking.guests.forEach(guest => {
+		if (guest.customerId === targetCustomer.id) {
+			foundExistingGuest = true;
+		}
+	});
+
+	if (foundExistingGuest == true) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Guest already exist" };
 	}
 
 	//set guest
