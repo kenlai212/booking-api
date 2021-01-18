@@ -7,6 +7,7 @@ const utility = require("../common/utility");
 
 const Party = require("./party.model").Party;
 const profileHelper = require("../common/profile/profile.helper");
+const partyMq = require("./party.mq");
 
 async function getTargetParty(partyId){
 	//validate partyId
@@ -119,7 +120,18 @@ async function editPersonalInfo(input, user){
 	targetParty = profileHelper.setPersonalInfo(input.personalInfo, targetParty);
 
 	//save to db
-	return saveParty(targetParty);
+	targetParty = await saveParty(targetParty);
+
+	//set targetParty.personalInfo to queue
+	try{
+		partyMq.toEditPersonalInfoQueue(targetParty.personalInfo);
+	}catch(error){
+		console.log(error);
+		logger.err("partyMq.toEditPersonalInfoQueue error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return targetParty;
 }
 
 async function findParty(input, user){
