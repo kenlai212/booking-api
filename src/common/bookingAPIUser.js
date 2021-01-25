@@ -13,7 +13,8 @@ const userObject = {
 		"ASSET_ADMIN",
 		"CREW_ADMIN",
 		"PARTY_ADMIN",
-		"CUSTOMER_ADMIN"]
+		"CUSTOMER_ADMIN",
+		"INVOICE_ADMIN"]
 }
 
 function getAccessToken() {

@@ -7,6 +7,9 @@ const logger = require("../common/logger").logger;
 
 const Booking = require("./booking.model").Booking;
 const bookingHistoryHelper = require("./bookingHistory_internal.helper");
+const customerHelper = require("./customer_internal.helper");
+const crewHelper = require("./crew/crew_internal.helper");
+const bookingAPIUser = require("../common/bookingAPIUser");
 
 //constants for user groups
 const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
@@ -62,7 +65,7 @@ async function getBooking(bookingId){
 	return booking;
 }
 
-function bookingToOutputObj(booking) {
+async function bookingToOutputObj(booking) {
 	var outputObj = new Object();
 	outputObj.id = booking._id.toString();
 	outputObj.bookingType = booking.bookingType;
@@ -71,39 +74,6 @@ function bookingToOutputObj(booking) {
 	outputObj.occupancyId = booking.occupancyId;
 	outputObj.status = booking.status;
 
-	//set invoice
-	outputObj.invoice = new Object();
-	outputObj.invoice.regularAmount = booking.invoice.regularAmount;
-	outputObj.invoice.totalAmount = booking.invoice.totalAmount;
-	outputObj.invoice.balance = booking.invoice.balance;
-	outputObj.invoice.currency = booking.invoice.currency;
-	outputObj.invoice.unitPrice = booking.invoice.unitPrice;
-	outputObj.invoice.paymentStatus = booking.invoice.paymentStatus;
-
-	if (booking.invoice.discounts != null && booking.invoice.discounts.length > 0) {
-		outputObj.invoice.discounts = [];
-
-		booking.invoice.discounts.forEach(discount => {
-			outputObj.invoice.discounts.push({
-				discountId: discount._id.toString(),
-				amount: discount.amount,
-				discountCode: discount.discountCode
-			});
-		});
-	}
-
-	if (booking.invoice.payments != null && booking.invoice.payments.length > 0) {
-		outputObj.invoice.payments = [];
-
-		booking.invoice.payments.forEach(payment => {
-			outputObj.invoice.payments.push({
-				paymentId: payment._id.toString(),
-				amount: payment.amount,
-				paymentCode: payment.paymentCode
-			});
-		});
-	}
-
 	//set time
 	outputObj.startTime = booking.startTime;
 	outputObj.endTime = booking.endTime;
@@ -111,62 +81,73 @@ function bookingToOutputObj(booking) {
 	outputObj.fulfilledHours = booking.fulfilledHours;
 	
 	//set host
-	outputObj.host = new Object();
-	outputObj.host.customerId = booking.host.customerId;
-	outputObj.host.personalInfo = booking.host.personalInfo;
-
-	if(booking.host.contact != null && (booking.host.contact.telephoneNumber != null || booking.host.contact.emailAddress != null)){
-		outputObj.host.contact = booking.host.contact;
-	}
+	if(booking.host && booking.host.customerId){
+		outputObj.host = new Object();
+		outputObj.host.customerId = booking.host.customerId;
 	
-	if(booking.host.picture != null && booking.host.picture.url != null){
-		outputObj.host.picture = booking.host.picture;
+		let targetCustomer;
+		try{
+			targetCustomer = await customerHelper.findCustomer({id: booking.host.customerId}, bookingAPIUser.userObject);
+		}catch(error){
+			logger.error("booking.common.bookingToOutputObj() customerHelper.findCustomer", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
+		
+		outputObj.host.personalInfo = targetCustomer.personalInfo;
+		outputObj.host.contact = targetCustomer.contact;
+		outputObj.host.picture = targetCustomer.picture;
 	}
 
 	//set guests
-	outputObj.guests = [];
-	booking.guests.forEach(guest => {
-		let tempGuest = new Object();
-		tempGuest.id = guest._id.toString();
-		tempGuest.customerId = guest.customerId;
-		tempGuest.disclaimerId = guest.disclaimerId;
-		tempGuest.signedDisclaimerTimeStamp = guest.signedDisclaimerTimeStamp;
-		
-		tempGuest.personalInfo = guest.personalInfo;
+	if(booking.guests){
+		outputObj.guests = [];
+		for(const guest of booking.guests){
+			let tempGuest = new Object();
+			tempGuest.id = guest._id.toString();
+			tempGuest.customerId = guest.customerId;
+			tempGuest.disclaimerId = guest.disclaimerId;
+			tempGuest.signedDisclaimerTimeStamp = guest.signedDisclaimerTimeStamp;
+			
+			let targetCustomer;
+			try{
+				targetCustomer = await customerHelper.findCustomer({id: guest.customerId}, bookingAPIUser.userObject);
+			}catch(error){
+				logger.error("booking.common.bookingToOutputObj() customerHelper.findCustomer", error);
+				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+			}
+	
+			tempGuest.personalInfo = targetCustomer.personalInfo;
+			tempGuest.contact = targetCustomer.contact;
+			tempGuest.picture = targetCustomer.picture;
 
-		if(guest.contact != null && (guest.contact.telephoneNumber != null || guest.contact.emailAddress != null)){
-			tempGuest.contact = guest.contact;
+			outputObj.guests.push(tempGuest);
 		}
-		
-		if(guest.picture != null && guest.picture.url != null){
-			tempGuest.picture = guest.picture;
-		}
-
-		outputObj.guests.push(tempGuest);
-	})
-
+	}
+	
 	//set crews
-	if (booking.crews != null && booking.crews.length > 0) {
+	if (booking.crews && booking.crews.length > 0) {
 		outputObj.crews = [];
 
-		booking.crews.forEach(crew => {
+		for(const crew of booking.crews){
 			let tempCrew = new Object();
 			tempCrew.id = crew.crewId;
 			tempCrew.assignmentTime = crew.assignmentTime;
 			tempCrew.assignmentBy = crew.assignmentBy;
 	
-			tempCrew.personalInfo = crew.personalInfo;
+			let targetCrew;
+			try{
+				targetCrew = await crewHelper.getCrew(crew.crewId);
+			}catch(error){
+				logger.error("booking.common.bookingToOutputObj() crewHelper.getCrew", err);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+			}
 
-			if(crew.contact != null && (crew.contact.telephoneNumber != null || crew.contact.emailAddress != null)){
-				tempCrew.contact = crew.contact;
-			}
-			
-			if(crew.picture != null && crew.picture.url != null){
-				tempCrew.picture = crew.picture;
-			}
+			tempCrew.personalInfo = targetCrew.personalInfo;
+			tempCrew.contact = targetCrew.contact;
+			tempCrew.picture = targetCrew.picture;
 
 			outputObj.crews.push(tempCrew);
-		});
+		}
 	}
 
 	return outputObj;

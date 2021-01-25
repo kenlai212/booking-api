@@ -108,9 +108,6 @@ async function assignCrew(input, user) {
 
 	targetBooking.crews.push({
 		crewId: targetCrew.id,
-		personalInfo: targetCrew.personalInfo,
-		contact: targetCrew.contact,
-		picture: targetCrew.picture,
 		assignmentTime: moment().toDate(),
 		assignmentBy: user.id
 	});

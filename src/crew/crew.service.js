@@ -48,16 +48,23 @@ async function saveCrew(crew){
 async function findCrew(input, user) {
 	//validate input data
 	const schema = Joi.object({
-		crewId: Joi
+		id: Joi
 			.string()
+			.min(1)
 			.required()
 	});
 	utility.validateInput(schema, input);
 
-	//check for valid crewId
-	const targetCrew = await getTargetCrew(input.crewId);
+	//try findById first. If nothing try findOne by partyId
+	let targetCrew = await Crew.findById(input.id);
+	
+	if(!targetCrew)
+		targetCrew = await Crew.findOne({partyId: input.id});
 
-	return crewToOutputObj(targetCrew);
+	if(targetCrew)
+		return crewToOutputObj(targetCrew);
+	else
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "No crew found" }
 }
 
 async function searchCrews(input, user) {
@@ -233,7 +240,23 @@ async function editPersonalInfo(input, user) {
 	targetCrew = profileHelper.setPersonalInfo(input.personalInfo, targetCrew);
 
 	//save record
-	return await saveCrew(targetCrew);
+	targetCrew = await saveCrew(targetCrew);
+
+	//publish edit crew personal info event to queue
+	try{
+		partyMq.toEditPersonalInfoQueue(targetParty);
+	}catch(error){
+		console.log(error);
+		logger.err("partyMq.toEditPersonalInfoQueue error : ", error);
+
+		//rolling back personalInfo
+		targetParty = profileHelper.setPersonalInfo(oldPersonalInfo, targetParty);
+		await saveParty(targetParty);
+
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return targetCrew;
 }
 
 async function editContact(input, user) {

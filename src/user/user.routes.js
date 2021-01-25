@@ -17,8 +17,11 @@ router.put("/user/groups", authenticateAccessToken, logIncommingRequest, adminCo
 router.delete("/user/groups/:userId/:groupId", authenticateAccessToken, logIncommingRequest, adminController.unassignGroup);
 router.delete("/user/:userId", authenticateAccessToken, logIncommingRequest, adminController.deleteUser);
 router.get("/groups", authenticateAccessToken, logIncommingRequest, adminController.searchGroups);
+router.put("/user/personal-info", authenticateAccessToken, logIncommingRequest, userController.editPersonalInfo);
+router.put("/user/contact", authenticateAccessToken, logIncommingRequest, userController.editContact);
+router.put("/user/picture", authenticateAccessToken, logIncommingRequest, userController.editPicture);
 
-router.get("/user", authenticateAccessToken, logIncommingRequest, userController.findUser);
+router.get("/user/:id", authenticateAccessToken, logIncommingRequest, userController.findUser);
 router.get("/user/social", authenticateAccessToken, logIncommingRequest, userController.findSocialUser);
 router.put("/user/activate", logIncommingRequest, userController.activate);
 router.put("/user/last-login", logIncommingRequest, userController.updateLastLogin);

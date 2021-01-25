@@ -5,7 +5,7 @@ const crewService = require("../../crew/crew.service");
 
 async function getCrew(crewId) {
     try {
-        return await crewService.findCrew({ "crewId": crewId }, bookingAPIUser.userObject);
+        return await crewService.findCrew({ "id": crewId }, bookingAPIUser.userObject);
     } catch (err) {
         console.log(err);
         logger.error("crewService.findCrew error : ", err);

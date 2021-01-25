@@ -49,14 +49,37 @@ async function findCustomer(input, user) {
 
 	//validate input data
 	const schema = Joi.object({
-		customerId: Joi
+		id: Joi
 			.string()
 			.required()
 	});
 	utility.validateInput(schema, input);
 
-	//check for valid customerId
-	const targetCustomer = await getTargetCustomer(input.customerId);
+	if (!mongoose.Types.ObjectId.isValid(input.id))
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
+
+	let targetCustomer;
+
+	//try to find targetCustomer by id first
+	try {
+		targetCustomer = await Customer.findById(input.id);
+	} catch (err) {
+		logger.error("Customer.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
+	//if no targetCustomer found, try to find by partyId 
+	if(!targetCustomer){
+		try {
+			targetCustomer = await Customer.findOne({partyId : input.id});
+		} catch (err) {
+			logger.error("Customer.findOne Error : ", err);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
+	}
+
+	if(!targetCustomer)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
 
 	return customerToOutputObj(targetCustomer);
 }

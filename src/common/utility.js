@@ -1,6 +1,9 @@
+const amqp = require('amqplib/callback_api');
 const moment = require("moment");
 
 const customError = require("./customError");
+
+require("dotenv").config();
 
 function isoStrToDate(isoStr, utcOffset) {
 	const dateStr = isoStr.substr(0, 10);
@@ -44,8 +47,35 @@ function userGroupAuthorization(userGroups, allowGroups){
     }
 }
 
+function publishEvent(eventObj, queue){
+    amqp.connect(process.env.AMQP_URL, function(error0, connection) {
+        if (error0) {
+            throw error0;
+        }
+        
+        connection.createChannel(function(error1, channel) {
+            if (error1) {
+                throw error1;
+            }
+            
+            var msg = JSON.stringify(eventObj);
+
+            channel.assertQueue(queue, {
+                durable: true
+            });
+
+            channel.sendToQueue(queue, Buffer.from(msg));
+        });
+
+        setTimeout(function() {
+            connection.close();
+        }, 500);
+    });
+}
+
 module.exports = {
 	isoStrToDate,
 	validateInput,
-	userGroupAuthorization
+	userGroupAuthorization,
+	publishEvent
 }

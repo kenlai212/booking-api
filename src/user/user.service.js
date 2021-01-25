@@ -17,6 +17,40 @@ const USER_ADMIN_GROUP = "USER_ADMIN";
 
 const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
 
+//private function
+async function getTargetUser(userId){
+	if (mongoose.Types.ObjectId.isValid(userId) == false) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid userId" };
+	}
+
+	let user;
+	try {
+		user = await User.findById(userId);
+	} catch (err) {
+		logger.error("User.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+	
+	if (user == null) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid userId" };
+	}
+
+	return user;
+}
+
+//private function
+async function saveUser(user){
+	//save to db
+	try {
+		user = await user.save();
+	} catch (err) {
+		logger.error("user.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return userObjectMapper.toOutputObj(user);
+}
+
 async function createNewUser(input){
 	const schema = Joi.object({
 		partyId: Joi
@@ -98,27 +132,35 @@ async function createNewUser(input){
 async function findUser(input) {
 	//validate input data
 	const schema = Joi.object({
-		userId: Joi
+		id: Joi
 			.string()
 			.required()
 	});
 	utility.validateInput(schema, input);
 
 	//validate userId
-	if (mongoose.Types.ObjectId.isValid(input.userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
+	if (mongoose.Types.ObjectId.isValid(input.id) == false)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid id" };
 
 	let user;
 	try {
-		user = await User.findById(input.userId);
+		user = await User.findById(input.id);
 	} catch (err) {
 		logger.error("User.findById() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (user == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND, message: "No user found" };
+	if(!user){
+		try{
+			user = await User.findOne({partyId : input.id});
+		} catch(error){
+			logger.error("User.findOne() error : ", err);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		}
+	}
+
+	if (!user) {
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "No user found" };
 	}
 
 	return userObjectMapper.toOutputObj(user);
@@ -168,7 +210,6 @@ async function activate(input) {
 	utility.validateInput(schema, input);
 
 	//find target user
-	let targetUser;
 	try {
 		targetUser = await User.findOne({
 			"activationKey": input.activationKey
@@ -220,17 +261,7 @@ async function updateLastLogin(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let targetUser;
-	try {
-		targetUser = await User.findById(input.userId);
-	} catch (err) {
-		logger.error("User.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid userId" };
-	}
+	let targetUser = await getTargetUser(input.userId);
 
 	//check for authorization. if USER_ADMIN or user.id is same as targetUser._id
 	let authorize = false;
@@ -256,10 +287,93 @@ async function updateLastLogin(input, user) {
 	return userObjectMapper.toOutputObj(targetUser); 
 }
 
+async function editPersonalInfo(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.min(1)
+			.required(),
+		personalInfo: Joi
+			.object()
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	//validate personalInfo input. Set nameRequired to false because this is only an edit
+	//maybe user only wants to edit birthday or gender
+	input.personalInfo.nameRequired = false;
+	profileHelper.validatePersonalInfoInput(input.personalInfo);
+
+	//get target user
+	let targetUser = await getTargetUser(input.userId);
+	
+	//set personalInfo attributes
+	targetUser = profileHelper.setPersonalInfo(input.personalInfo, targetUser);
+
+	//save record
+	return await saveUser(targetUser);
+}
+
+async function editContact(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.min(1)
+			.required(),
+		contact: Joi
+			.object()
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	//validate user input
+	profileHelper.validateContactInput(input.contact);
+
+	//get target crew
+	let targetUser = await getTargetUser(input.userId);
+
+	//set contact attributes
+	targetUser = profileHelper.setContact(input.contact, targetUser);
+
+	//save record
+	return await saveUser(targetUser);
+}
+
+async function editPicture(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.min(1)
+			.required(),
+		picture: Joi
+			.object()
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	//validate picture input
+	profileHelper.validatePictureInput(input.picture);
+
+	//get target user
+	let targetUser = await getTargetCrew(input.userId);
+
+	//set pictuer attributes
+	targetUser = profileHelper.setPicture(input.picture, targetUser);
+
+	//save record
+	return await saveCrew(targetUser);
+}
+
 module.exports = {
 	createNewUser,
 	findUser,
 	findSocialUser,
 	activate,
-	updateLastLogin
+	updateLastLogin,
+	editPersonalInfo,
+	editContact,
+	editPicture
 }

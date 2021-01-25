@@ -74,7 +74,7 @@ async function addGuest(input, user) {
 	let targetCustomer;
 	if(input.customerId){
 		//customerId provided. This will be an existing customer
-		targetCustomer = await customerHelper.findCustomer(input.customerId);
+		targetCustomer = await customerHelper.findCustomer({id: input.customerId}, user);
 
 		if(!targetCustomer){
 			throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
@@ -117,9 +117,6 @@ async function addGuest(input, user) {
 	//set guest
 	let guest = new Object();
 	guest.customerId = targetCustomer.id;
-	guest.personalInfo = targetCustomer.personalInfo;
-	guest.contact = targetCustomer.contact;
-	guest.picture = targetCustomer.picture;
 	
 	booking.guests.push(guest);
 
@@ -132,52 +129,7 @@ async function addGuest(input, user) {
 	return bookingOutput;
 }
 
-async function editPersonalInfo(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required(),
-		guestId: Joi
-			.string()
-			.required(),
-		personalInfo: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate personalInfo input
-	profileHelper.validatePersonalInfoInput(input.profile, false);
-
-	//get booking
-	let booking = await bookingCommon.getBooking(input.bookingId);
-
-	let targetGuest;
-	booking.guests.forEach(guest => {
-		if (guest._id == input.guestId) {
-			//set personalInfo
-			guest = profileHelper.setPersonalInfo(input.personalInfo, guest);
-
-			targetGuest = guest;
-		}
-	});
-
-	if (targetGuest == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid guestId" };
-	}
-
-	//update booking record
-	const bookingOutput = bookingCommon.saveBooking(booking);
-
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Updated guest personalInfo ${JSON.stringify(targetGuest)} from booking(${bookingOutput.id})`, user);
-
-	return bookingOutput;
-}
-
 module.exports = {
 	addGuest,
-	removeGuest,
-	editPersonalInfo
+	removeGuest
 }

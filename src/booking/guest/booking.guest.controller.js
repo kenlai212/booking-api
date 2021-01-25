@@ -25,18 +25,7 @@ const addGuest = asyncMiddleware(async (req) => {
 	return await guestService.addGuest(req.body, req.user);
 });
 
-const editPersonalInfo = asyncMiddleware(async (req) => {
-	//validate user
-	utility.userGroupAuthorization(req.user.groups, [
-		bookingCommon.BOOKING_ADMIN_GROUP,
-		bookingCommon.BOOKING_USER_GROUP
-	]);
-
-	return await guestService.editPersonalInfo(req.body, req.user);
-});
-
 module.exports = {
 	addGuest,
-	removeGuest,
-	editPersonalInfo
+	removeGuest
 }

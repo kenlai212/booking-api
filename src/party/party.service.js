@@ -7,7 +7,6 @@ const utility = require("../common/utility");
 
 const Party = require("./party.model").Party;
 const profileHelper = require("../common/profile/profile.helper");
-const partyMq = require("./party.mq");
 
 async function getTargetParty(partyId){
 	//validate partyId
@@ -87,11 +86,30 @@ async function editContact(input, user){
 	//get target party
 	let targetParty = await getTargetParty(input.partyId);
 
+	//instantiate old contact incase we need to rollback
+	const oldContact = Object.assign({}, targetParty.contact);
+
 	//set contact attributes
 	targetParty = profileHelper.setContact(input.contact, targetParty);
 
 	//save to db
-	return saveParty(targetParty);
+	targetParty = await saveParty(targetParty);
+
+	//publish edit targetParty.contact event
+	try{
+		utility.publishEvent(targetParty, "editPartyPersonalInfo");
+	}catch(error){
+		console.log(error);
+		logger.err("utility.publishEvent error : ", error);
+
+		//rolling back contact
+		targetParty = profileHelper.setContact(oldContact, targetParty);
+		await saveParty(targetParty);
+
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return targetParty;
 }
 
 async function editPersonalInfo(input, user){
@@ -107,7 +125,8 @@ async function editPersonalInfo(input, user){
 	});
 	utility.validateInput(schema, input);
 
-	//set personalInfo.nameRequired = false
+	//set personalInfo.nameRequired = false because this is only editing
+	//maybe only editing birthday or gender
 	input.personalInfo.nameRequired = false;
 
 	//validate personalInfo input
@@ -116,18 +135,26 @@ async function editPersonalInfo(input, user){
 	//get target party
 	let targetParty = await getTargetParty(input.partyId);
 
+	//instantiate old personalInfo incase we need to rollback
+	const oldPersonalInfo = Object.assign({}, targetParty.personalInfo);
+
 	//set personalInfo attributes
 	targetParty = profileHelper.setPersonalInfo(input.personalInfo, targetParty);
 
 	//save to db
 	targetParty = await saveParty(targetParty);
 
-	//set targetParty.personalInfo to queue
+	//publish edit party personal info event
 	try{
-		partyMq.toEditPersonalInfoQueue(targetParty.personalInfo);
+		utility.publishEvent(targetParty, "editPartyContact");
 	}catch(error){
 		console.log(error);
-		logger.err("partyMq.toEditPersonalInfoQueue error : ", error);
+		logger.err("utility.publishEvent error : ", error);
+
+		//rolling back personalInfo
+		targetParty = profileHelper.setPersonalInfo(oldPersonalInfo, targetParty);
+		await saveParty(targetParty);
+
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 

@@ -8,7 +8,7 @@ const customerController = require("./customer.controller");
 const router = express.Router();
 router.post("/customer", logIncommingRequest, authenticateAccessToken, customerController.newCustomer);
 router.get("/customers", logIncommingRequest, authenticateAccessToken, customerController.searchCustomers);
-router.get("/customer/:customerId", logIncommingRequest, authenticateAccessToken, customerController.findCustomer);
+router.get("/customer/:id", logIncommingRequest, authenticateAccessToken, customerController.findCustomer);
 router.delete("/customer/:customerId", logIncommingRequest, authenticateAccessToken, customerController.deleteCustomer);
 router.put("/customer/status", logIncommingRequest, authenticateAccessToken, customerController.editStatus);
 router.put("/customer/personal-info", logIncommingRequest, authenticateAccessToken, customerController.editPersonalInfo);

@@ -9,7 +9,7 @@ const assignmentHistoryController = require("./assignmentHistory.controller");
 const router = express.Router();
 router.post("/crew", logIncommingRequest, authenticateAccessToken, crewController.newCrew);
 router.get("/crews", logIncommingRequest, authenticateAccessToken, crewController.searchCrews);
-router.get("/crew/:crewId", logIncommingRequest, authenticateAccessToken, crewController.findCrew);
+router.get("/crew/:id", logIncommingRequest, authenticateAccessToken, crewController.findCrew);
 router.delete("/crew/:crewId", logIncommingRequest, authenticateAccessToken, crewController.deleteCrew);
 router.put("/crew/status", logIncommingRequest, authenticateAccessToken, crewController.editStatus);
 router.put("/crew/personal-info", logIncommingRequest, authenticateAccessToken, crewController.editPersonalInfo);

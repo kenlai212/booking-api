@@ -12,8 +12,6 @@ const profileHelper = require("../common/profile/profile.helper");
 
 const Booking = require("./booking.model").Booking;
 const hostService = require("./host/booking.host.service");
-const guestService = require("./guest/booking.guest.service");
-const invoiceService = require("./invoice/booking.invoice.service");
 const statusService = require("./status/booking.status.service");
 const bookingCrewService = require("./crew/booking.crew.service");
 const occupancyHelper = require("./occupancy_internal.helper");
@@ -34,24 +32,25 @@ async function addNewBooking(input, user) {
 			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
 			.required(),
 		crewId: Joi.string().min(1),
-		customerId: Joi.string().min(1).allow(null),
+		customerId: Joi.string().allow(null),
 		personalInfo: Joi.object().when("customerId", { is: null, then: Joi.required() }),
 		contact: Joi.object().allow(null),
 		picture: Joi.object().allow(null)
 	});
 	utility.validateInput(schema, input);
 
+	if(!input.customerId && !input.personalInfo)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "customerId or personalInfo in mandatory" };
+
 	//validate host data
 	if(!input.customerId){
 		profileHelper.validatePersonalInfoInput(input.personalInfo);
 
-		if(input.contact != null){
+		if(input.contact)
 			profileHelper.validateContactInput(input.contact);
-		}
 	
-		if(input.picture != null){
+		if(input.picture)
 			profileHelper.validatePictureInput(input.picture);
-		}
 	}
 
 	//validate assetId
@@ -122,6 +121,19 @@ async function addNewBooking(input, user) {
 		logger.error(`Booking(${bookingOutput.id}) recorded, but failed to occupyAsset. Please trigger occupyAsset manually ${JSON.stringify(occupyAssetInput)}`);
 	});
 
+	//publish newBooking event
+	try{
+		utility.publishEvent(bookingOutput, "newBooking");
+	}catch(error){
+		console.log(error);
+		logger.err("utility.publishEvent error : ", error);
+
+		//TODO rolling back booking and occupancy
+		
+
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
 	//confirm booking if it is a OWNER_BOOKING
 	if (input.bookingType == OWNER_BOOKING_TYPE) {
 		const confirmBookingInput = {
@@ -142,12 +154,12 @@ async function addNewBooking(input, user) {
 		contact: input.contact,
 		picture: input.picture
 	}
-
+	
 	hostService.addHost(addHostInput, user)
 	.catch(() => {
 		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to addHost ${JSON.stringify(addHostInput)}`);
 	});
-
+	
 	//assign crew
 	if (input.crewId != null) {
 		const assignCrewInput = {
@@ -161,6 +173,7 @@ async function addNewBooking(input, user) {
 		});
 	}
 
+	/*
 	//init bookingInvoice
 	const initInvoiceInput = {
 		bookingId: bookingOutput.id,
@@ -175,7 +188,6 @@ async function addNewBooking(input, user) {
 		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to initInvoice ${JSON.stringify(initInvoiceInput)}`);
 	});
 
-	/*
 	//send notification to admin
 	if (config.get("booking.newBookingAdminNotification.send") == true) {
 		try {

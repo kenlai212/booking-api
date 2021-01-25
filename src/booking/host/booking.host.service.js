@@ -37,7 +37,7 @@ async function addHost(input, user){
 	let targetCustomer;
 	if(input.customerId){
 		//customerId provided. This will be an existing customer
-		targetCustomer = await customerHelper.findCustomer(input.customerId);
+		targetCustomer = await customerHelper.findCustomer({id: input.customerId}, user);
 
 		if(!targetCustomer){
 			throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
@@ -62,14 +62,11 @@ async function addHost(input, user){
 			picture: input.picture
 		}
 
-		targetCustomer = await customerHelper.newCustomer(newCustomerInput);
+		targetCustomer = await customerHelper.newCustomer(newCustomerInput, user);
 	}
 
 	let host = new Object();
 	host.customerId = targetCustomer.id;
-	host.personalInfo = targetCustomer.personalInfo;
-	host.contact = targetCustomer.contact;
-	host.picture = targetCustomer.picture;
 
 	booking.host = host;
 
@@ -81,9 +78,6 @@ async function addHost(input, user){
 	//set guest
 	let guest = new Object();
 	guest.customerId = targetCustomer.id;
-	guest.personalInfo = targetCustomer.personalInfo;
-	guest.contact = targetCustomer.contact;
-	guest.picture = targetCustomer.picture;
 	
 	booking.guests.push(guest);
 
@@ -96,38 +90,6 @@ async function addHost(input, user){
 	return bookingOutput;
 }
 
-async function editPersonalInfo(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.min(1)
-			.required(),
-		personalInfo: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate profile input
-	profileHelper.validatePersonalInfoInput(input.personalInfo, false);
-
-	//get booking
-	let booking = await bookingCommon.getBooking(input.bookingId);
-	
-	//set host personalInfo attributes
-	booking.host = profileHelper.setPersonalInfo(input.personalInfo, booking.host);
-
-	//update booking record
-	const bookingOutput = await bookingCommon.saveBooking(booking);
-
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Updated booking(${bookingOutput.id}) host personalInfo ${JSON.stringify(personalInfo)}`, user);
-
-	return bookingOutput;
-}
-
 module.exports = {
-	addHost,
-	editPersonalInfo
+	addHost
 }

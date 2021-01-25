@@ -1,10 +1,7 @@
 const customerService = require("../customer/customer.service");
+const logger = require("../common/logger").logger;
 
-async function findCustomer(customerId, user){
-    const input={
-        customerId: customerId
-    }
-
+async function findCustomer(input, user){
     try{
         return await customerService.findCustomer(input, user);
     }catch(error){
@@ -14,7 +11,7 @@ async function findCustomer(customerId, user){
     }
 }
 
-async function newCustomer(){
+async function newCustomer(input, user){
     try{
         return await customerService.newCustomer(input, user);
     }catch(error){
