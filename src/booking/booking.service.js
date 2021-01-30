@@ -1,4 +1,5 @@
 "use strict";
+const uuid = require('uuid');
 const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
@@ -20,7 +21,7 @@ const occupancyHelper = require("./occupancy_internal.helper");
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
 const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
 
-async function addNewBooking(input, user) {
+async function bookNow(input, user) {
 	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
@@ -85,26 +86,8 @@ async function addNewBooking(input, user) {
 	if (startTime < moment().toDate() || endTime < moment().toDate()) {
 		throw{ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be in the past" };
 	}
-	
-	//check availability
-	const checkAvailabilityInput = {
-		startTime: input.startTime,
-		endTime: input.endTime,
-		utcOffset: input.utcOffset,
-		assetId: input.assetId
-	}
 
-	await occupancyHelper.checkAvailability(checkAvailabilityInput, user);
-
-	//init booking object
-	const initBookingInput = {
-		startTime: startTime,
-		endTime: endTime,
-		bookingType: input.bookingType,
-		assetId: input.assetId
-	}
-
-	let bookingOutput = await statusService.initBooking(initBookingInput, user);
+	const bookingId = uuid.v4();
 
 	//save occupancy record
 	const occupyAssetInput = {
@@ -112,104 +95,76 @@ async function addNewBooking(input, user) {
 		endTime: input.endTime,
 		utcOffset: input.utcOffset,
 		assetId: input.assetId,
-		bookingId: bookingOutput.id,
+		bookingId: bookingId,
 		bookingType: input.bookingType
 	}
-
-	occupancyHelper.occupyAsset(occupyAssetInput)
-	.catch(() => {
-		logger.error(`Booking(${bookingOutput.id}) recorded, but failed to occupyAsset. Please trigger occupyAsset manually ${JSON.stringify(occupyAssetInput)}`);
-	});
+	await occupancyHelper.occupyAsset(occupyAssetInput);
 
 	//publish newBooking event
+	input.bookingId = bookingId;
+
 	try{
-		utility.publishEvent(bookingOutput, "newBooking");
+		utility.publishEvent(input, "newBooking");
 	}catch(error){
 		console.log(error);
 		logger.err("utility.publishEvent error : ", error);
 
-		//TODO rolling back booking and occupancy
-		
+		//TODO rolling occupancy		
 
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//confirm booking if it is a OWNER_BOOKING
-	if (input.bookingType == OWNER_BOOKING_TYPE) {
-		const confirmBookingInput = {
-			bookingId: bookingOutput.id
-		}
+	//init booking object
+	// const initBookingInput = {
+	// 	bookingId: bookingId,
+	// 	startTime: startTime,
+	// 	endTime: endTime,
+	// 	bookingType: input.bookingType,
+	// 	assetId: input.assetId
+	// }
 
-		statusService.confirmBooking(confirmBookingInput, user)
-		.catch(() => {
-			logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to confirmBooking`);
-		});
-	}
+	// let bookingOutput = await statusService.initBooking(initBookingInput, user);
 
-	//add host and first guest
-	const addHostInput = {
-		bookingId: bookingOutput.id,
-		customerId: input.customerId,
-		personalInfo: input.personalInfo,
-		contact: input.contact,
-		picture: input.picture
-	}
+	// //confirm booking if it is a OWNER_BOOKING
+	// if (input.bookingType == OWNER_BOOKING_TYPE) {
+	// 	const confirmBookingInput = {
+	// 		bookingId: bookingOutput.id
+	// 	}
+
+	// 	statusService.confirmBooking(confirmBookingInput, user)
+	// 	.catch(() => {
+	// 		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to confirmBooking`);
+	// 	});
+	// }
+
+	// //add host and first guest
+	// const addHostInput = {
+	// 	bookingId: bookingOutput.id,
+	// 	customerId: input.customerId,
+	// 	personalInfo: input.personalInfo,
+	// 	contact: input.contact,
+	// 	picture: input.picture
+	// }
 	
-	hostService.addHost(addHostInput, user)
-	.catch(() => {
-		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to addHost ${JSON.stringify(addHostInput)}`);
-	});
+	// hostService.addHost(addHostInput, user)
+	// .catch(() => {
+	// 	logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to addHost ${JSON.stringify(addHostInput)}`);
+	// });
 	
-	//assign crew
-	if (input.crewId != null) {
-		const assignCrewInput = {
-			bookingId: bookingOutput.id, 
-			crewId: input.crewId
-		}
+	// //assign crew
+	// if (input.crewId != null) {
+	// 	const assignCrewInput = {
+	// 		bookingId: bookingOutput.id, 
+	// 		crewId: input.crewId
+	// 	}
 
-		bookingCrewService.assignCrew(assignCrewInput, user)
-		.catch(() => {
-			logger.error(`booking (${bookingOutput.id}) created, but failed to assgin to crew(${input.crewId}), please assign manually`);
-		});
-	}
-
-	/*
-	//init bookingInvoice
-	const initInvoiceInput = {
-		bookingId: bookingOutput.id,
-		startTime: input.startTime,
-		endTime: input.endTime,
-		utcOffset: input.utcOffset,
-		bookingType: input.bookingType
-	}
-
-	invoiceService.initBookingInvoice(initInvoiceInput, user)
-	.catch(() => {
-		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to initInvoice ${JSON.stringify(initInvoiceInput)}`);
-	});
-
-	//send notification to admin
-	if (config.get("booking.newBookingAdminNotification.send") == true) {
-		try {
-			await NotificationHelper.newBookingNotificationToAdmin(booking);
-		} catch (err) {
-			logger.error("NotificationHelper.newBookingNotificationToAdmin Error", err);
-			throw err;
-		}
-	}
-		
-	//send confirmation to customer
-	if (config.get("booking.newBookingCustomerConfirmation.send") == true) {
-		try {
-			await NotificationHelper.newBookingConfirmationToCustomer(booking);
-		} catch (err) {
-			logger.error("NotificationHelper.newBookingConfirmationToCustomer Error", err);
-			throw err;
-		}
-	}
-	*/
+	// 	bookingCrewService.assignCrew(assignCrewInput, user)
+	// 	.catch(() => {
+	// 		logger.error(`booking (${bookingOutput.id}) created, but failed to assgin to crew(${input.crewId}), please assign manually`);
+	// 	});
+	// }
 	
-	return bookingOutput;
+	return {bookingId: bookingId};
 }
 
 async function reschedule(input, user) {
@@ -265,11 +220,11 @@ async function viewBookings(input, user) {
 	}
 	
 	var outputObjs = [];
-	bookings.forEach((booking) => {
-		const outputObj = bookingCommon.bookingToOutputObj(booking);
+	for (const booking of bookings) {
+		const outputObj = await bookingCommon.bookingToOutputObj(booking);
 		outputObjs.push(outputObj);
-	});
-
+	}
+	
 	return {
 		"count": outputObjs.length,
 		"bookings": outputObjs
@@ -305,7 +260,7 @@ async function findBookingById(input, user) {
 }
 
 module.exports = {
-	addNewBooking,
+	bookNow,
 	viewBookings,
 	findBookingById,
 	reschedule

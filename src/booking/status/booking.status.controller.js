@@ -6,6 +6,16 @@ const bookingCommon = require("../booking.common");
 
 const statusService = require("./booking.status.service");
 
+const initBooking = asyncMiddleware(async (req) => {
+	//validate user
+	utility.userGroupAuthorization(req.user.groups, [
+		bookingCommon.BOOKING_ADMIN_GROUP,
+		bookingCommon.BOOKING_USER_GROUP
+	]);
+
+	return await statusService.initBooking(req.body, req.user);
+});
+
 const confirmBooking = asyncMiddleware(async (req) => {
 	//validate user
 	utility.userGroupAuthorization(req.user.groups, [
@@ -34,6 +44,7 @@ const fulfillBooking = asyncMiddleware(async (req) => {
 });
 
 module.exports = {
+	initBooking,
 	confirmBooking,
 	cancelBooking,
 	fulfillBooking

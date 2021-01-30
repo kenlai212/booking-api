@@ -1,5 +1,4 @@
 "use strict";
-const { util } = require("config");
 const Joi = require("joi");
 const mongoose = require("mongoose");
 
@@ -110,9 +109,8 @@ async function removeAssignment(input, user) {
 	let targetAssignmentHistory = await getAssignmentHistory(input.crewId);
 
 	//check if assignment has any assignments
-	if (targetAssignmentHistory.assignments == null || targetAssignmentHistory.assignments.length == 0) {
+	if (!targetAssignmentHistory.assignments || targetAssignmentHistory.assignments.length == 0)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "No assignments found" };
-	}
 
 	//remove assignment
 	let targetAssignmentFound = false;
@@ -123,12 +121,11 @@ async function removeAssignment(input, user) {
 		}
 	});
 
-	if (targetAssignmentFound == false) {
+	if (!targetAssignmentFound)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "No assignments found" };
-	}
 
 	//save to db
-	return await saveAssignmentHistory(targetAssignmentHistroy);
+	return await saveAssignmentHistory(targetAssignmentHistory);
 }
 
 async function initAssignmentHistory(input, user) {

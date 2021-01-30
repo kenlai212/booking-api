@@ -2,13 +2,13 @@
 const mongoose = require("mongoose");
 
 const bookingSchema = new mongoose.Schema({
+	_id: String, 
 	creationTime: Date,
 	createdBy: String,
 	bookingType: String,
 	status: String,
 	startTime: Date,
 	endTime: Date,
-	durationByHours: Number,
 	fulfilledHours: Number,
 	host: {
 		customerId: String

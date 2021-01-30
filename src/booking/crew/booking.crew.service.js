@@ -7,7 +7,6 @@ const logger = require("../../common/logger").logger;
 const bookingCommon = require("../booking.common");
 const utility = require("../../common/utility");
 
-const assignmentHelper = require("./assignment_internal.helper");
 const crewHelper = require("./crew_internal.helper");
 
 async function relieveCrew(input, user) {
@@ -26,40 +25,44 @@ async function relieveCrew(input, user) {
 	let targetBooking = await bookingCommon.getBooking(input.bookingId);
 
 	//if booking doesn't contain any crew, it's a bad crewId
-	if (targetBooking.crews == null) {
+	if (!targetBooking.crews)
 		throw {name: customerError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId"};
-	}
 
 	//find and remove target crew
 	let targetCrew;
 	targetBooking.crews.forEach(function (crew, index, object) {
 		if (crew.crewId == input.crewId) {
-			targetCrew= crew;
+			targetCrew = crew;
 			object.splice(index, 1);
 		}
 	});
 
 	//target crew not found
-	if (targetCrew == null) {
+	if (!targetCrew)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
 
 	//update booking record
 	const bookingOutput = await bookingCommon.saveBooking(targetBooking);
 
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Relieved crew(${targetCrew.id}) from booking(${targetBooking._id.toString()})`, user);
-
-	//remove assignment for crew's assignmentHistory
-	const removeAssignmentInput = {
+	//publish relieveCrew event
+	const relieveCrewEventMsg = {
 		crewId: input.crewId,
 		bookingId: targetBooking._id.toString()
 	}
+	
+	try{
+		utility.publishEvent(relieveCrewEventMsg, "relieveCrew");
+	}catch(error){
+		console.log(error);
+		logger.err("utility.publishEvent error : ", error);
 
-	assignmentHelper.removeAssignment(removeAssignmentInput, user)
-	.catch(() => {
-		logger.error(`Crew(id : ${input.crewId}) was removed from booking(id : ${targetBooking._id.toString()}). But removeAssignment failed. Please remove assignment manually.`);
-	});
+		//rollback releaveCrew
+		targetBooking.crews.push(targetCrew);
+
+		await bookingCommon.saveBooking(targetBooking);
+
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
 	return bookingOutput;
 }
@@ -88,23 +91,21 @@ async function assignCrew(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 	
-	if (targetCrew == null) {
+	if (!targetCrew)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-	}
 	
     //check if targetCrew is already assigned to booking
-    if(targetBooking.crews != null && targetBooking.crews.length > 0){
+    if(targetBooking.crews && targetBooking.crews.length > 0){
         targetBooking.crews.forEach(crew => {
-            if (crew.crewId == targetCrew.id) {
+            if (crew.crewId === targetCrew.id) {
                 throw { name: customError.BAD_REQUEST_ERROR, message: `Target crew already assigned to this booking` };
             }
         });
     }
 
 	//add crew
-	if (targetBooking.crews == null) {
+	if (!targetBooking.crews)
 		targetBooking.crews = new Array();
-	}
 
 	targetBooking.crews.push({
 		crewId: targetCrew.id,
@@ -114,23 +115,32 @@ async function assignCrew(input, user) {
 
 	//update booking record
 	const bookingOutput = await bookingCommon.saveBooking(targetBooking);
-
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Assigned crew(${JSON.stringify(targetCrew)}) to booking(${targetBooking._id.toString()})`, user);
-
-	//add assignment to crew
-	const addAssignmentInput = {
+	
+	//publish assignCrew event
+	const assignCrewEventMsg = {
 		crewId: targetCrew.id,
-		bookingId: targetBooking._id.toString(),
-		startTime: targetBooking.startTime,
-		endTime: targetBooking.endTime
+		bookingId: targetBooking._id.toString()
+	}
+	
+	try{
+		utility.publishEvent(assignCrewEventMsg, "assignCrew");
+	}catch(error){
+		console.log(error);
+		logger.err("utility.publishEvent error : ", error);
+
+		//rollback assignCrew
+		targetBooking.crews.forEach(function (crew, index, object) {
+			if (crew.crewId == input.crewId) {
+				targetCrew= crew;
+				object.splice(index, 1);
+			}
+		});
+
+		await bookingCommon.saveBooking(targetBooking);
+
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	assignmentHelper.addAssignment(addAssignmentInput, user)
-	.catch(() => {
-		logger.error(`Crew(id : ${targetCrew.id}) has been assigned to booking(id : ${targetBooking._id.toString()}). But failed to addAssignment. Please manually trigger addAssignment ${addAssignmentInput}`);
-	});
-	
 	return bookingOutput;
 }
 

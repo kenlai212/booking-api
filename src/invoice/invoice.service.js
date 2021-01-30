@@ -13,40 +13,51 @@ const PAID_STATUS = "PAID";
 const PARTIAL_PAID_STATUS = "PARTIAL_PAID";
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 
-const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
-const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
-
 async function addNewInvoice(input, user){
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
 			.required(),
-		startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
-		utcOffset: Joi.number().min(-12).max(14).required(),
-		bookingType: Joi
+		unit: Joi
+			.number()
+			.required(),
+		unitPrice: Joi
+			.number()
+			.required(),
+		currency: Joi
 			.string()
-			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
-			.required()
+			.valid("HKD")
+			.required(),
+		discounts: Joi
+			.array()
+			.items(Joi.object({
+				amount: Joi.number(),
+				discountCode: Joi.string().valid("WEEKDAY_DISCOUNT","VIP_DISCOUNT")
+			}))
 	});
 	utility.validateInput(schema, input);
 
 	let invoice = new Invoice();
 	invoice.bookingId = input.bookingId;
+	invoice.unitPrice = input.unitPrice;
+	invoice.currency = input.currency;
 
-	const totalAmountObj = PricingHelper.calculateTotalAmount(input.startTime, input.endTime, input.utcOffset, input.bookingType);
-	invoice.regularAmount = totalAmountObj.regularAmount;
-	invoice.totalAmount = totalAmountObj.totalAmount;
+	invoice.regularAmount = input.unit * input.unitPrice;
 
-	if (totalAmountObj.discounts != null && totalAmountObj.discounts.length > 0) {
-		invoice.discounts = totalAmountObj.discounts;
+	invoice.discounts = input.discounts;
+	let totalDiscountAmount = 0;
+
+	if(input.discount){
+		input.discount.forEach(discount => {
+			totalDiscountAmount += discount.amount;
+		});
 	}
 
+	invoice.totalAmount = invoice.regularAmount - totalDiscountAmount;
+	
 	invoice.paidAmount = 0;
-	invoice.balance = totalAmountObj.totalAmount;
-	invoice.unitPrice = totalAmountObj.unitPrice;
-	invoice.currency = totalAmountObj.currency;
+	invoice.balance = input.totalAmount;
 	invoice.paymentStatus = AWAITING_PAYMENT_STATUS;
 
 	//save invoice record
@@ -56,9 +67,6 @@ async function addNewInvoice(input, user){
 		logger.error("invoice.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
-	//add history item
-	bookingCommon.addBookingHistoryItem(input.bookingId, `Added invoice ${JSON.stringify(invoice)} to booking(${input.bookingId})`, user);
 
 	return invoiceToOutputObj(invoice);
 }
@@ -95,7 +103,7 @@ async function findInvoice(input, user){
 	return invoiceToOutputObj(invoice);
 }
 
-async function searchInvoice(input, user){
+async function searchInvoices(input, user){
 	let invoices;
 	try {
 		invoices = await Invoice.find();
@@ -113,7 +121,7 @@ async function searchInvoice(input, user){
 
 	return {
 		"count": outputObjs.length,
-		"crews": outputObjs
+		"invoices": outputObjs
 	};
 }
 
@@ -330,6 +338,8 @@ function calculateTotalAmount(regularAmount, discounts) {
 //privaate function
 function invoiceToOutputObj(invoice){
 	let outputObj = new Object();
+	outputObj.id = invoice._id;
+	outputObj.bookingId = invoice.bookingId;
 	outputObj.regularAmount = invoice.regularAmount;
 	outputObj.totalAmount = invoice.totalAmount;
 	outputObj.balance = invoice.balance;
@@ -367,7 +377,7 @@ function invoiceToOutputObj(invoice){
 module.exports = {
 	addNewInvoice,
 	findInvoice,
-	searchInvoice,
+	searchInvoices,
 	makePayment,
 	applyDiscount,
 	removeDiscount

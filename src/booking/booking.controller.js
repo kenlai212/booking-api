@@ -7,16 +7,15 @@ const utility = require("../common/utility");
 const bookingService = require("./booking.service");
 const bookingCommon = require("./booking.common");
 
-const newBooking = asyncMiddleware(async (req) => {
+const bookNow = asyncMiddleware(async (req) => {
 	//validate user
 	utility.userGroupAuthorization(req.user.groups, [
 		bookingCommon.BOOKING_ADMIN_GROUP,
 		bookingCommon.BOOKING_USER_GROUP
 	]);
 
-	return await bookingService.addNewBooking(req.body, req.user);
+	return await bookingService.bookNow(req.body, req.user);
 });
-
 
 const searchBookings = asyncMiddleware(async (req) => {
 	//validate user
@@ -39,7 +38,7 @@ const findBooking = asyncMiddleware(async (req) => {
 });
 
 module.exports = {
-	newBooking,
+	bookNow,
 	searchBookings,
 	findBooking
 }

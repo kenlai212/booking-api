@@ -1,9 +1,8 @@
 "use strict";
 const mongoose = require("mongoose");
 
-
 const bookingHistorySchema = new mongoose.Schema({
-	bookingId: String,
+	_id: String,
 	history: [{
 		transactionTime: Date,
 		transactionDescription: String,

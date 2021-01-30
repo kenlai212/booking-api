@@ -6,7 +6,5 @@ const authenticateAccessToken = require("../common/middleware/authenticateAccess
 const notificationController = require("./notification.controller");
 
 const router = express.Router();
-router.post("/email", authenticateAccessToken, logIncommingRequest, notificationController.email);
-router.post("/sms", authenticateAccessToken, logIncommingRequest, notificationController.sms);
 
 module.exports = router;

@@ -9,24 +9,39 @@ const logger = require("../../common/logger").logger;
 const bookingCommon = require("../booking.common");
 
 const Booking = require("../booking.model").Booking;
-const bookingHistoryHelper = require("../bookingHistory_internal.helper");
 const bookingDurationHelper = require("../bookingDuration.helper");
 const occupancyHelper = require("../occupancy_internal.helper");
 
-//constants for booking status
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
 const CANCELLED_STATUS = "CANCELLED";
 const FULFILLED_STATUS = "FULFILLED"
 
+const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
+const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
+
 async function initBooking(input, user){
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi.string().required(),
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
+		assetId: Joi.string().min(1).required(),
+		bookingType: Joi
+			.string()
+			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
+			.required(),
+	});
+	utility.validateInput(schema, input);
+
 	let booking = new Booking();
-	booking.startTime = input.startTime;
-	booking.endTime = input.endTime;
+	booking._id = input.bookingId;
+	booking.startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
+	booking.endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 	booking.status = AWAITING_CONFIRMATION_STATUS;
 	booking.bookingType = input.bookingType;
 	booking.assetId = input.assetId;
-	booking.durationByHours = bookingDurationHelper.calculateTotalDuration(input.startTime, input.endTime);
 	booking.creationTime = moment().toDate();
 	booking.createdBy = user.id;
 
@@ -38,19 +53,6 @@ async function initBooking(input, user){
 		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
-	//init bookingHistory
-	const initBookingHistoryInput = {
-		bookingId: booking._id.toString(),
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset:0,
-		transactionDescription: "New booking"
-	};
-
-	bookingHistoryHelper.initBookingHistory(initBookingHistoryInput, user)
-	.catch(() => {
-		logger.error(`Booking(${booking._id.toString()}) successfully recorded, but failed to initBookingHistory ${JSON.stringify(initBookingHistoryInput)}. Please rub initBookingHistory manually.`);
-	});
 	
 	return bookingCommon.bookingToOutputObj(booking);
 }

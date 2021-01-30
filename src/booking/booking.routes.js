@@ -11,10 +11,12 @@ const crewController = require("./crew/booking.crew.controller");
 const statusController = require("./status/booking.status.controller");
 
 const router = express.Router();
-router.post("/booking", authenticateAccessToken, logIncommingRequest, bookingController.newBooking);
+router.post("/book-now", authenticateAccessToken, logIncommingRequest, bookingController.bookNow);
+
 router.get("/bookings", authenticateAccessToken, logIncommingRequest, bookingController.searchBookings);
 router.get("/booking/:bookingId", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
 
+router.post("/booking", authenticateAccessToken, logIncommingRequest, statusController.initBooking);
 router.put("/booking/status/confirm", authenticateAccessToken, logIncommingRequest, statusController.confirmBooking);
 router.put("/booking/status/cancel", authenticateAccessToken, logIncommingRequest, statusController.cancelBooking);
 router.put("/booking/status/fulfill", authenticateAccessToken, logIncommingRequest, statusController.fulfillBooking);

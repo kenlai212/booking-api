@@ -125,22 +125,15 @@ async function occupyAsset(input) {
 	});
 
 	const result = schema.validate(input);
-	if (result.error) {
+	if (result.error)
 		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
-	}
 
 	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
 	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
 	//startTime cannot be later then endTime
-	if (startTime > endTime) {
+	if (startTime > endTime)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
-	}
 
 	//find all occupancies with in search start and end time
 	//expand search range to -1 day from startTime and +1 from endTime 
@@ -163,9 +156,8 @@ async function occupyAsset(input) {
 	//check availibility, if false, reject
 	const isAvailable = occupancyHelper.checkAvailability(startTime, endTime, occupancies);
 
-	if (isAvailable == false) {
+	if (!isAvailable)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" };
-	}
 
 	//set up occupancy object for saving
 	var occupancy = new Occupancy();

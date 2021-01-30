@@ -1,30 +1,14 @@
 const moment = require("moment");
 
 const bookingService = require("../../../src/booking/booking.service");
-const gogowakeCommon = require("gogowake-common");
-const customError = require("../../../src/errors/customError");
+const customError = require("../../../src/common/customError");
 
 describe('Test booking.addNewBooking.service', () => {
-    input = {}
-    user = {}
-
-    it("no user authorization, reject", () => {
-
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(false);
-
-        expect.assertions(1);
-
-        return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
-            name: customError.UNAUTHORIZED_ERROR,
-            message: "Insufficient Rights"
-        });
-    });
+    const user = new Object();
 
     it("missing startTime, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
+        let input = {}
+        
         expect.assertions(1);
 
         return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
@@ -34,10 +18,9 @@ describe('Test booking.addNewBooking.service', () => {
     });
 
     it("invalid startTime, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.startTime = "ABC";
+        let input = {
+            startTime: "ABC"
+        }
         
         expect.assertions(1);
 
@@ -48,10 +31,10 @@ describe('Test booking.addNewBooking.service', () => {
     });
 
     it("missing endTime, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
+        let input = {
+            startTime: moment().toISOString()
+        }
 
-        input.startTime = moment().toISOString();
         expect.assertions(1);
 
         return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
@@ -61,10 +44,10 @@ describe('Test booking.addNewBooking.service', () => {
     });
 
     it("invalid endTime, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.endTime = "ABC";
+        let input = {
+            startTime: moment().toISOString(),
+            endTime: "ABC"
+        }
         
         expect.assertions(1);
 
@@ -75,10 +58,26 @@ describe('Test booking.addNewBooking.service', () => {
     });
 
     it("missing assetId, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
+        let input = {
+            startTime: moment().toISOString(),
+            endTime: moment().toISOString()
+        }
 
-        input.endTime = moment().toISOString();
+        expect.assertions(1);
+
+        return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "utcOffset is required"
+        });
+    });
+
+    it("missing assetId, reject", () => {
+        let input = {
+            startTime: moment().toISOString(),
+            endTime: moment().toISOString(),
+            utcOffset: 0
+        }
+
         expect.assertions(1);
 
         return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
@@ -88,10 +87,13 @@ describe('Test booking.addNewBooking.service', () => {
     });
 
     it("missing bookingType, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
+        let input = {
+            startTime: moment().toISOString(),
+            endTime: moment().toISOString(),
+            utcOffset: 0,
+            assetId: "123"
+        }
 
-        input.assetId = "123";
         expect.assertions(1);
 
         return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
@@ -101,10 +103,14 @@ describe('Test booking.addNewBooking.service', () => {
     });
 
     it("invalid bookingType, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
+        let input = {
+            startTime: moment().toISOString(),
+            endTime: moment().toISOString(),
+            utcOffset: 0,
+            assetId: "123",
+            bookingType: "ABC"
+        }
 
-        input.bookingType = "ABC";
         expect.assertions(1);
 
         return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
@@ -113,65 +119,50 @@ describe('Test booking.addNewBooking.service', () => {
         });
     });
 
-    it("missing contactName, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
+    it("missing customerId or personalInfo object, reject", () => {
+        let input = {
+            startTime: moment().toISOString(),
+            endTime: moment().toISOString(),
+            utcOffset: 0,
+            assetId: "123",
+            bookingType: "CUSTOMER_BOOKING"
+        }
 
-        input.bookingType = "CUSTOMER_BOOKING";
         expect.assertions(1);
 
         return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
-            message: "contactName is required"
+            message: "customerId or personalInfo in mandatory"
         });
     });
 
-    it("missing telephoneCountryCode, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.contactName = "tester";
+    it("invalid assedId, reject", () => {
+        let input = {
+            startTime: moment("2020-02-02T08:00:00Z").toISOString(),
+            endTime: moment("2020-02-02T07:00:00Z").toISOString(),
+            utcOffset: 0,
+            assetId: "123",
+            bookingType: "CUSTOMER_BOOKING",
+            customerId: "ABCDEFG"
+        }
+        
         expect.assertions(1);
 
         return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
-            message: "telephoneCountryCode is required"
-        });
-    });
-
-    it("invalid telephoneCountryCode, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.telephoneCountryCode = "ABC";
-        expect.assertions(1);
-
-        return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
-            name: customError.BAD_REQUEST_ERROR,
-            message: "telephoneCountryCode must be one of [852, 853, 86]"
-        });
-    });
-
-    it("missing telephoneNumber, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.telephoneCountryCode = "852";
-        expect.assertions(1);
-
-        return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
-            name: customError.BAD_REQUEST_ERROR,
-            message: "telephoneNumber is required"
+            message: "Invalid assetId"
         });
     });
 
     it("startTime later then endTime, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.telephoneNumber = "12345678";
-        input.startTime = moment("2020-02-02T08:00:00Z").toISOString();
-        input.endTime = moment("2020-02-02T07:00:00Z").toISOString();
+        let input = {
+            startTime: moment("2020-02-02T08:00:00Z").toISOString(),
+            endTime: moment("2020-02-02T07:00:00Z").toISOString(),
+            utcOffset: 0,
+            assetId: "MC_NXT20",
+            bookingType: "CUSTOMER_BOOKING",
+            customerId: "ABCDEFG"
+        }
         
         expect.assertions(1);
 
@@ -181,29 +172,21 @@ describe('Test booking.addNewBooking.service', () => {
         });
     });
 
-    it("customer booking type, fail check minimumDuration, reject", () => {
-        //fake gogowakeCommon.userAuthorization, returning false
-        gogowakeCommon.userAuthorization = jest.fn().mockReturnValue(true);
-
-        input.bookingType = "CUSTOMER_BOOKING"
-        input.startTime = moment("2020-02-02T08:00:00Z").toISOString();
-        input.endTime = moment("2020-02-02T08:30:00Z").toISOString();
+    it("booking in the pass, reject", () => {
+        let input = {
+            startTime: moment("2020-02-02T08:00:00Z").add(-2,"days").toISOString(),
+            endTime: moment("2020-02-02T09:00:00Z").add(-2,"days").toISOString(),
+            utcOffset: 0,
+            assetId: "MC_NXT20",
+            bookingType: "CUSTOMER_BOOKING",
+            customerId: "ABCDEFG"
+        }
         
         expect.assertions(1);
 
         return expect(bookingService.addNewBooking(input, user)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
-            message: "Booking cannot be less then"
+            message: "Booking cannot be in the past"
         });
-        /*
-        return bookingService.addNewBooking(input, user)
-            .catch(err => {
-                console.log(err);
-                expect(err).toEqual({
-                    name: customError.BAD_REQUEST_ERROR,
-                    message: "endTime cannot be earlier then startTime"
-                });
-            });
-            */
     });
 });

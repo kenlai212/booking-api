@@ -23,7 +23,7 @@ const getAssignmentHistory = asyncMiddleware(async (req) => {
 	//validate user
 	utility.userGroupAuthorization(req.user.groups, [CREW_ADMIN_GROUP]);
 
-	return await assignmentHistoryService.getAssignmentHistory(req.params, req.user);
+	return await assignmentHistoryService.findAssignmentHistory(req.params, req.user);
 });
 
 const deleteAssignmentHistory = asyncMiddleware(async (req) => {

@@ -7,6 +7,7 @@ const logger = require("../common/logger").logger;
 
 const Booking = require("./booking.model").Booking;
 const bookingHistoryHelper = require("./bookingHistory_internal.helper");
+const bookingDurationHelper = require("./bookingDuration.helper");
 const customerHelper = require("./customer_internal.helper");
 const crewHelper = require("./crew/crew_internal.helper");
 const bookingAPIUser = require("../common/bookingAPIUser");
@@ -67,7 +68,7 @@ async function getBooking(bookingId){
 
 async function bookingToOutputObj(booking) {
 	var outputObj = new Object();
-	outputObj.id = booking._id.toString();
+	outputObj.id = booking._id;
 	outputObj.bookingType = booking.bookingType;
 	outputObj.creationTime = booking.creationTime;
 	outputObj.createdBy = booking.createdBy;
@@ -77,7 +78,7 @@ async function bookingToOutputObj(booking) {
 	//set time
 	outputObj.startTime = booking.startTime;
 	outputObj.endTime = booking.endTime;
-	outputObj.durationByHours = booking.durationByHours;
+	outputObj.durationByHours = bookingDurationHelper.calculateTotalDuration(booking.startTime, booking.endTime);
 	outputObj.fulfilledHours = booking.fulfilledHours;
 	
 	//set host

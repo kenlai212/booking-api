@@ -3,20 +3,6 @@ const customError = require("../common/customError");
 
 const occupancyService = require("../occupancy/occupancy.service");
 
-async function checkAvailability(input, user){
-    let result;
-    try {
-        result = await occupancyService.checkAvailability(input, user);
-    } catch (err) {
-        logger.error("Error while calling occupancyService.occupyAsset : ", err);
-        throw err;
-    }
-
-    if(result.isAvailable == false){
-        throw { name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" };
-    }
-}
-
 async function occupyAsset(input, user){
     try{
         await occupancyService.occupyAsset(input, user);
@@ -37,7 +23,6 @@ async function releaseOccupancy(input, user) {
 }
 
 module.exports = {
-    checkAvailability,
     occupyAsset,
     releaseOccupancy
 }

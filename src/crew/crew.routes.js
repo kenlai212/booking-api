@@ -20,6 +20,6 @@ router.post("/assignment-history", logIncommingRequest, authenticateAccessToken,
 router.put("/assignment-history/assignment", logIncommingRequest, authenticateAccessToken, assignmentHistoryController.addAssignment);
 router.get("/assignment-history/:crewId", logIncommingRequest, authenticateAccessToken, assignmentHistoryController.getAssignmentHistory);
 router.delete("/assignment-history/:crewId", logIncommingRequest, authenticateAccessToken, assignmentHistoryController.deleteAssignmentHistory);
-router.delete("/assignment-history/assignment/:crewId/:bookingId", logIncommingRequest, authenticateAccessToken, assignmentHistoryController.removeAssignment);
+router.delete("/assignment-history/assignment/:crewId/:assignmentType/:itemId", logIncommingRequest, authenticateAccessToken, assignmentHistoryController.removeAssignment);
 
 module.exports = router;

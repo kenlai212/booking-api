@@ -1,68 +1,37 @@
 "use strict";
-const mongoose = require("mongoose");
 const Joi = require("joi");
 
 const utility = require("../common/utility");
 const customError = require("../common/customError");
-const userAuthorization = require("../common/middleware/userAuthorization");
+
 const logger = require("../common/logger").logger;
 const BookingHistory = require("./bookingHistory.model").BookingHistory;
 const bookingHelper = require("./booking_internal.helper");
 
-const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
-
 async function getBookingHistory(input, user) {
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
-	}
+	utility.validateInput(schema, input);
 
 	let bookingHistory;
 	try {
-		bookingHistory = await BookingHistory.findOne({ bookingId: input.bookingId });
-	} catch (err) {
-		logger.error("BookingHistory.findOne Error : ", err);
+		bookingHistory = await BookingHistory.findById(input.bookingId);
+	} catch (error) {
+		logger.error("BookingHistory.findOne Error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if(bookingHistory == null){
+	if(!bookingHistory)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-	}
 
-	return bookingHistory;
+	return bookingHistoryToOutputObj(bookingHistory);
 }
 
 async function initBookingHistory(input, user) {
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
@@ -76,31 +45,21 @@ async function initBookingHistory(input, user) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
-	}
+	utility.validateInput(schema, input);
 
 	let existingBookingHistory;
 	try {
-		existingBookingHistory = await BookingHistory.findOne({ bookingId: input.bookingId });
-	} catch (err) {
-		logger.error("BookingHistory.findOne Error : ", err);
+		existingBookingHistory = await BookingHistory.findById(input.bookingId);
+	} catch (error) {
+		logger.error("BookingHistory.findOne Error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (existingBookingHistory != null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: `Booking History for bookingId : ${existingBookingHistory._id} alerady exist` };
-	}
+	if (existingBookingHistory)
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Booking History(${existingBookingHistory._id}) alerady exist` };
 	
 	let bookingHistory = new BookingHistory();
-	bookingHistory.bookingId = input.bookingId;
+	bookingHistory._id = input.bookingId;
 
 	bookingHistory.history = [];
 	const historyItem = {
@@ -113,24 +72,15 @@ async function initBookingHistory(input, user) {
 	
 	try {
 		bookingHistory = await bookingHistory.save();
-	} catch (err) {
-		logger.error("bookingHistory.save Error : ", err);
+	} catch (error) {
+		logger.error("bookingHistory.save Error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	return bookingHistory;
+	return bookingHistoryToOutputObj(bookingHistory);
 }
 
 async function addHistoryItem(input, user) {
-	const rightsGroup = [
-		BOOKING_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-	
 	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
@@ -144,79 +94,46 @@ async function addHistoryItem(input, user) {
 			.string()
 			.required()
 	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
-	}
+	utility.validateInput(schema, input);
 
 	//find bookingHistory
 	let bookingHistory;
 	try {
-		bookingHistory = await BookingHistory.findOne({ bookingId: input.bookingId});
-	} catch (err) {
-		logger.error("BookingHistory.findOne Error", err);
+		bookingHistory = await BookingHistory.findById(input.bookingId);
+	} catch (error) {
+		logger.error("BookingHistory.findOne Error", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+ 
+	if (!bookingHistory)
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Invalid bookingId(${input.bookingId})` };
+
+	//set new history item
+	const historyItem = {
+		transactionTime: utility.isoStrToDate(input.transactionTime, input.utcOffset),
+		transactionDescription: input.transactionDescription,
+		userId: user.id,
+		userName: user.name
+	};
+	bookingHistory.history.push(historyItem);
+
+	//save booking history
+	try {
+		bookingHistory = await bookingHistory.save();
+	} catch (error) {
+		logger.error("bookingHistory.save Error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//no bookingHistory found with this bookingId
-	//validate if bookingId is valid. If so, trigger initBookingHistory 
-	if (bookingHistory == null) {
-		//find targetBooking
-		let targetBooking;
-		try{
-			targetBooking = bookingHelper.findBooking(input.bookingId);
-		}catch(error){
-			logger.error("bookingHelper.findBooking Error : ", err);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}
+	return bookingHistoryToOutputObj(bookingHistory);
+}
 
-		//no targetBooking found. This is an invalid bookingId
-		if(targetBooking == null){
-			throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-		}
+function bookingHistoryToOutputObj(bookingHistory){
+	let outputObj = new Object();
+	outputObj.id = bookingHistory._id;
+	outputObj.history = bookingHistory.history;
 
-		//targetBooking found, trigger initBookingHistory
-		const initBookingHistoryInput = {
-			bookingId: input.bookingId, 
-			transactionTime: input.transactionTime, 
-			utcOffset: input.utcOffset, 
-			transactionDescription: input.transactionDescription 
-		}
-
-		try{
-			bookingHistory = await initBookingHistory(initBookingHistoryInput, user);
-		}catch(error){
-			logger.error("bookingHelper.findBooking Error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}
-	}else{
-		//bookingHistory found
-
-		//set new history item
-		const historyItem = {
-			transactionTime: utility.isoStrToDate(input.transactionTime, input.utcOffset),
-			transactionDescription: input.transactionDescription,
-			userId: user.id,
-			userName: user.name
-		};
-		bookingHistory.history.push(historyItem);
-
-		//save booking history
-		try {
-			bookingHistory = await bookingHistory.save();
-		} catch (err) {
-			logger.error("bookingHistory.save Error : ", err);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}
-	}
-
-	return bookingHistory;
+	return outputObj;
 }
 
 module.exports = {
