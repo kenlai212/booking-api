@@ -41,6 +41,10 @@ app.use("/", partyRoutes);
 app.use("/", customerRoutes);
 app.use("/", invoiceRoutes);
 
+app.get('/', function (req, res) {
+	res.send("Booking API Running.....");
+ })
+
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {
 	console.log("WE GOT AN UNHANDLED REJECTION!!!!!!!");
