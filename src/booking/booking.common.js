@@ -44,12 +44,6 @@ async function saveBooking(booking){
 }
 
 async function getBooking(bookingId){
-	//valid booking id
-	if (mongoose.Types.ObjectId.isValid(bookingId) == false) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-	}
-
-	//find booking
 	let booking;
 	try {
 		booking = await Booking.findById(bookingId);

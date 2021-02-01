@@ -21,7 +21,7 @@ async function addHost(input, user){
 			.required(),
 		personalInfo: Joi
 			.object()
-			.when("customerId", { is: null, then: Joi.required() }),
+			.allow(null),
 		contact: Joi
 			.object()
 			.allow(null),
@@ -30,6 +30,9 @@ async function addHost(input, user){
 			.allow(null)
 	});
 	utility.validateInput(schema, input);
+
+	if(!input.customerId && !input.personalInfo)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Must provide customerId or personalInfo" };
 
 	//get booking
 	let booking = await bookingCommon.getBooking(input.bookingId);

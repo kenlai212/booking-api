@@ -114,17 +114,6 @@ async function bookNow(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//init booking object
-	// const initBookingInput = {
-	// 	bookingId: bookingId,
-	// 	startTime: startTime,
-	// 	endTime: endTime,
-	// 	bookingType: input.bookingType,
-	// 	assetId: input.assetId
-	// }
-
-	// let bookingOutput = await statusService.initBooking(initBookingInput, user);
-
 	// //confirm booking if it is a OWNER_BOOKING
 	// if (input.bookingType == OWNER_BOOKING_TYPE) {
 	// 	const confirmBookingInput = {
@@ -136,20 +125,6 @@ async function bookNow(input, user) {
 	// 		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to confirmBooking`);
 	// 	});
 	// }
-
-	// //add host and first guest
-	// const addHostInput = {
-	// 	bookingId: bookingOutput.id,
-	// 	customerId: input.customerId,
-	// 	personalInfo: input.personalInfo,
-	// 	contact: input.contact,
-	// 	picture: input.picture
-	// }
-	
-	// hostService.addHost(addHostInput, user)
-	// .catch(() => {
-	// 	logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to addHost ${JSON.stringify(addHostInput)}`);
-	// });
 	
 	// //assign crew
 	// if (input.crewId != null) {
