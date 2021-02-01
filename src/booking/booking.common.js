@@ -53,9 +53,8 @@ async function getBooking(bookingId){
 	}
 
 	//if no booking found, it's a bad bookingId,
-	if (booking == null) {
+	if (!booking)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-	}
 
 	return booking;
 }

@@ -51,13 +51,11 @@ async function addHost(input, user){
 
 		profileHelper.validatePersonalInfoInput(input.personalInfo);
 
-		if(input.contact){
+		if(input.contact)
 			profileHelper.validateContactInput(input.contact);
-		}
 
-		if(input.picture){
+		if(input.picture)
 			profileHelper.validatePictureInput(input.picture);
-		}
 
 		const newCustomerInput = {
 			personalInfo: input.personalInfo,
@@ -74,9 +72,8 @@ async function addHost(input, user){
 	booking.host = host;
 
 	//add first guest
-	if (booking.guests == null) {
+	if (!booking.guests)
 		booking.guests = [];
-	}
 
 	//set guest
 	let guest = new Object();

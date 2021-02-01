@@ -1,6 +1,5 @@
 "use strict";
 const uuid = require('uuid');
-const mongoose = require("mongoose");
 const moment = require("moment");
 const Joi = require("joi");
 
@@ -12,9 +11,6 @@ const bookingCommon = require("./booking.common");
 const profileHelper = require("../common/profile/profile.helper");
 
 const Booking = require("./booking.model").Booking;
-const hostService = require("./host/booking.host.service");
-const statusService = require("./status/booking.status.service");
-const bookingCrewService = require("./crew/booking.crew.service");
 const occupancyHelper = require("./occupancy_internal.helper");
 
 //constants for booking types
@@ -88,6 +84,7 @@ async function bookNow(input, user) {
 	}
 
 	const bookingId = uuid.v4();
+	input.bookingId = bookingId;
 
 	//save occupancy record
 	const occupyAssetInput = {
@@ -101,8 +98,6 @@ async function bookNow(input, user) {
 	await occupancyHelper.occupyAsset(occupyAssetInput);
 
 	//publish newBooking event
-	input.bookingId = bookingId;
-
 	try{
 		utility.publishEvent(input, "newBooking");
 	}catch(error){
@@ -113,31 +108,6 @@ async function bookNow(input, user) {
 
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
-	// //confirm booking if it is a OWNER_BOOKING
-	// if (input.bookingType == OWNER_BOOKING_TYPE) {
-	// 	const confirmBookingInput = {
-	// 		bookingId: bookingOutput.id
-	// 	}
-
-	// 	statusService.confirmBooking(confirmBookingInput, user)
-	// 	.catch(() => {
-	// 		logger.error(`Booking(${bookingOutput.id}) successfully recorded, but failed to confirmBooking`);
-	// 	});
-	// }
-	
-	// //assign crew
-	// if (input.crewId != null) {
-	// 	const assignCrewInput = {
-	// 		bookingId: bookingOutput.id, 
-	// 		crewId: input.crewId
-	// 	}
-
-	// 	bookingCrewService.assignCrew(assignCrewInput, user)
-	// 	.catch(() => {
-	// 		logger.error(`booking (${bookingOutput.id}) created, but failed to assgin to crew(${input.crewId}), please assign manually`);
-	// 	});
-	// }
 	
 	return {bookingId: bookingId};
 }
@@ -213,12 +183,6 @@ async function findBookingById(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" };
-	}
-
-	//find booking
 	let booking;
 	try {
 		booking = await Booking.findById(input.bookingId);
@@ -227,9 +191,8 @@ async function findBookingById(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (booking == null) {
+	if (!booking)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-	}
 	
 	return bookingCommon.bookingToOutputObj(booking);
 }

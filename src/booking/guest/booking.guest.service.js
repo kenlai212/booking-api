@@ -30,7 +30,7 @@ async function removeGuest(input, user) {
 		});
 	}
 	
-	if (targetGuest == null) {
+	if (!targetGuest) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Guest not found" };
 	}
 
@@ -67,31 +67,27 @@ async function addGuest(input, user) {
 	//get booking
 	let booking = await bookingCommon.getBooking(input.bookingId);
 
-	if (booking.guests == null) {
+	if (!booking.guests)
 		booking.guests = [];
-	}
 
 	let targetCustomer;
 	if(input.customerId){
 		//customerId provided. This will be an existing customer
 		targetCustomer = await customerHelper.findCustomer({id: input.customerId}, user);
 
-		if(!targetCustomer){
+		if(!targetCustomer)
 			throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
-		}
 
 	}else{
 		//no customerId provided. This will be a new customer
 
 		profileHelper.validatePersonalInfoInput(input.personalInfo);
 
-		if(input.contact){
+		if(input.contact)
 			profileHelper.validateContactInput(input.contact);
-		}
 
-		if(input.picture){
+		if(input.picture)
 			profileHelper.validatePictureInput(input.picture);
-		}
 
 		const newCustomerInput = {
 			personalInfo: input.personalInfo,
@@ -110,9 +106,8 @@ async function addGuest(input, user) {
 		}
 	});
 
-	if (foundExistingGuest == true) {
+	if (foundExistingGuest)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Guest already exist" };
-	}
 
 	//set guest
 	let guest = new Object();
