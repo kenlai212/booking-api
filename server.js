@@ -41,7 +41,7 @@ app.use("/", partyRoutes);
 app.use("/", customerRoutes);
 app.use("/", invoiceRoutes);
 
-app.get('/', function (req, res) {
+app.get('/index.html', function (req, res) {
 	res.send("Booking API Running.....");
  })
 
