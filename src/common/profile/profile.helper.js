@@ -4,9 +4,9 @@ const moment = require("moment");
 const customError = require("../customError");
 const utility = require("../utility");
 
-const { PersonalInfo } = require("./profile.class");
-const { Contact } = require("./profile.class");
-const { Picture } = require("./profile.class");
+const { PersonalInfo } = require("./profile.model");
+const { Contact } = require("./profile.model");
+const { Picture } = require("./profile.model");
 
 function validatePersonalInfoInput(input){
 	//validate input data
@@ -32,13 +32,11 @@ function validatePersonalInfoInput(input){
 	});
 	utility.validateInput(schema, input);
 
-	if(input.nameRequired == null){
+	if(!input.nameRequired)
 		input.nameRequired = true;
-	}
 
-	if(input.nameRequired == true && (input.name == null || input.name.length == 0)){
+	if(input.nameRequired && !input.name)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "name is mandatory"};
-	}
 }
 
 function validateContactInput(input){
@@ -77,44 +75,38 @@ function validatePictureInput(input){
 }
 
 function setPersonalInfo(input, party){
-	if(party.personalInfo == null){
+	if(!party.personalInfo)
 		party.personalInfo = new PersonalInfo();
-	}
 
 	//set name
-	if(input.name != null && input.name.length > 0){
+	if(input.name)
 		party.personalInfo.name = input.name;
-	}
 	
 	//set dob
-	if(input.dob != null){
+	if(input.dob)
 		party.personalInfo.dob = moment(input.dob).utcOffset(input.utcOffset).toDate();
-	}
 
 	//set gender
-	if(input.gender != null && input.gender.length > 0){
+	if(input.gender)
 		party.personalInfo.gender = input.gender;
-	}
 
 	return party;
 }
 
 function setContact(input, party){
-	if(party.contact == null){
+	if(!party.contact)
 		party.contact = new Contact();
-	}
 
 	//set telephoneNumber
-	if(input.telephoneNumber != null && input.telephoneNumber.length > 0){
+	if(input.telephoneNumber){
 		party.contact.telephoneCountryCode = input.telephoneCountryCode;
 		party.contact.telephoneNumber = input.telephoneNumber;
 	}
 
 	//set emailAddress
-	if(input.emailAddress!=null && input.emailAddress.length > 0){
-		if(party.contact == null){
+	if(input.emailAddress){
+		if(!party.contact)
 			party.contact = new Contact();
-		}
 
 		party.contact.emailAddress = input.emailAddress;
 	}
@@ -123,14 +115,12 @@ function setContact(input, party){
 }
 
 function setPicture(input, party){
-	if(party.picture == null){
+	if(!party.picture)
 		party.picture = new Picture();
-	}
 
 	//set picture
-	if(input.url != null && input.url.length > 0){
+	if(input.url)
 		party.picture.url = input.url;
-	}
 
 	return party;
 }

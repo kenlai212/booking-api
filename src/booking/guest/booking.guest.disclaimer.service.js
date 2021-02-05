@@ -66,21 +66,17 @@ async function sendDisclaimer(input, user) {
 	//find target guest from booking.guests list, assign disclaimerId
 	let targetGuest;
 	booking.guests.forEach(guest => {
-		if (guest._id == input.guestId) {
+		if (guest._id === input.guestId) {
 			guest.disclaimerId = uuid.v4();
 			targetGuest = guest;
 		}
 	});
 
-	if (targetGuest == null) {
+	if (!targetGuest)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid guestId" };
-	}
 
 	//update booking record
 	const bookingOutput = bookingCommon.saveBooking(booking);
-
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Sent disclaimer notification to guest ${JSON.stringify(targetGuest)} from booking(${bookingOutput.id})`, user);
 
 	//send disclaimer notification
 	try {

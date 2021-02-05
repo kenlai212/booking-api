@@ -6,7 +6,6 @@ const customError = require("../common/customError");
 const logger = require("../common/logger").logger;
 
 const Booking = require("./booking.model").Booking;
-const bookingHistoryHelper = require("./bookingHistory_internal.helper");
 const bookingDurationHelper = require("./bookingDuration.helper");
 const customerHelper = require("./customer_internal.helper");
 const crewHelper = require("./crew/crew_internal.helper");
@@ -17,20 +16,6 @@ const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 const BOOKING_USER_GROUP = "BOOKING_USER";
 
 const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
-
-function addBookingHistoryItem(bookingId, transactionDescription, user){
-	const addBookingHistoryItemInput = {
-		bookingId: bookingId,
-		transactionTime: moment().utcOffset(0).format("YYYY-MM-DDTHH:mm:ss"),
-		utcOffset: 0,
-		transactionDescription: transactionDescription
-	}
-
-	bookingHistoryHelper.addHistoryItem(addBookingHistoryItemInput, user)
-	.catch(() => {
-		logger.error(`${transactionDescription}, but failed to addHistoryItem. Please trigger addHistoryItem manually.`);
-	});
-}
 
 async function saveBooking(booking){
 	try {
@@ -97,14 +82,13 @@ async function bookingToOutputObj(booking) {
 		outputObj.guests = [];
 		for(const guest of booking.guests){
 			let tempGuest = new Object();
-			tempGuest.id = guest._id.toString();
-			tempGuest.customerId = guest.customerId;
+			tempGuest.customerId = guest._id;
 			tempGuest.disclaimerId = guest.disclaimerId;
 			tempGuest.signedDisclaimerTimeStamp = guest.signedDisclaimerTimeStamp;
 			
 			let targetCustomer;
 			try{
-				targetCustomer = await customerHelper.findCustomer({id: guest.customerId}, bookingAPIUser.userObject);
+				targetCustomer = await customerHelper.findCustomer({id: guest._id}, bookingAPIUser.userObject);
 			}catch(error){
 				logger.error("booking.common.bookingToOutputObj() customerHelper.findCustomer", error);
 				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
@@ -124,15 +108,15 @@ async function bookingToOutputObj(booking) {
 
 		for(const crew of booking.crews){
 			let tempCrew = new Object();
-			tempCrew.id = crew.crewId;
+			tempCrew.id = crew._id;
 			tempCrew.assignmentTime = crew.assignmentTime;
 			tempCrew.assignmentBy = crew.assignmentBy;
 	
 			let targetCrew;
 			try{
-				targetCrew = await crewHelper.getCrew(crew.crewId);
+				targetCrew = await crewHelper.getCrew(crew._id);
 			}catch(error){
-				logger.error("booking.common.bookingToOutputObj() crewHelper.getCrew", err);
+				logger.error("booking.common.bookingToOutputObj() crewHelper.getCrew", error);
 			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 			}
 
@@ -153,6 +137,5 @@ module.exports = {
 	ACCEPTED_TELEPHONE_COUNTRY_CODES,
 	bookingToOutputObj,
 	getBooking,
-	saveBooking,
-	addBookingHistoryItem
+	saveBooking
 }

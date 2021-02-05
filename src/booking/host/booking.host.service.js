@@ -71,23 +71,7 @@ async function addHost(input, user){
 
 	booking.host = host;
 
-	//add first guest
-	if (!booking.guests)
-		booking.guests = [];
-
-	//set guest
-	let guest = new Object();
-	guest.customerId = targetCustomer.id;
-	
-	booking.guests.push(guest);
-
-	//update booking record
-	const bookingOutput = await bookingCommon.saveBooking(booking);
-
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Added host ${JSON.stringify(host)} and guest ${JSON.stringify(guest)} to booking(${bookingOutput.id})`, user);
-
-	return bookingOutput;
+	return await bookingCommon.saveBooking(booking);
 }
 
 module.exports = {

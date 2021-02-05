@@ -23,6 +23,6 @@ async function releaseOccupancy(input, user) {
 }
 
 module.exports = {
-    occupyAsset,
-    releaseOccupancy
+    //occupyAsset,
+    //releaseOccupancy
 }

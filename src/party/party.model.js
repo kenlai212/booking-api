@@ -1,21 +1,12 @@
 "use strict";
-const { string } = require("joi");
 const mongoose = require("mongoose");
 
+const profileModel = require("../common/profile/profile.model");
+
 const partySchema = new mongoose.Schema({
-	personalInfo: {
-		name: String,
-		dob: Date,
-		gender: String
-	},
-	contact: {
-		telephoneCountryCode: String,
-		telephoneNumber: String,
-		emailAddress: String
-	},
-	picture: {
-		url: String
-	}
+	personalInfo: profileModel.personalInfoSchema,
+	contact: profileModel.contactSchema,
+	picture: profileModel.pictureSchema
 });
 
 const Party = mongoose.model("Party", partySchema);

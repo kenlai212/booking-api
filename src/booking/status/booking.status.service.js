@@ -9,7 +9,6 @@ const logger = require("../../common/logger").logger;
 const bookingCommon = require("../booking.common");
 
 const Booking = require("../booking.model").Booking;
-const bookingDurationHelper = require("../bookingDuration.helper");
 const occupancyHelper = require("../occupancy_internal.helper");
 
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";

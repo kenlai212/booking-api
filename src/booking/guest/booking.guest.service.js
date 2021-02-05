@@ -7,6 +7,7 @@ const utility = require("../../common/utility");
 
 const profileHelper = require("../../common/profile/profile.helper");
 const customerHelper = require("../customer_internal.helper");
+const { Guest } = require("../booking.model");
 
 async function removeGuest(input, user) {
 	//validate input data
@@ -37,8 +38,20 @@ async function removeGuest(input, user) {
 	//update booking record
 	const bookingOutput = await bookingCommon.saveBooking(booking);
 
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Removed guest ${JSON.stringify(targetGuest)} from booking(${bookingOutput.id})`, user);
+	//publish removeGuest event
+	const removeGuestEventInput = {
+		bookingId: booking.id,
+		guestId: input.guestId
+	}
+
+	try{
+		utility.publishEvent(removeGuestEventInput, "removeGuest");
+	}catch(error){
+		console.log(error);
+		logger.err("utility.publishEvent error : ", error);
+
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
 	return bookingOutput;
 }
@@ -51,10 +64,11 @@ async function addGuest(input, user) {
 			.required(),
 		customerId: Joi
 			.string()
-			.min(1),
+			.min(1)
+			.allow(null),
 		personalInfo: Joi
 			.object()
-			.when("customerId", { is: null, then: Joi.required() }),
+			.allow(null),
 		contact: Joi
 			.object()
 			.allow(null),
@@ -63,6 +77,9 @@ async function addGuest(input, user) {
 			.allow(null)
 	});
 	utility.validateInput(schema, input);
+
+	if(!input.customerId && !input.personalInfo)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Must provide customerId or personalInfo" };
 	
 	//get booking
 	let booking = await bookingCommon.getBooking(input.bookingId);
@@ -110,16 +127,28 @@ async function addGuest(input, user) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Guest already exist" };
 
 	//set guest
-	let guest = new Object();
-	guest.customerId = targetCustomer.id;
+	let guest = new Guest();
+	guest._id = targetCustomer.id;
 	
 	booking.guests.push(guest);
 
 	//update booking record
 	const bookingOutput = await bookingCommon.saveBooking(booking);
 
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Added guest ${JSON.stringify(guest)} to booking(${bookingOutput.id})`, user);
+	//publish addGuest event
+	const addGuestEventInput = {
+		bookingId: booking.id,
+		guest: guest
+	}
+
+	try{
+		utility.publishEvent(addGuestEventInput, "addGuest");
+	}catch(error){
+		console.log(error);
+		logger.err("utility.publishEvent error : ", error);
+
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
 	return bookingOutput;
 }

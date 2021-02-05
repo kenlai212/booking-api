@@ -129,10 +129,8 @@ async function editPersonalInfo(input, user){
 	//maybe only editing birthday or gender
 	input.personalInfo.nameRequired = false;
 
-	//validate personalInfo input
 	profileHelper.validatePersonalInfoInput(input.personalInfo);
 	
-	//get target party
 	let targetParty = await getTargetParty(input.partyId);
 
 	//instantiate old personalInfo incase we need to rollback
@@ -159,6 +157,44 @@ async function editPersonalInfo(input, user){
 	}
 
 	return targetParty;
+}
+
+async function sendCommunication(input, user){
+	//validate input data
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		message: Joi
+			.string()
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	const targetParty = await getTargetParty(input.partyId);
+
+	let sendCommunicationEventMsg = new Object();
+
+	if(!targetParty.contact){
+		//TODO send notification to party, to update contact info
+	}
+
+	//publish sendCommunication event
+	try{
+		utility.publishEvent(sendCommunicationEventMsg, "sendSMS");
+	}catch(error){
+		console.log(error);
+		logger.err("utility.publishEvent error : ", error);
+
+		//rolling back personalInfo
+		targetParty = profileHelper.setPersonalInfo(oldPersonalInfo, targetParty);
+		await saveParty(targetParty);
+
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return;
 }
 
 async function findParty(input, user){
@@ -261,13 +297,13 @@ async function createNewParty(input, user){
 	party = profileHelper.setPersonalInfo(input.personalInfo, party);
 
 	//validate and contact
-	if(input.contact != null){
+	if(input.contact){
 		profileHelper.validateContactInput(input.contact);
 		party = profileHelper.setContact(input.contact, party);
 	}
-	
+
 	//validate and picture
-	if(input.picture != null){
+	if(input.picture){
 		profileHelper.validatePictureInput(input.picture);
 		party = profileHelper.setPicture(input.picture, party);
 	}
@@ -281,14 +317,8 @@ function partyToOutputObj(party){
 	outputObj.id = party._id.toString();
 
 	outputObj.personalInfo = party.personalInfo;
-	
-	if(party.contact.telephoneNumber != null || party.contact.emailAddress != null){
-		outputObj.contact = party.contact;
-	}
-	
-	if(party.picture.url != null){
-		outputObj.picture = party.picture;
-	}
+	outputObj.contact = party.contact;
+	outputObj.picture = party.picture;
     
     return outputObj;
 }

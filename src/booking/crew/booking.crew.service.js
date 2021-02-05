@@ -56,11 +56,6 @@ async function relieveCrew(input, user) {
 		console.log(error);
 		logger.err("utility.publishEvent error : ", error);
 
-		//rollback releaveCrew
-		targetBooking.crews.push(targetCrew);
-
-		await bookingCommon.saveBooking(targetBooking);
-
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
@@ -97,7 +92,7 @@ async function assignCrew(input, user) {
     //check if targetCrew is already assigned to booking
     if(targetBooking.crews && targetBooking.crews.length > 0){
         targetBooking.crews.forEach(crew => {
-            if (crew.crewId === targetCrew.id) {
+            if (crew._id === targetCrew.id) {
                 throw { name: customError.BAD_REQUEST_ERROR, message: `Target crew already assigned to this booking` };
             }
         });
@@ -108,7 +103,7 @@ async function assignCrew(input, user) {
 		targetBooking.crews = new Array();
 
 	targetBooking.crews.push({
-		crewId: targetCrew.id,
+		_id: targetCrew.id,
 		assignmentTime: moment().toDate(),
 		assignmentBy: user.id
 	});
@@ -127,16 +122,6 @@ async function assignCrew(input, user) {
 	}catch(error){
 		console.log(error);
 		logger.err("utility.publishEvent error : ", error);
-
-		//rollback assignCrew
-		targetBooking.crews.forEach(function (crew, index, object) {
-			if (crew.crewId == input.crewId) {
-				targetCrew= crew;
-				object.splice(index, 1);
-			}
-		});
-
-		await bookingCommon.saveBooking(targetBooking);
 
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
