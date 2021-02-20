@@ -1,48 +1,100 @@
 const Joi = require("joi");
-const mongoose = require("mongoose");
+const uuid = require('uuid');
 
 const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
 const utility = require("../common/utility");
+const customError = require("../common/customError");
 
-const Party = require("./party.model").Party;
-const profileHelper = require("../common/profile/profile.helper");
+const {Party} = require("./party.model");
+const partyHelper = require("./party.helper");
 
-async function getTargetParty(partyId){
-	//validate partyId
-	if (mongoose.Types.ObjectId.isValid(partyId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid partyId" };
+async function removeRole(input, user){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		role: Joi
+			.string()
+			.valid("CREW","CUSTOMER","ADMIN")
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	let party = await partyHelper.validatePartyId(input.partyId);
+
+	if(!party.roles){
+		throw { name: customError.BAD_REQUEST_ERROR, message: `This party dosen't belong to the ${input.role} role` };
 	}
 
-	//get target party
-	let targetParty;
-	try {
-		targetParty = await Party.findById(partyId);
-	} catch (err) {
-		logger.error("Party.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	let removed = false;
+	party.roles.forEach(function (role, index, object) {
+		if (role === input.role) {
+			object.splice(index, 1);
+			removed = true;
+		}
+	});
+
+	if(!removed){
+		throw { name: customError.BAD_REQUEST_ERROR, message: `This party dosen't belong to the ${input.role} role` };
 	}
 
-	if (targetParty == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid partyId" };
-	}
-
-	return targetParty;
-}
-
-async function saveParty(party){
 	try{
 		party = await party.save();
-	}catch(err){
-		logger.err("party.save error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}catch(error){
+		logger.error("party.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+	}
+	
+	return {
+		status : "SUCCESS",
+		message: `Removed ${input.role} role from party(${party._id})`,
+		party: party
+	};
+}
+
+async function addRole(input, user){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		role: Joi
+			.string()
+			.valid("CREW","CUSTOMER","ADMIN")
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	let party = await partyHelper.validatePartyId(input.partyId);
+
+	if(!party.roles){
+		party.roles = [];
 	}
 
-	return partyToOutputObj(party);	
+	party.roles.forEach(role => {
+		if(role === input.role){
+			throw { name: customError.BAD_REQUEST_ERROR, message: `This party is already in the ${role} role` };	
+		}
+	});
+
+	party.roles.push(input.role);
+
+	try{
+		party = await party.save();
+	}catch(error){
+		logger.error("party.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+	}
+	
+	return {
+		status : "SUCCESS",
+		message: `Added ${input.role} role to party(${party._id})`,
+		party: party
+	};
 }
 
 async function editPicture(input, user){
-	//validate input data
 	const schema = Joi.object({
 		partyId: Joi
 			.string()
@@ -54,21 +106,30 @@ async function editPicture(input, user){
 	});
 	utility.validateInput(schema, input);
 
-	//validate picture input
-	profileHelper.validatePictureInput(input.contact, false);
-	
-	//get target party
-	let targetParty = await getTargetParty(input.partyId);
+	partyHelper.validatePictureInput(input.picture);
 
-	//set picture attributes
-	targetParty = profileHelper.setPicture(input.picture, targetParty);
+	let party = await partyHelper.validatePartyId(input.partyId);
 
-	//save to db
-	return saveParty(targetParty);	
+	party.picture = input.picture;
+
+	try{
+		party = await party.save();
+	}catch(error){
+		logger.error("party.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+	}
+
+	const eventQueueName = "editPartyPicture";
+	utility.publishEvent(input, eventQueueName, user);
+
+	return {
+		status : "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		editPartyPictureEventMsg: party
+	};
 }
 
 async function editContact(input, user){
-	//validate input data
 	const schema = Joi.object({
 		partyId: Joi
 			.string()
@@ -80,40 +141,30 @@ async function editContact(input, user){
 	});
 	utility.validateInput(schema, input);
 
-	//validate contact input
-	profileHelper.validateContactInput(input.contact, false);
+	partyHelper.validateContactInput(input.contact, false);
 	
-	//get target party
-	let targetParty = await getTargetParty(input.partyId);
+	let party = await partyHelper.validatePartyId(input.partyId);
 
-	//instantiate old contact incase we need to rollback
-	const oldContact = Object.assign({}, targetParty.contact);
+	party.contact = input.contact;
 
-	//set contact attributes
-	targetParty = profileHelper.setContact(input.contact, targetParty);
-
-	//save to db
-	targetParty = await saveParty(targetParty);
-
-	//publish edit targetParty.contact event
 	try{
-		utility.publishEvent(targetParty, "editPartyPersonalInfo");
+		party = await party.save();
 	}catch(error){
-		console.log(error);
-		logger.err("utility.publishEvent error : ", error);
-
-		//rolling back contact
-		targetParty = profileHelper.setContact(oldContact, targetParty);
-		await saveParty(targetParty);
-
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		logger.error("party.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
 	}
 
-	return targetParty;
+	const eventQueueName = "editPartyContact";
+	utility.publishEvent(input, eventQueueName, user);
+
+	return {
+		status : "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		editPartyContactEventMsg: party
+	};
 }
 
 async function editPersonalInfo(input, user){
-	//validate input data
 	const schema = Joi.object({
 		partyId: Joi
 			.string()
@@ -125,157 +176,30 @@ async function editPersonalInfo(input, user){
 	});
 	utility.validateInput(schema, input);
 
-	//set personalInfo.nameRequired = false because this is only editing
-	//maybe only editing birthday or gender
-	input.personalInfo.nameRequired = false;
-
-	profileHelper.validatePersonalInfoInput(input.personalInfo);
+	partyHelper.validatePersonalInfoInput(input.personalInfo, false);
 	
-	let targetParty = await getTargetParty(input.partyId);
+	let party = await partyHelper.validatePartyId(input.partyId);
 
-	//instantiate old personalInfo incase we need to rollback
-	const oldPersonalInfo = Object.assign({}, targetParty.personalInfo);
+	party.personalInfo = input.personalInfo;
 
-	//set personalInfo attributes
-	targetParty = profileHelper.setPersonalInfo(input.personalInfo, targetParty);
-
-	//save to db
-	targetParty = await saveParty(targetParty);
-
-	//publish edit party personal info event
 	try{
-		utility.publishEvent(targetParty, "editPartyContact");
+		party = await party.save();
 	}catch(error){
-		console.log(error);
-		logger.err("utility.publishEvent error : ", error);
-
-		//rolling back personalInfo
-		targetParty = profileHelper.setPersonalInfo(oldPersonalInfo, targetParty);
-		await saveParty(targetParty);
-
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		logger.error("party.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
 	}
 
-	return targetParty;
-}
-
-async function sendCommunication(input, user){
-	//validate input data
-	const schema = Joi.object({
-		partyId: Joi
-			.string()
-			.min(1)
-			.required(),
-		message: Joi
-			.string()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	const targetParty = await getTargetParty(input.partyId);
-
-	let sendCommunicationEventMsg = new Object();
-
-	if(!targetParty.contact){
-		//TODO send notification to party, to update contact info
-	}
-
-	//publish sendCommunication event
-	try{
-		utility.publishEvent(sendCommunicationEventMsg, "sendSMS");
-	}catch(error){
-		console.log(error);
-		logger.err("utility.publishEvent error : ", error);
-
-		//rolling back personalInfo
-		targetParty = profileHelper.setPersonalInfo(oldPersonalInfo, targetParty);
-		await saveParty(targetParty);
-
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return;
-}
-
-async function findParty(input, user){
-	//validate input data
-	const schema = Joi.object({
-		partyId: Joi
-			.string()
-			.min(1)
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//get party
-	const targetParty = await getTargetParty(input.partyId);
-
-	return partyToOutputObj(targetParty);
-}
-
-async function deleteParty(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		partyId: Joi
-			.string()
-			.min(1)
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//get party
-	const targetParty = await getTargetParty(input.partyId);
-
-	//delete party record
-	try {
-		await Party.findByIdAndDelete(targetParty._id.toString());
-	} catch (err) {
-		logger.error("Party.findByIdAndDelete() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return { "status": "SUCCESS" }
-}
-
-async function searchParty(input, user){
-    //validate input data
-	const schema = Joi.object({
-		name: Joi
-            .string()
-            .min(1)
-	});
-	utility.validateInput(schema, input);
-
-	let searchCriteria;
-	if (input.status != null) {
-		searchCriteria = {
-			"name": input.name
-		}
-	}
-
-	let parties;
-	try {
-		parties = await Party.find(searchCriteria);
-	} catch (err) {
-		logger.error("Party.find Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//set outputObjs
-	var outputObjs = [];
-	parties.forEach((item) => {
-		outputObjs.push(partyToOutputObj(item));
-
-	});
+	const eventQueueName = "editPartyPersonalInfo";
+	utility.publishEvent(input, eventQueueName, user);
 
 	return {
-		"count": outputObjs.length,
-		"parties": outputObjs
+		status : "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		editPartyPersonalInfoEventMsg: party
 	};
 }
 
 async function createNewParty(input, user){
-	//validate input data
 	const schema = Joi.object({
 		personalInfo: Joi
 			.object()
@@ -285,51 +209,67 @@ async function createNewParty(input, user){
 			.allow(null),
 		picture: Joi
 			.object()
-			.allow(null)
-		
+			.allow(null),
+		role: Joi
+			.string()
+			.valid("ADMIN","STAFF","CREW","CUSTOMER",null)
 	});
 	utility.validateInput(schema, input);
 
-	let party = new Party();
-
-	//validate and set personalInfo
-	profileHelper.validatePersonalInfoInput(input.personalInfo);
-	party = profileHelper.setPersonalInfo(input.personalInfo, party);
-
-	//validate and contact
+	partyHelper.validatePersonalInfoInput(input.personalInfo);
+	
 	if(input.contact){
-		profileHelper.validateContactInput(input.contact);
-		party = profileHelper.setContact(input.contact, party);
+		partyHelper.validateContactInput(input.contact);
+
+		//TODO check if existing emailAddress or telephoneNumber
 	}
 
-	//validate and picture
-	if(input.picture){
-		profileHelper.validatePictureInput(input.picture);
-		party = profileHelper.setPicture(input.picture, party);
+	if(input.picture)
+		partyHelper.validatePictureInput(input.picture);
+
+	const partyId = uuid.v4();
+
+	let party = new Party();
+	party.id = partyId;
+	party.creationTime = new Date();
+    party.lastUpdateTime = new Date();
+
+	party.personalInfo = input.personalInfo;
+
+	if(input.contact){
+		party.contact = input.contact;
 	}
 
-	//save to db
-	return saveParty(party);
+	if(input.picture)
+		party.picture = input.picture;
+
+	if(input.role){
+		party.roles = [];
+		party.roles.push(input.role);	
+	}
+
+    try{
+		party = await party.save();
+	}catch(err){
+		logger.error("party.save error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+	}
+
+	const eventQueueName = "newParty";
+	utility.publishEvent(input, eventQueueName, user);
+
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`, 
+		newPartyEventMsg: party
+	};
 }
-
-function partyToOutputObj(party){
-    let outputObj = new Object();
-	outputObj.id = party._id.toString();
-
-	outputObj.personalInfo = party.personalInfo;
-	outputObj.contact = party.contact;
-	outputObj.picture = party.picture;
-    
-    return outputObj;
-}
-
 
 module.exports = {
     createNewParty,
-	searchParty,
-	deleteParty,
-	findParty,
 	editPersonalInfo,
 	editContact,
-	editPicture
+	editPicture,
+	addRole,
+	removeRole
 }

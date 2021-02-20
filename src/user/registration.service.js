@@ -6,7 +6,6 @@ const utility = require("../common/utility");
 
 const User = require("./user.model").User;
 const userService = require("./user.service");
-const partyHelper = require("./party_internal.helper");
 const socialProfileHelper = require("../common/profile/socialProfile.helper");
 
 async function socialRegister(input) {

@@ -1,6 +1,7 @@
 const amqp = require('amqplib/callback_api');
 const moment = require("moment");
 
+const {logger} = require("../common/logger");
 const customError = require("./customError");
 
 require("dotenv").config();
@@ -47,24 +48,30 @@ function userGroupAuthorization(userGroups, allowGroups){
     }
 }
 
-function publishEvent(eventObj, queue){
+function publishEvent(message, queueName, user){
     amqp.connect(process.env.AMQP_URL, function(error0, connection) {
         if (error0) {
-            throw error0;
+			logger.err("utility.publishEvent error : ", error0);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "AMQP Connection problem" };
         }
         
         connection.createChannel(function(error1, channel) {
             if (error1) {
-                throw error1;
+				logger.err("utility.publishEvent error : ", error1);
+				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Create Channel problem" };
             }
             
-            var msg = JSON.stringify(eventObj);
+			if(!user){
+				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Missing User"}
+			}
+			message.user = user;
+            var msg = JSON.stringify(message);
 
-            channel.assertQueue(queue, {
+            channel.assertQueue(queueName, {
                 durable: true
             });
 
-            channel.sendToQueue(queue, Buffer.from(msg));
+            channel.sendToQueue(queueName, Buffer.from(msg));
         });
 
         setTimeout(function() {

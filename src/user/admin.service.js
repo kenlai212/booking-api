@@ -9,7 +9,6 @@ const utility = require("../common/utility");
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
 const userHistoryService = require("./userHistory.service");
-const notificationHelper = require("./notification_internal.helper");
 
 const ACTIVE_STATUS = "ACTIVE";
 const INACTIVE_STATUS = "INACTIVE";
@@ -289,19 +288,19 @@ async function resendActivationEmail(input, user) {
 	}
 
 	//assemble and send activation email
-	const activationURL = config.get("user.activation.activationURL") + "/" + activationKey;
-    const bodyHTML = "<p>Click <a href='" + activationURL + "'>here</a> to activate your account!</p>";
-	const sendEmailInput = {
-        sender: config.get("user.activation.systemSenderEmailAddress"),
-        recipient: recipient,
-        emailBody: bodyHTML,
-        subject: "GoGoWake Account Activation"
-    }
+	// const activationURL = config.get("user.activation.activationURL") + "/" + activationKey;
+    // const bodyHTML = "<p>Click <a href='" + activationURL + "'>here</a> to activate your account!</p>";
+	// const sendEmailInput = {
+    //     sender: config.get("user.activation.systemSenderEmailAddress"),
+    //     recipient: recipient,
+    //     emailBody: bodyHTML,
+    //     subject: "GoGoWake Account Activation"
+    // }
 
-	notificationHelper.sendEmail(sendEmailInput, user)
-	.catch(() => {
-		logger.error(`Activation Key resetted for user(${input.userId}), but failed to sendEmail ${JSON.stringify(sendEmailInput)}`);
-	});
+	// notificationHelper.sendEmail(sendEmailInput, user)
+	// .catch(() => {
+	// 	logger.error(`Activation Key resetted for user(${input.userId}), but failed to sendEmail ${JSON.stringify(sendEmailInput)}`);
+	// });
 
 	//save userHistory
 	const historyItem = {

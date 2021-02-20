@@ -9,7 +9,6 @@ const { Contact } = require("./profile.model");
 const { Picture } = require("./profile.model");
 
 function validatePersonalInfoInput(input){
-	//validate input data
 	const schema = Joi.object({
 		name: Joi
             .string()
@@ -40,7 +39,6 @@ function validatePersonalInfoInput(input){
 }
 
 function validateContactInput(input){
-	//validate input data
 	const schema = Joi.object({
 		telephoneNumber: Joi
 			.string()
@@ -64,7 +62,6 @@ function validateContactInput(input){
 }
 
 function validatePictureInput(input){
-	//validate input data
 	const schema = Joi.object({
 		url: Joi
 			.string()

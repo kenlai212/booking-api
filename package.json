@@ -30,6 +30,7 @@
     "winston-mongodb": "^5.0.1"
   },
   "devDependencies": {
-    "jest": "^26.2.2"
+    "jest": "^26.2.2",
+    "rewire": "^5.0.0"
   }
 }
