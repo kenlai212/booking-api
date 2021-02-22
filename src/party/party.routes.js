@@ -6,15 +6,18 @@ const authenticateAccessToken = require("../common/middleware/authenticateAccess
 const controller = require("./party.controller");
 
 const router = express.Router();
-router.post("/new-party", authenticateAccessToken, logIncommingRequest, controller.createNewParty);
-router.post("/edit-party-personal-info", authenticateAccessToken, logIncommingRequest, controller.editPersonalInfo);
-router.post("/edit-party-contact", authenticateAccessToken, logIncommingRequest, controller.editContact);
-router.post("/edit-party-picture", authenticateAccessToken, logIncommingRequest, controller.editPicture);
+router.post("/party", authenticateAccessToken, logIncommingRequest, controller.createNewParty);
+router.put("/party/personal-info", authenticateAccessToken, logIncommingRequest, controller.editPersonalInfo);
+router.put("/party/contact", authenticateAccessToken, logIncommingRequest, controller.editContact);
+router.put("/party/picture", authenticateAccessToken, logIncommingRequest, controller.editPicture);
+router.put("/party/add-role", authenticateAccessToken, logIncommingRequest, controller.addRole);
+router.put("/party/delete-role", authenticateAccessToken, logIncommingRequest, controller.removeRole);
+router.post("/party/message", authenticateAccessToken, logIncommingRequest, controller.sendMessage);
+router.post("/party/registration-invite", authenticateAccessToken, logIncommingRequest, controller.sendRegistrationInvite);
+router.delete("/party/:partyId", authenticateAccessToken, logIncommingRequest, controller.deleteParty);
 
-router.post("/party",authenticateAccessToken, logIncommingRequest, controller.createParty);
 router.get("/parties", authenticateAccessToken, logIncommingRequest, controller.readParties);
 router.get("/party/:partyId", authenticateAccessToken, logIncommingRequest, controller.readParty);
-router.put("/party", authenticateAccessToken, logIncommingRequest, controller.updateParty);
-router.delete("/party/:partyId", authenticateAccessToken, logIncommingRequest, controller.deleteParty);
+
 
 module.exports = router;

@@ -6,6 +6,80 @@ const customError = require("../common/customError");
 
 const {Party} = require("./party.model");
 
+function partyToOutputObj(party){
+    let outputObj = new Object();
+	outputObj.id = party._id.toString();
+
+	if(party.userId){
+		outputObj.userId = party.userId;
+	}
+	
+	if(party.personalInfo){
+		outputObj.personalInfo = new Object();
+
+		if(party.personalInfo.name)
+			outputObj.personalInfo.name = party.personalInfo.name;
+
+		if(party.personalInfo.dob)
+			outputObj.personalInfo.dob = party.personalInfo.dob;
+
+		if(party.personalInfo.gender)
+			outputObj.personalInfo.gender = party.personalInfo.gender;
+	}
+	
+	if(party.contact){
+		outputObj.contact = new Object();
+
+		if(party.contact.emailAddress)
+			outputObj.contact.emailAddress = party.contact.emailAddress;
+
+		if(party.contact.telephoneCountryCode)
+			outputObj.contact.telephoneCountryCode = party.contact.telephoneCountryCode;
+
+		if(party.contact.telephoneNumber)
+			outputObj.contact.telephoneNumber = party.contact.telephoneNumber;
+	}
+
+	if(party.picture){
+		outputObj.picture = new Object();
+
+		if(party.picture.url)
+			outputObj.picture.url = party.picture.url;
+	}
+
+	if(party.roles)
+		outputObj.roles = party.roles;
+
+	if(party.preferredContactMethod){
+		outputObj.preferredContactMethod = party.preferredContactMethod;
+	}
+	
+	if(party.preferredLanguage){
+		outputObj.preferredLanguage = party.preferredLanguage;
+	}
+	
+    return outputObj;
+}
+
+function getContactMethod(party){
+	if(party.contact){
+		throw { name: customError.BAD_REQUEST_ERROR, message: `No contact method available` };
+	}
+
+	let contactMethod;
+	if(party.preferredContactMethod){
+		contactMethod = party.preferredContactMethod;
+	}else{
+		if(party.contact.telephoneNumber){
+			contactMethod = "SMS";
+		}else{
+			contactMethod = "EMAIL"
+		}
+	}
+
+	return contactMethod;
+}
+
 async function validatePartyId(partyId){
 	let targetParty;
 	try {
@@ -82,5 +156,7 @@ module.exports = {
     validatePartyId,
 	validatePersonalInfoInput,
 	validateContactInput,
-	validatePictureInput
+	validatePictureInput,
+	getContactMethod,
+	partyToOutputObj
 }

@@ -1,13 +1,11 @@
-const rewire = require("rewire");
-
 const customError = require("../../../src/common/customError");
 const utility = require("../../../src/common/utility");
 
-const partyService = require("../../../src/party/party.service");
+const partyService = require("../../../src/party/party.write.service");
 const partyHelper = require("../../../src/party/party.helper");
 const {Party} = require("../../../src/party/party.model");
 
-describe("Test party.service.createNewParty",() => {
+describe("Test party.write.service.createNewParty",() => {
     let user = {};
 
     it("Missing personalInfo",() => {
@@ -18,6 +16,48 @@ describe("Test party.service.createNewParty",() => {
         return expect(partyService.createNewParty(input, user)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
             message: "personalInfo is required"
+        });
+    });
+
+    it("Invalid role, expect reject",() => {
+        const input = {
+            personalInfo: {},
+            role: "A"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.createNewParty(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "role must be one of [ADMIN, STAFF, CREW, CUSTOMER, null]"
+        });
+    });
+
+    it("Invalid preferredContactMethod, expect reject",() => {
+        const input = {
+            personalInfo: {},
+            preferredContactMethod: "A"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.createNewParty(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "preferredContactMethod must be one of [EMAIL, SMS, WHATSAPP, null]"
+        });
+    });
+
+    it("Invalid preferredLanguage, expect reject",() => {
+        const input = {
+            personalInfo: {},
+            preferredLanguage: "A"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.createNewParty(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "preferredLanguage must be one of [zh-Hans, zh-Hant, en, null]"
         });
     });
 
@@ -163,7 +203,7 @@ describe("Test party.service.createNewParty",() => {
     });
 })
 
-describe("Test party.service.editContact",() => {
+describe("Test party.write.service.editContact",() => {
     let user = {};
 
     it("Misssing partyId in input, expect reject", () => {
@@ -310,7 +350,7 @@ describe("Test party.service.editContact",() => {
     });
 })
 
-describe("Test party.service.editPersonalInfo",() => {
+describe("Test party.write.service.editPersonalInfo",() => {
     let user = {};
 
     it("Misssing partyId in input, expect reject", () => {
@@ -454,7 +494,7 @@ describe("Test party.service.editPersonalInfo",() => {
     });
 })
 
-describe("Test party.service.editPicture", () => {
+describe("Test party.write.service.editPicture", () => {
     let user = {};
 
     it("Misssing partyId in input, expect reject", () => {
@@ -599,7 +639,7 @@ describe("Test party.service.editPicture", () => {
     });
 });
 
-describe("Test party.service.addRole",() => {
+describe("Test party.write.service.addRole",() => {
     let user = {};
 
     it("Misssing partyId in input, expect reject", () => {
@@ -717,7 +757,7 @@ describe("Test party.service.addRole",() => {
     });
 })
 
-describe("Test party.service.removeRole",() => {
+describe("Test party.write.service.removeRole",() => {
     let user = {};
 
     it("Misssing partyId in input, expect reject", () => {
@@ -853,6 +893,478 @@ describe("Test party.service.removeRole",() => {
             status : "SUCCESS",
             message: `Removed ADMIN role from party(1)`,
             party: {_id: "1"}
-        });;
+        });
     });
-})
+});
+
+describe("Test party.write.service.sendMessage",() => {
+    let user = {};
+
+    it("Misssing partyId in input, expect reject", () => {
+        const input = {};
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is required"
+        });
+    });
+
+    it("Empty partyId string, expect reject", () => {
+        const input = {
+            partyId: ""
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is not allowed to be empty"
+        });
+    });
+
+    it("Missing message in input, expect reject", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "body is required"
+        });
+    });
+
+    it("Empty message string, expect reject", () => {
+        const input = {
+            partyId: "1",
+            body: ""
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "body is not allowed to be empty"
+        });
+    });
+
+    it("missing title in input, expect reject", () => {
+        const input = {
+            partyId: "1",
+            body: "A"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "title is required"
+        });
+    });
+
+    it("Empty title string, expect reject", () => {
+        const input = {
+            partyId: "1",
+            body: "A",
+            title: ""
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "title is not allowed to be empty"
+        });
+    });
+
+    it("failed validatePartyId(), system error, expect reject", () => {
+        const input = {
+            partyId: "1",
+            body: "A",
+            title:"B"
+        };
+
+        //setup mock partyHelper.validatePartyId system, to reject with system error.
+        partyHelper.validatePartyId = jest.fn().mockRejectedValue({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+        
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+    });
+
+    it("failed partyHelper.getContactMethod, system error, expect reject", () => {
+        const input = {
+            partyId: "1",
+            body: "A",
+            title:"B"
+        };
+
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+
+        partyHelper.getContactMethod = jest.fn().mockImplementation(() => {
+            throw {
+                name: customError.BAD_REQUEST_ERROR,
+                message: "no contact available"
+            }
+        });
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "no contact available"
+        });
+    });
+
+    it("failed utility.publishEvent, system error, expect reject", () => {
+        const input = {
+            partyId: "1",
+            body: "A",
+            title:"B"
+        };
+
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+
+        partyHelper.getContactMethod = jest.fn().mockImplementation(() => {
+            return "SMS"
+        });
+
+        //setup mock utility.publishEvent to fail
+        utility.publishEvent = jest.fn().mockImplementation(() => {
+            throw {
+                name: customError.INTERNAL_SERVER_ERROR,
+                message: "publish event error"
+            }
+        });
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+                message: "publish event error"
+        });
+    });
+
+    it("success SMS", () => {
+        const input = {
+            partyId: "1",
+            body: "A",
+            title:"B"
+        };
+
+        let party = new Party();
+        party.contact = {
+            telephoneCountryCode: "123",
+            telephoneNumber: "4567890"
+        }
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(party);
+
+        partyHelper.getContactMethod = jest.fn().mockImplementation(() => {
+            return "SMS"
+        });
+
+        utility.publishEvent = jest.fn().mockImplementation(() => {return;});
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).resolves.toEqual({
+            status : "SUCCESS",
+		    message: `Published event to sendSMS queue`,
+		    eventMsg: {
+                subject: "B",
+				message: "A",
+				number: "1234567890"
+            }
+        });
+    });
+
+    it("success Email", () => {
+        const input = {
+            partyId: "1",
+            body: "A",
+            title:"B"
+        };
+
+        let party = new Party();
+        party.contact = {
+            emailAddress: "test@test.com"
+        }
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(party);
+
+        partyHelper.getContactMethod = jest.fn().mockImplementation(() => {
+            return "EMAIL"
+        });
+
+        utility.publishEvent = jest.fn().mockImplementation(() => {return;});
+
+        expect.assertions(1);
+
+        return expect(partyService.sendMessage(input, user)).resolves.toEqual({
+            status : "SUCCESS",
+		    message: `Published event to sendEmail queue`,
+		    eventMsg: {
+                subject: "B",
+				emailBody: "A",
+				recipient: "test@test.com",
+				sender: "admin@hebewake.com"
+            }
+        });
+    });
+});
+
+describe("Test party.write.service.sendRegistrationInvite",() => {
+    let user = {};
+
+    it("Misssing partyId in input, expect reject", () => {
+        const input = {};
+
+        expect.assertions(1);
+
+        return expect(partyService.sendRegistrationInvite(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is required"
+        });
+    });
+
+    it("Empty partyId string, expect reject", () => {
+        const input = {
+            partyId: ""
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.sendRegistrationInvite(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is not allowed to be empty"
+        });
+    });
+
+    it("failed validatePartyId(), system error, expect reject", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        //setup mock partyHelper.validatePartyId system, to reject with system error.
+        partyHelper.validatePartyId = jest.fn().mockRejectedValue({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+        
+        expect.assertions(1);
+
+        return expect(partyService.sendRegistrationInvite(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+    });
+
+    it("failed partyHelper.getContactMethod, system error, expect reject", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+
+        partyHelper.getContactMethod = jest.fn().mockImplementation(() => {
+            throw {
+                name: customError.BAD_REQUEST_ERROR,
+                message: "no contact available"
+            }
+        });
+
+        expect.assertions(1);
+
+        return expect(partyService.sendRegistrationInvite(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "no contact available"
+        });
+    });
+
+    it("failed utility.publishEvent, system error, expect reject", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+
+        partyHelper.getContactMethod = jest.fn().mockImplementation(() => {
+            return "SMS"
+        });
+
+        //setup mock utility.publishEvent to fail
+        utility.publishEvent = jest.fn().mockImplementation(() => {
+            throw {
+                name: customError.INTERNAL_SERVER_ERROR,
+                message: "publish event error"
+            }
+        });
+
+        expect.assertions(1);
+
+        return expect(partyService.sendRegistrationInvite(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+                message: "publish event error"
+        });
+    });
+
+    it("success SMS", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        let party = new Party();
+        party.contact = {
+            telephoneCountryCode: "123",
+            telephoneNumber: "4567890"
+        }
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(party);
+
+        partyHelper.getContactMethod = jest.fn().mockImplementation(() => {
+            return "SMS"
+        });
+
+        utility.publishEvent = jest.fn().mockImplementation(() => {return;});
+
+        expect.assertions(1);
+
+        return expect(partyService.sendRegistrationInvite(input, user)).resolves.toEqual({
+            status : "SUCCESS",
+		    message: `Published event to sendSMS queue`,
+		    eventMsg: {
+                subject: "Registration Invite",
+				message: "Please click on the following link to register",
+				number: "1234567890"
+            }
+        });
+    });
+
+    it("success Email", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        let party = new Party();
+        party.contact = {
+            emailAddress: "test@test.com"
+        }
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(party);
+
+        partyHelper.getContactMethod = jest.fn().mockImplementation(() => {
+            return "EMAIL"
+        });
+
+        utility.publishEvent = jest.fn().mockImplementation(() => {return;});
+
+        expect.assertions(1);
+
+        return expect(partyService.sendRegistrationInvite(input, user)).resolves.toEqual({
+            status : "SUCCESS",
+		    message: `Published event to sendEmail queue`,
+		    eventMsg: {
+                subject: "Registration Invite",
+				emailBody: "Please click on the following link to register",
+				recipient: "test@test.com",
+				sender: "admin@hebewake.com"
+            }
+        });
+    });
+});
+
+describe("Test party.write.service.deleteParty",() => {
+    let user = {};
+
+    it("Misssing partyId in input, expect reject", () => {
+        const input = {};
+
+        expect.assertions(1);
+
+        return expect(partyService.deleteParty(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is required"
+        });
+    });
+
+    it("Empty partyId string, expect reject", () => {
+        const input = {
+            partyId: ""
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.deleteParty(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is not allowed to be empty"
+        });
+    });
+
+    it("failed validatePartyId(), system error, expect reject", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        //setup mock partyHelper.validatePartyId system, to reject with system error.
+        partyHelper.validatePartyId = jest.fn().mockRejectedValue({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+        
+        expect.assertions(1);
+
+        return expect(partyService.deleteParty(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+    });
+
+    // it("failed party.save, expect reject", () => {
+    //     const input = {
+    //         partyId: mongoose.Types.ObjectId().toHexString()
+    //     };
+
+    //     partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+
+    //     Party.prototype.findOneAndDelete = jest.fn().mockRejectedValue(new Error("party.findOneAndDelete error"));
+        
+    //     expect.assertions(1);
+
+    //     return expect(partyService.deleteParty(input, user)).rejects.toEqual({
+    //         name: customError.INTERNAL_SERVER_ERROR,
+    //         message: "Delete Party Error"
+    //     });
+    // });
+
+    // it("failed publish event, expect reject", () => {
+    //     const input = {
+    //         partyId: mongoose.Types.ObjectId().toHexString()
+    //     };
+
+    //     let party = new Party();
+    //     partyHelper.validatePartyId = jest.fn().mockResolvedValue(party);
+
+    //     Party.prototype.findOneAndDelete = jest.fn().mockResolvedValue();
+        
+    //     //setup mock utility.publishEvent to fail
+    //     utility.publishEvent = jest.fn().mockImplementation(() => {
+    //         throw {
+    //             name: customError.INTERNAL_SERVER_ERROR,
+    //             message: "publish event error"
+    //         }
+    //     });
+        
+    //     expect.assertions(1);
+
+    //     return expect(partyService.deleteParty(input, user)).rejects.toEqual({
+    //         name: customError.INTERNAL_SERVER_ERROR,
+    //         message: "publish event error"
+    //     });
+    // });
+});

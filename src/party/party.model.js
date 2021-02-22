@@ -18,7 +18,9 @@ const partySchema = new mongoose.Schema({
 		url: String
 	},
 	roles: [String],
-	userId: String
+	userId: String,
+	preferredContactMethod: String,
+	preferredLanguage:String
 });
 
 const Party = mongoose.model("Party", partySchema);

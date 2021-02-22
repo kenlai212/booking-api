@@ -8,6 +8,106 @@ const customError = require("../common/customError");
 const {Party} = require("./party.model");
 const partyHelper = require("./party.helper");
 
+async function sendRegistrationInvite(input, user){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	let party = await partyHelper.validatePartyId(input.partyId);
+
+	const contactMethod = partyHelper.getContactMethod(party);
+
+	let eventQueueName;
+	let eventMsg;
+	switch(contactMethod){
+		case "SMS":
+			eventQueueName = "sendSMS";
+			eventMsg = {
+				subject: "Registration Invite",
+				message: "Please click on the following link to register",
+				number: `${party.contact.telephoneCountryCode}${party.contact.telephoneNumber}`
+			}
+		break;
+		case "EMAIL":
+			eventQueueName = "sendEmail";
+			eventMsg = {
+				subject: "Registration Invite",
+				emailBody: "Please click on the following link to register",
+				recipient: party.contact.emailAddress,
+				sender: "admin@hebewake.com"
+			}
+		break;
+		default:
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: `Bad contact method: ${contactMethod}` };
+	}
+
+	utility.publishEvent(eventMsg, eventQueueName, user);
+
+	return {
+		status : "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		eventMsg: eventMsg
+	};
+}
+
+async function sendMessage(input, user){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		body: Joi
+			.string()
+			.min(1)
+			.required(),
+		title: Joi
+			.string()
+			.min(1)
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	let party = await partyHelper.validatePartyId(input.partyId);
+
+	const contactMethod = partyHelper.getContactMethod(party);
+
+	let eventQueueName;
+	let eventMsg;
+	switch(contactMethod){
+		case "SMS":
+			eventQueueName = "sendSMS";
+			eventMsg = {
+				subject: input.title,
+				message: input.body,
+				number: `${party.contact.telephoneCountryCode}${party.contact.telephoneNumber}`
+			}
+		break;
+		case "EMAIL":
+			eventQueueName = "sendEmail";
+			eventMsg = {
+				subject: input.title,
+				emailBody: input.body,
+				recipient: party.contact.emailAddress,
+				sender: "admin@hebewake.com"
+			}
+		break;
+		default:
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: `Bad contact method: ${contactMethod}` };
+	}
+
+	utility.publishEvent(eventMsg, eventQueueName, user);
+
+	return {
+		status : "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		eventMsg: eventMsg
+	};
+}
+
 async function removeRole(input, user){
 	const schema = Joi.object({
 		partyId: Joi
@@ -121,6 +221,7 @@ async function editPicture(input, user){
 
 	const eventQueueName = "editPartyPicture";
 	utility.publishEvent(input, eventQueueName, user);
+	//TODO roleback if utility.publishEvent failed
 
 	return {
 		status : "SUCCESS",
@@ -156,6 +257,7 @@ async function editContact(input, user){
 
 	const eventQueueName = "editPartyContact";
 	utility.publishEvent(input, eventQueueName, user);
+	//TODO roleback if utility.publishEvent failed
 
 	return {
 		status : "SUCCESS",
@@ -191,6 +293,7 @@ async function editPersonalInfo(input, user){
 
 	const eventQueueName = "editPartyPersonalInfo";
 	utility.publishEvent(input, eventQueueName, user);
+	//TODO roleback if utility.publishEvent failed
 
 	return {
 		status : "SUCCESS",
@@ -212,7 +315,13 @@ async function createNewParty(input, user){
 			.allow(null),
 		role: Joi
 			.string()
-			.valid("ADMIN","STAFF","CREW","CUSTOMER",null)
+			.valid("ADMIN","STAFF","CREW","CUSTOMER",null),
+		preferredContactMethod: Joi
+			.string()
+			.valid("EMAIL","SMS","WHATSAPP",null),
+		preferredLanguage: Joi
+			.string()
+			.valid("zh-Hans","zh-Hant","en",null)
 	});
 	utility.validateInput(schema, input);
 
@@ -230,7 +339,6 @@ async function createNewParty(input, user){
 	const partyId = uuid.v4();
 
 	let party = new Party();
-	party.id = partyId;
 	party.creationTime = new Date();
     party.lastUpdateTime = new Date();
 
@@ -247,6 +355,9 @@ async function createNewParty(input, user){
 		party.roles = [];
 		party.roles.push(input.role);	
 	}
+
+	party.preferredContactMethod = input.preferredContactMethod;
+	party.preferredLanguage = input.preferredLanguage;
 
     try{
 		party = await party.save();
@@ -265,11 +376,42 @@ async function createNewParty(input, user){
 	};
 }
 
+async function deleteParty(input, user){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	const party = await partyHelper.validatePartyId(input.partyId);
+
+	try {
+		await Party.findOneAndDelete({ _id: party._id });
+	} catch (err) {
+		logger.error("Party.findOneAndDelete() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Party Error" };
+	}
+
+	const eventQueueName = "deleteParty";
+	utility.publishEvent(party, eventQueueName, user);
+
+	return { 
+		status: "SUCCESS",
+		message: `Deleted Party(${party._id})`,
+		deletePartyEventMsg: party
+	}
+}
+
 module.exports = {
     createNewParty,
+	deleteParty,
 	editPersonalInfo,
 	editContact,
 	editPicture,
 	addRole,
-	removeRole
+	removeRole,
+	sendMessage,
+	sendRegistrationInvite
 }
