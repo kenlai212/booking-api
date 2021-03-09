@@ -1,5 +1,7 @@
 "use strict";
-const customError = require("../common/customError");
+const utility = require("../common/utility");
+const {customError} = utility;
+
 const userAuthorization = require("../common/middleware/userAuthorization");
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const boatService = require("./boat.service");

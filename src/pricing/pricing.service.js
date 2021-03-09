@@ -3,7 +3,8 @@ const Joi = require("joi");
 const config = require("config");
 
 const utility = require("../common/utility");
-const customError = require("../common/customError");
+const {logger, customError} = utility;
+
 const userAuthorization = require("../common/middleware/userAuthorization");
 
 const CUSTOMER_BOOKING = "CUSTOMER_BOOKING";

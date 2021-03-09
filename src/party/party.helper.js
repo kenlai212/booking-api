@@ -1,8 +1,7 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
+const {logger, customError} = utility;
 
 const {Party} = require("./party.model");
 
@@ -62,7 +61,7 @@ function partyToOutputObj(party){
 }
 
 function getContactMethod(party){
-	if(party.contact){
+	if(!party.contact || (!party.contact.emailAddress && !party.contact.telephoneNumber)){
 		throw { name: customError.BAD_REQUEST_ERROR, message: `No contact method available` };
 	}
 
@@ -86,7 +85,7 @@ async function validatePartyId(partyId){
 		targetParty = await Party.findById(partyId);
 	} catch (err) {
 		logger.error("Party.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Party Error" };
 	}
 
 	if (!targetParty)

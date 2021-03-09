@@ -3,10 +3,9 @@ const moment = require("moment");
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const customError = require("../common/customError");
+const {logger, customError} = utility;
 
 const bookingCommon = require("../booking/booking.common");
-const PricingHelper = require("../booking/pricing_internal.helper");
 const { Invoice } = require("./invoice.model");
 
 const PAID_STATUS = "PAID";

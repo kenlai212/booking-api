@@ -1,13 +1,17 @@
 "use strict";
-const url = require("url");
 
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const registrationService = require("./registration.service");
 
-const socialRegister = asyncMiddleware(async (req) => {
-	return await registrationService.socialRegister(req.body);
+const invitedSocialRegister = asyncMiddleware(async (req) => {
+	return await registrationService.invitedSocialRegister(req.body);
+});
+
+const invitedRegister = asyncMiddleware(async (req) => {
+	return await registrationService.invitedRegister(req.body);
 });
 
 module.exports = {
-	socialRegister
+	invitedSocialRegister,
+	invitedRegister
 }

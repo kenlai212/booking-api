@@ -2,10 +2,10 @@
 const Joi = require("joi");
 const mongoose = require("mongoose");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
-const AssignmentHistory = require("./assignmentHistory.model").AssignmentHistory;
 const utility = require("../common/utility");
+const {logger, customError} = utility;
+
+const AssignmentHistory = require("./assignmentHistory.model").AssignmentHistory;
 
 //private function
 async function getAssignmentHistory(crewId){

@@ -2,8 +2,8 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const customError = require("../common/customError");
-const logger = require("../common/logger").logger;
+const {logger, customError} = utility;
+
 const pricingHelper = require("../slot/pricing_internal.helper");
 const slotHelper = require("./slot.helper");
 const occupancyHelper = require("./occupancy_internal.helper");

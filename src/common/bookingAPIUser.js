@@ -1,5 +1,7 @@
 const jwt = require("jsonwebtoken");
-const logger = require("./logger");
+
+const utility = require("./utility");
+const {logger, customError} = utility;
 
 const userObject = {
 	id: "BOOKING_SYSTEM",

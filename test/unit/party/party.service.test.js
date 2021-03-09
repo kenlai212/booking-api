@@ -1,7 +1,7 @@
-const customError = require("../../../src/common/customError");
 const utility = require("../../../src/common/utility");
+const {customError} = utility;
 
-const partyService = require("../../../src/party/party.write.service");
+const partyService = require("../../../src/party/party.service");
 const partyHelper = require("../../../src/party/party.helper");
 const {Party} = require("../../../src/party/party.model");
 
@@ -1308,7 +1308,7 @@ describe("Test party.write.service.deleteParty",() => {
 
     it("failed validatePartyId(), system error, expect reject", () => {
         const input = {
-            partyId: "1"
+            partyId: "6033c2789440f647f077fb79"
         };
 
         //setup mock partyHelper.validatePartyId system, to reject with system error.
@@ -1325,46 +1325,274 @@ describe("Test party.write.service.deleteParty",() => {
         });
     });
 
-    // it("failed party.save, expect reject", () => {
-    //     const input = {
-    //         partyId: mongoose.Types.ObjectId().toHexString()
-    //     };
+    it("failed party.save, expect reject", () => {
+        const input = {
+            partyId: "6033c2789440f647f077fb79"
+        };
 
-    //     partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
 
-    //     Party.prototype.findOneAndDelete = jest.fn().mockRejectedValue(new Error("party.findOneAndDelete error"));
+        Party.findOneAndDelete = jest.fn().mockRejectedValue(new Error("party.findOneAndDelete error"));
         
-    //     expect.assertions(1);
+        expect.assertions(1);
 
-    //     return expect(partyService.deleteParty(input, user)).rejects.toEqual({
-    //         name: customError.INTERNAL_SERVER_ERROR,
-    //         message: "Delete Party Error"
-    //     });
-    // });
+        return expect(partyService.deleteParty(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "Delete Party Error"
+        });
+    });
 
-    // it("failed publish event, expect reject", () => {
-    //     const input = {
-    //         partyId: mongoose.Types.ObjectId().toHexString()
-    //     };
+    it("failed publish event, expect reject", () => {
+        const input = {
+            partyId: "6033c2789440f647f077fb79"
+        };
 
-    //     let party = new Party();
-    //     partyHelper.validatePartyId = jest.fn().mockResolvedValue(party);
+        let party = new Party();
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(party);
 
-    //     Party.prototype.findOneAndDelete = jest.fn().mockResolvedValue();
+        Party.findOneAndDelete = jest.fn().mockResolvedValue();
         
-    //     //setup mock utility.publishEvent to fail
-    //     utility.publishEvent = jest.fn().mockImplementation(() => {
-    //         throw {
-    //             name: customError.INTERNAL_SERVER_ERROR,
-    //             message: "publish event error"
-    //         }
-    //     });
+        //setup mock utility.publishEvent to fail
+        utility.publishEvent = jest.fn().mockImplementation(() => {
+            throw {
+                name: customError.INTERNAL_SERVER_ERROR,
+                message: "publish event error"
+            }
+        });
         
-    //     expect.assertions(1);
+        expect.assertions(1);
 
-    //     return expect(partyService.deleteParty(input, user)).rejects.toEqual({
-    //         name: customError.INTERNAL_SERVER_ERROR,
-    //         message: "publish event error"
-    //     });
-    // });
+        return expect(partyService.deleteParty(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "publish event error"
+        });
+    });
 });
+
+describe("Test party.write.service.changePreferredContactMethod",() => {
+    let user = {};
+
+    it("Misssing partyId in input, expect reject", () => {
+        const input = {};
+
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredContactMethod(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is required"
+        });
+    });
+
+    it("Empty partyId string, expect reject", () => {
+        const input = {
+            partyId: ""
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredContactMethod(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is not allowed to be empty"
+        });
+    });
+
+    it("Missing contactMethod, expect reject", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredContactMethod(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "contactMethod is required"
+        });
+    });
+
+    it("Invalid contactMethod, expect reject", () => {
+        const input = {
+            partyId: "1",
+            contactMethod: "A"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredContactMethod(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "contactMethod must be one of [SMS, EMAIL, WHATSAPP]"
+        });
+    });
+
+    it("failed validatePartyId(), system error, expect reject", () => {
+        const input = {
+            partyId: "1",
+            contactMethod: "SMS"
+        };
+
+        //setup mock partyHelper.validatePartyId system, to reject with system error.
+        partyHelper.validatePartyId = jest.fn().mockRejectedValue({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+        
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredContactMethod(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+    });
+
+    it("failed Party.save, expect reject", async () => {
+        const input = {
+            partyId: "1",
+            contactMethod: "SMS"
+        };
+
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+
+        //setup mock party.save, reject
+        Party.prototype.save = jest.fn().mockRejectedValue(new Error("party.save error"));
+        
+        expect.assertions(1);
+        
+        return expect(partyService.changePreferredContactMethod(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "Save Party Error"
+        });
+    });
+
+    it("success!", async () => {
+        const input = {
+            partyId: "1",
+            contactMethod: "SMS"
+        };
+
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+        
+        Party.prototype.save = jest.fn().mockResolvedValue({preferredContactMethod: "SMS"});
+
+        const result = await partyService.changePreferredContactMethod(input, user);
+        
+        expect.assertions(3);
+        expect(result.status).toEqual("SUCCESS");
+        expect(result.message).toEqual(`Changed preferredContactMethod to SMS`);
+        expect(result.party).toEqual({preferredContactMethod: "SMS"});
+
+        return;
+    });
+});
+
+describe("Test party.write.service.changePreferredLanguage",() => {
+    let user = {};
+
+    it("Misssing partyId in input, expect reject", () => {
+        const input = {};
+
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredLanguage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is required"
+        });
+    });
+
+    it("Empty partyId string, expect reject", () => {
+        const input = {
+            partyId: ""
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredLanguage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "partyId is not allowed to be empty"
+        });
+    });
+
+    it("Missing language, expect reject", () => {
+        const input = {
+            partyId: "1"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredLanguage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "language is required"
+        });
+    });
+
+    it("Invalid language, expect reject", () => {
+        const input = {
+            partyId: "1",
+            language: "A"
+        };
+
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredLanguage(input, user)).rejects.toEqual({
+            name: customError.BAD_REQUEST_ERROR,
+            message: "language must be one of [zh-Hans, zh-Hant, en]"
+        });
+    });
+
+    it("failed validatePartyId(), system error, expect reject", () => {
+        const input = {
+            partyId: "1",
+            language: "en"
+        };
+
+        //setup mock partyHelper.validatePartyId system, to reject with system error.
+        partyHelper.validatePartyId = jest.fn().mockRejectedValue({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+        
+        expect.assertions(1);
+
+        return expect(partyService.changePreferredLanguage(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "validatePartyId System Error"
+        });
+    });
+
+    it("failed Party.save, expect reject", async () => {
+        const input = {
+            partyId: "1",
+            language: "en"
+        };
+
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+
+        //setup mock party.save, reject
+        Party.prototype.save = jest.fn().mockRejectedValue(new Error("party.save error"));
+        
+        expect.assertions(1);
+        
+        return expect(partyService.changePreferredLanguage(input, user)).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "Save Party Error"
+        });
+    });
+
+    it("success!", async () => {
+        const input = {
+            partyId: "1",
+            language: "en"
+        };
+
+        partyHelper.validatePartyId = jest.fn().mockResolvedValue(new Party());
+        
+        Party.prototype.save = jest.fn().mockResolvedValue({preferredLanguage: "en"});
+
+        const result = await partyService.changePreferredLanguage(input, user);
+        
+        expect.assertions(3);
+        expect(result.status).toEqual("SUCCESS");
+        expect(result.message).toEqual(`Changed preferredLanguage to en`);
+        expect(result.party).toEqual({preferredLanguage: "en"});
+
+        return;
+    });
+})

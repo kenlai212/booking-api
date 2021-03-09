@@ -1,5 +1,5 @@
-const logger = require("../logger").logger;
-const customError = require("../customError");
+const utility = require("../utility");
+const {logger, customError} = utility;
 
 module.exports = function (handler) {
 	return async (req, res, next) => {

@@ -1,5 +1,3 @@
-const logger = require("../logger").logger;
-
 module.exports = function (res) {
     const defaultWrite = res.write;
     const defaultEnd = res.end;

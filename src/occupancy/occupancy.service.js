@@ -4,8 +4,8 @@ const moment = require('moment');
 const mongoose = require("mongoose");
 
 const utility = require("../common/utility");
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
+const {logger, customError} = utility;
+
 const Occupancy = require("./occupancy.model").Occupancy;
 const occupancyHelper = require("./occupancy.helper");
 

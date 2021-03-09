@@ -4,13 +4,11 @@ const moment = require("moment");
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const customError = require("../common/customError");
-const logger = require("../common/logger").logger;
+const {logger, customError} = utility;
 
 const bookingCommon = require("./booking.common");
-const profileHelper = require("../common/profile/profile.helper");
 
-const Booking = require("./booking.model").Booking;
+const {Booking} = require("./booking.model");
 const occupancyHelper = require("./occupancy_internal.helper");
 
 //constants for booking types
@@ -39,16 +37,16 @@ async function bookNow(input, user) {
 	if(!input.customerId && !input.personalInfo)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "customerId or personalInfo in mandatory" };
 
-	//validate host data
-	if(!input.customerId){
-		profileHelper.validatePersonalInfoInput(input.personalInfo);
+	// //validate host data
+	// if(!input.customerId){
+	// 	bookingHelper.validatePersonalInfoInput(input.personalInfo);
 
-		if(input.contact)
-			profileHelper.validateContactInput(input.contact);
+	// 	if(input.contact)
+	// 	bookingHelper.validateContactInput(input.contact);
 	
-		if(input.picture)
-			profileHelper.validatePictureInput(input.picture);
-	}
+	// 	if(input.picture)
+	// 	bookingHelper.validatePictureInput(input.picture);
+	// }
 
 	//validate assetId
 	if(input.assetId != "MC_NXT20"){

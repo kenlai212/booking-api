@@ -1,9 +1,8 @@
 const Joi = require("joi");
 const uuid = require('uuid');
 
-const logger = require("../common/logger").logger;
 const utility = require("../common/utility");
-const customError = require("../common/customError");
+const {logger, customError} = utility;
 
 const {Party} = require("./party.model");
 const partyHelper = require("./party.helper");
@@ -210,6 +209,9 @@ async function editPicture(input, user){
 
 	let party = await partyHelper.validatePartyId(input.partyId);
 
+	//hold the old picture object, incase we need to rollback
+	const oldPicture = {...party.picture}
+
 	party.picture = input.picture;
 
 	try{
@@ -220,8 +222,17 @@ async function editPicture(input, user){
 	}
 
 	const eventQueueName = "editPartyPicture";
-	utility.publishEvent(input, eventQueueName, user);
-	//TODO roleback if utility.publishEvent failed
+	utility.publishEvent(input, eventQueueName, user, async () => {
+		logger.error("rolling back edit picture");
+		
+		party.picture = oldPicture;
+		try{
+			party = await party.save();
+		}catch(error){
+			logger.error("party.save error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+		}
+	});
 
 	return {
 		status : "SUCCESS",
@@ -246,6 +257,9 @@ async function editContact(input, user){
 	
 	let party = await partyHelper.validatePartyId(input.partyId);
 
+	//hold the old contact object, incase we need to rollback
+	const oldContact = {...party.contact}
+
 	party.contact = input.contact;
 
 	try{
@@ -256,8 +270,17 @@ async function editContact(input, user){
 	}
 
 	const eventQueueName = "editPartyContact";
-	utility.publishEvent(input, eventQueueName, user);
-	//TODO roleback if utility.publishEvent failed
+	utility.publishEvent(input, eventQueueName, user, async () => {
+		logger.error("rolling back edit contact");
+		
+		party.contact = oldContact;
+		try{
+			party = await party.save();
+		}catch(error){
+			logger.error("party.save error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+		}
+	});
 
 	return {
 		status : "SUCCESS",
@@ -282,6 +305,9 @@ async function editPersonalInfo(input, user){
 	
 	let party = await partyHelper.validatePartyId(input.partyId);
 
+	//hold the old personalInfo object, in case we need to roll back
+	const oldPersonalInfo = {...party.personalInfo};
+
 	party.personalInfo = input.personalInfo;
 
 	try{
@@ -292,8 +318,17 @@ async function editPersonalInfo(input, user){
 	}
 
 	const eventQueueName = "editPartyPersonalInfo";
-	utility.publishEvent(input, eventQueueName, user);
-	//TODO roleback if utility.publishEvent failed
+	utility.publishEvent(input, eventQueueName, user, async () => {
+		logger.error("rolling back edit personalInfo");
+		
+		party.personalInfo = oldPersonalInfo;
+		try{
+			party = await party.save();
+		}catch(error){
+			logger.error("party.save error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+		}
+	});
 
 	return {
 		status : "SUCCESS",
@@ -302,8 +337,105 @@ async function editPersonalInfo(input, user){
 	};
 }
 
+async function changePreferredLanguage(input, user){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		language: Joi
+			.string()
+			.valid("zh-Hans","zh-Hant","en")
+			.required()
+	});
+	utility.validateInput(schema, input);
+	
+	let party = await partyHelper.validatePartyId(input.partyId);
+
+	party.preferredLanguage = input.preferredLanguage;
+
+	try{
+		party = await party.save();
+	}catch(error){
+		logger.error("party.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+	}
+
+	return {
+		status : "SUCCESS",
+		message: `Changed preferredLanguage to ${input.language}`,
+		party: party
+	};
+}
+
+async function changePreferredContactMethod(input, user){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		contactMethod: Joi
+			.string()
+			.valid("SMS","EMAIL","WHATSAPP")
+			.required()
+	});
+	utility.validateInput(schema, input);
+	
+	let party = await partyHelper.validatePartyId(input.partyId);
+
+	party.preferredContactMethod = input.preferredContactMethod;
+
+	try{
+		party = await party.save();
+	}catch(error){
+		logger.error("party.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+	}
+
+	return {
+		status : "SUCCESS",
+		message: `Changed preferredContactMethod to ${input.contactMethod}`,
+		party: party
+	};
+}
+
+async function updateUserId(input, user){
+    const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required(),
+		userId: Joi
+			.string()
+			.min(1)
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	let party = await partyHelper.validatePartyId(input.partyId);
+
+	party.userId = input.userId;
+
+	try{
+		party = await party.save();
+	}catch(error){
+		logger.error("party.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+	}
+	
+	return {
+		status : "SUCCESS",
+		message: `Updated userId(${party.userId})`,
+		party: party
+	};
+}
+
 async function createNewParty(input, user){
 	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.min(1)
+			.allow(null),
 		personalInfo: Joi
 			.object()
 			.required(),
@@ -342,6 +474,8 @@ async function createNewParty(input, user){
 	party.creationTime = new Date();
     party.lastUpdateTime = new Date();
 
+	party.userId = input.userId;
+
 	party.personalInfo = input.personalInfo;
 
 	if(input.contact){
@@ -361,13 +495,22 @@ async function createNewParty(input, user){
 
     try{
 		party = await party.save();
-	}catch(err){
-		logger.error("party.save error : ", err);
+	}catch(error){
+		logger.error("party.save error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
 	}
 
 	const eventQueueName = "newParty";
-	utility.publishEvent(input, eventQueueName, user);
+	await utility.publishEvent(input, eventQueueName, user, async () => {
+		logger.error("rolling back new party");
+		
+		try{
+			await Party.findOneAndDelete({ _id: party._id });
+		}catch(error){
+			logger.error("findOneAndDelete error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+		}
+	});
 
 	return {
 		status: "SUCCESS",
@@ -389,8 +532,8 @@ async function deleteParty(input, user){
 
 	try {
 		await Party.findOneAndDelete({ _id: party._id });
-	} catch (err) {
-		logger.error("Party.findOneAndDelete() error : ", err);
+	} catch (error) {
+		logger.error("Party.findOneAndDelete() error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Party Error" };
 	}
 
@@ -404,6 +547,61 @@ async function deleteParty(input, user){
 	}
 }
 
+async function readParty(input, user){
+	const schema = Joi.object({
+		partyId: Joi
+			.string()
+			.min(1)
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	let targetParty;
+	try {
+		targetParty = await Party.findById(input.partyId);
+	} catch (error) {
+		logger.error("Party.findById Error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return partyHelper.partyToOutputObj(targetParty);
+}
+
+async function readParties(input, user){
+	const schema = Joi.object({
+		name: Joi
+            .string()
+            .min(1)
+	});
+	utility.validateInput(schema, input);
+
+	let searchCriteria;
+	if (input.name) {
+		searchCriteria = {
+			"name": input.name
+		}
+	}
+
+	let parties;
+	try {
+		parties = await Party.find(searchCriteria);
+	} catch (error) {
+		logger.error("Party.find Error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	var outputObjs = [];
+	parties.forEach((item) => {
+		outputObjs.push(partyHelper.partyToOutputObj(item));
+
+	});
+
+	return {
+		"count": outputObjs.length,
+		"parties": outputObjs
+	};
+}
+
 module.exports = {
     createNewParty,
 	deleteParty,
@@ -413,5 +611,10 @@ module.exports = {
 	addRole,
 	removeRole,
 	sendMessage,
-	sendRegistrationInvite
+	sendRegistrationInvite,
+	changePreferredContactMethod,
+	changePreferredLanguage,
+	readParty,
+    readParties,
+	updateUserId
 }

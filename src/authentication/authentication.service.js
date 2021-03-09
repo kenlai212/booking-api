@@ -1,20 +1,16 @@
 "use strict";
 const Joi = require("joi");
 const jwt = require("jsonwebtoken");
-const moment = require("moment");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
 const utility = require("../common/utility");
+const {logger, customError} = utility;
 
-const userHelper = require("./user_internal.helper");
-const partyHelper = require("./party_internal.helper");
-const socialProfileHelper = require("../common/profile/socialProfile.helper");
+const socialProfileHelper = require("./socialProfile.helper");
+const {Claim} = require("./claim.model");
 
 const ACCESS_TOKEN_EXPIRES = "1h";
 
 async function socialLogin(input){
-	//validate input data
 	const schema = Joi.object({
 		provider: Joi
 			.string()
@@ -37,54 +33,23 @@ async function socialLogin(input){
 		default:
 			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid Profider" };
 	}
-	
-	return await assembleToken(socialProfile);
-}
 
-async function assembleToken(socialProfile) {
-	//find user
-	let targetUser;
+	let claim
 	try {
-		targetUser = await userHelper.getSocialUser(socialProfile.provider, socialProfile.providerUserId);
+		claim = await Claim.findOne({
+			"provider": socialProfile.provider,
+			"providerUserId": socialProfile.providerUserId
+		});
 	} catch (err) {
-		//if no user found, its a login error
-		if (err.name == customError.RESOURCE_NOT_FOUND_ERROR) {
-			throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
-		} else {
-			throw err;
-		}
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
-	//check if targetUser is activated
-	//cannot assemble a token if user is targetUser is inactive
-	if (targetUser.status != "ACTIVE") {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Inactive user" };
-	}
-
-	//find party
-	let targetParty;
-	try{
-		targetParty = await partyHelper.getParty(targetUser.partyId);
-	}catch(err){
-		//if no party found, its a login error
-		if (err.name == customError.RESOURCE_NOT_FOUND_ERROR) {
-			throw { name: customError.UNAUTHORIZED_ERROR, message: "Login failed" };
-		} else {
-			throw err;
-		}
-	}
-
+	
 	//set output object
 	const output = {
-		"id": targetUser.id,
-		"personalInfo": targetUser.personalInfo,
-		"contact": targetParty.contact,
-		"picture": targetParty.picture,
-		"provider": targetUser.provider,
-		"providerUserId": targetUser.providerUserId,
-		"status": targetUser.status,
-		"groups": targetUser.groups,
-		"lastLoginTime": moment().toDate()
+		"userId": claim.userId,
+		"partyId": claim.partyId,
+		"status": claim.userStatus
 	}
 
 	//sign output object into token
@@ -95,12 +60,6 @@ async function assembleToken(socialProfile) {
 		logger.error("jwt.sign error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-	
-	//update last login time on user record
-	userHelper.updateLastLogin(targetUser.id)
-	.catch(() => {
-		logger.error(`Token issued to User(${targetUser.id}) at ${output.lastLoginTime}, but fialed to updateLastLogin(). Please patch manually.`);
-	});
 
 	return token;
 }

@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken");
 
-const logger = require("../logger").logger;
+const utility = require("../utility");
+const {logger} = utility;
 
 module.exports = function (req, res, next) {
 

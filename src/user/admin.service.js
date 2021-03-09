@@ -1,84 +1,81 @@
 const Joi = require("joi");
-const mongoose = require("mongoose");
 const uuid = require("uuid");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
 const utility = require("../common/utility");
+const {logger, customError} = utility;
 
 const User = require("./user.model").User;
 const userObjectMapper = require("./userObjectMapper.helper");
-const userHistoryService = require("./userHistory.service");
 
-const ACTIVE_STATUS = "ACTIVE";
-const INACTIVE_STATUS = "INACTIVE";
-const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
+async function adminActivate(input, user){
+	const schema = Joi.object({
+		userId: Joi
+			.string()
+			.required(),
+	});
+	utility.validateInput(schema, input);
 
-async function getTargetUser(userId){
-	//validate userId
-	if (mongoose.Types.ObjectId.isValid(userId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
-	}
-
-	//get target user
 	let targetUser;
 	try {
-		targetUser = await User.findById(userId);
+		targetUser = await User.findOne({
+			"activationKey": input.activationKey
+		});
 	} catch (err) {
-		logger.error("User.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Insufficient Rights" };
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (targetUser == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	if (!targetUser)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
+
+	targetUser.status = "ACTIVE";
+	targetUser.lastUpdateTime = new Date();
+
+	try {
+		targetUser = await targetUser.save();
+	} catch (err) {
+		logger.error("user.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
 	return targetUser;
 }
 
-async function editStatus(input, user) {
-	//validate input data
+async function deactivate(input, user){
 	const schema = Joi.object({
 		userId: Joi
 			.string()
 			.required(),
-		status: Joi
-			.string()
-			.valid(ACTIVE_STATUS, INACTIVE_STATUS)
-			.required()
 	});
 	utility.validateInput(schema, input);
 
-	//get target user
-	let targetUser = await getTargetUser(input.userId);
+	let targetUser;
+	try {
+		targetUser = await User.findOne({
+			"activationKey": input.activationKey
+		});
+	} catch (err) {
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-	//update user status
-	targetUser.status = input.status;
+	if (!targetUser)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
+
+	targetUser.status = "INACTIVE";
 	targetUser.lastUpdateTime = new Date();
-	targetUser.activationKey = undefined;
 
 	try {
 		targetUser = await targetUser.save();
 	} catch (err) {
-		logger.error("targetUser.save() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	//save userHistory
-	const historyItem = {
-		targetUserId: targetUser._id.toString(),
-		transactionDescription: `Admin changed user status : ${input.status}`,
-		triggerByUser: user
+		logger.error("user.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save User Error" };
 	}
 
-	userHistoryService.addHistoryItem(historyItem)
-	.catch(`Edited user(${input.userId}) status to ${input.status}, but failed to addHistoryItem ${JSON.stringify(historyItem)}`);
-
-	return userObjectMapper.toOutputObj(targetUser);
+	return targetUser;
 }
 
 async function unassignGroup(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		userId: Joi
 			.string()
@@ -99,14 +96,22 @@ async function unassignGroup(input, user) {
 				"CREW_USER",
 				"PARTY_ADMIN")
 			.required()
-		//TODO add more valid groups
 	});
 	utility.validateInput(schema, input);
 
-	//get target user
-	let targetUser = await getTargetUser(input.userId);
+	let targetUser;
+	try {
+		targetUser = await User.findOne({
+			"activationKey": input.activationKey
+		});
+	} catch (err) {
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-	//remove groupId from targetUSer.groups
+	if (!targetUser)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
+
 	targetUser.groups.forEach(function (groupId, index, object) {
 		if (groupId == input.groupId) {
 			object.splice(index, 1);
@@ -117,25 +122,13 @@ async function unassignGroup(input, user) {
 		targetUser = await targetUser.save();
 	} catch (err) {
 		logger.error("Internal Server Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save User Error" };
 	}
 
-	//save userHistory
-	const historyItem = {
-		targetUserId: targetUser._id.toString(),
-		transactionDescription: "Removed " + input.groupId + " from User",
-		triggerByUser: user
-	}
-
-	userHistoryService.addHistoryItem(historyItem)
-	.catch(`Unassigned group ${input.groupId} from user(${input.userId}), but failed to addHistoryItem ${JSON.stringify(historyItem)}`);
-
-	return userObjectMapper.toOutputObj(targetUser);
+	return targetUser;
 }
 
 async function assignGroup(input, user) {
-	
-	//validate input data
 	const schema = Joi.object({
 		userId: Joi
 			.string()
@@ -160,8 +153,18 @@ async function assignGroup(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//get target user
-	let targetUser = await getTargetUser(input.userId);
+	let targetUser;
+	try {
+		targetUser = await User.findOne({
+			"activationKey": input.activationKey
+		});
+	} catch (err) {
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	if (!targetUser)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
 
 	//see if target group already assigned to target user
 	targetUser.groups.forEach(group => {
@@ -180,17 +183,7 @@ async function assignGroup(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//save userHistory
-	const historyItem = {
-		targetUserId: targetUser._id.toString(),
-		transactionDescription: "Added " + input.groupId + " to User",
-		triggerByUser: user
-	}
-
-	userHistoryService.addHistoryItem(historyItem)
-	.catch(`Assigned group ${input.groupId} from user(${input.userId}), but failed to addHistoryItem ${JSON.stringify(historyItem)}`);
-
-	return userObjectMapper.toOutputObj(targetUser);
+	return targetUser;
 }
 
 async function searchGroups(input, user) {
@@ -229,7 +222,6 @@ async function searchUsers(user) {
 }
 
 async function deleteUser(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		userId: Joi
 			.string()
@@ -238,10 +230,19 @@ async function deleteUser(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//get target user
-	let targetUser = await getTargetUser(input.userId);
+	let targetUser;
+	try {
+		targetUser = await User.findOne({
+			"activationKey": input.activationKey
+		});
+	} catch (err) {
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-	//delete user record
+	if (!targetUser)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
+
 	try {
 		await User.findByIdAndDelete(targetUser._id.toString());
 	} catch (err) {
@@ -249,22 +250,10 @@ async function deleteUser(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//delete userHistory record
-	const deleteUserHistoryInput = {
-		"targetUserId": targetUser._id.toString(),
-		"triggerByUser": user
-	}
-
-	userHistoryService.deleteUserHistory(deleteUserHistoryInput)
-	.catch(() => {
-		logger.error(`Deleted user ${input.userId}, but failed to deleteUserHistory ${JSON.stringify(deleteUserHistoryInput)}`);
-	});
-	
-	return {"status": "SUCCESS"}
+	return targetUser;
 }
 
 async function resendActivationEmail(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		userId: Joi
 			.string()
@@ -272,13 +261,25 @@ async function resendActivationEmail(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//get user
-	let targetUser = await getTargetUser(input.userId);
+	let targetUser;
+	try {
+		targetUser = await User.findOne({
+			"activationKey": input.activationKey
+		});
+	} catch (err) {
+		logger.error("User.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
 
-	//set activation key and set AWAITING_ACTIVATION status
+	if (!targetUser)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
+
+	const oldActivationKey = {...targetUser.activationKey};
+	const oldStatus = {...targetUser.status}
+
 	targetUser.activationKey = uuid.v4();
 	targetUser.lastUpdateTime = new Date();
-	targetUser.status = AWAITING_ACTIVATION_STATUS;
+	targetUser.status = "AWAITING_ACTIVATION";
 
 	try {
 		targetUser = await targetUser.save();
@@ -287,38 +288,42 @@ async function resendActivationEmail(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//assemble and send activation email
-	// const activationURL = config.get("user.activation.activationURL") + "/" + activationKey;
-    // const bodyHTML = "<p>Click <a href='" + activationURL + "'>here</a> to activate your account!</p>";
-	// const sendEmailInput = {
-    //     sender: config.get("user.activation.systemSenderEmailAddress"),
-    //     recipient: recipient,
-    //     emailBody: bodyHTML,
-    //     subject: "GoGoWake Account Activation"
-    // }
 
-	// notificationHelper.sendEmail(sendEmailInput, user)
-	// .catch(() => {
-	// 	logger.error(`Activation Key resetted for user(${input.userId}), but failed to sendEmail ${JSON.stringify(sendEmailInput)}`);
-	// });
+	const eventQueueName = "sendMessage";
 
-	//save userHistory
-	const historyItem = {
-		targetUserId: targetUser._id.toString(),
-		transactionDescription: "Sent activation email to user. MessageID : " + sendActivationEmailResult.messageId,
-		triggerByUser: user
+	//assemble activation message
+	const activationURL = config.get("user.activation.activationURL") + "/" + activationKey;
+    const body = "<p>Click <a href='" + activationURL + "'>here</a> to activate your account!</p>";
+	const msg = {
+		partyId: targetUser.partyId,
+		title: "Activate your account",
+		body: body
 	}
 
-	userHistoryService.addHistoryItem(historyItem)
-	.catch(() => {
-		logger.error(`Resended activation email to user(${input.userId}), but failed to addHistoryItem ${historyItem}`);	
+	await utility.publishEvent(msg, eventQueueName, targetUser, async () => {
+		logger.error("rolling back send activation");
+		
+		try{
+			targetUser.status = oldStatus;
+			targetUser.activationKey = oldActivationKey;
+
+			await targetUser.save();
+		}catch(error){
+			logger.error("findOneAndDelete error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Rollback save user Error" };
+		}
 	});
 
-	return {"status": "SUCCESS"};
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`, 
+		sendMessageEventMsg: msg
+	};
 }
 
 module.exports = {
-	editStatus,
+	adminActivate,
+	deactivate,
 	assignGroup,
 	unassignGroup,
 	searchUsers,

@@ -1,5 +1,7 @@
+const utility = require("../common/utility");
+const {logger, customError} = utility;
+
 const customerService = require("../customer/customer.service");
-const logger = require("../common/logger").logger;
 
 async function findCustomer(input, user){
     try{

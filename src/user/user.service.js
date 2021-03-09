@@ -1,136 +1,14 @@
 "use strict";
-const uuid = require("uuid");
 const Joi = require("joi");
 const mongoose = require("mongoose");
-const moment = require("moment");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
 const utility = require("../common/utility");
+const {logger, customError} = utility;
 
-const User = require("./user.model").User;
+const {User} = require("./user.model");
 const userObjectMapper = require("./userObjectMapper.helper");
-const userHistoryService = require("./userHistory.service");
-const profileHelper = require("../common/profile/profile.helper");
-
-const USER_ADMIN_GROUP = "USER_ADMIN";
-
-const AWAITING_ACTIVATION_STATUS = "AWAITING_ACTIVATION";
-
-//private function
-async function getTargetUser(userId){
-	if (mongoose.Types.ObjectId.isValid(userId) == false) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid userId" };
-	}
-
-	let user;
-	try {
-		user = await User.findById(userId);
-	} catch (err) {
-		logger.error("User.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	if (user == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid userId" };
-	}
-
-	return user;
-}
-
-//private function
-async function saveUser(user){
-	//save to db
-	try {
-		user = await user.save();
-	} catch (err) {
-		logger.error("user.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return userObjectMapper.toOutputObj(user);
-}
-
-async function createNewUser(input){
-	const schema = Joi.object({
-		partyId: Joi
-			.string()
-			.required(),
-		provider: Joi
-			.string()
-			.valid("GOOGLE","FACEBOOK", null),
-		providerUserId: Joi
-			.string()
-			.allow(null),
-		personalInfo: Joi
-			.object()
-			.required(),
-		contact: Joi
-			.object()
-			.allow(null),
-		picture: Joi
-			.object()
-			.allow(null)	
-	});
-	utility.validateInput(schema, input);
-
-	//save new user
-	let newUser = new User();
-	newUser.partyId = input.partyId;
-
-	//validate and set personalInfo
-	profileHelper.validatePersonalInfoInput(input.personalInfo);
-	newUser = profileHelper.setPersonalInfo(input.personalInfo, newUser);
-
-	//validate and set contact
-	if(input.contact!= null){
-		profileHelper.validateContactInput(input.contact);
-		newUser = profileHelper.setContact(input.contact, newUser);
-	}
-
-	//validate and set picture
-	if(input.picture != null){
-		profileHelper.validatePictureInput(input.picture);
-		newUser = profileHelper.setPicture(input.picture, newUser);
-	}
-
-	newUser.status = AWAITING_ACTIVATION_STATUS;
-	newUser.registrationTime = moment().toDate();
-	newUser.activationKey = uuid.v4();
-
-	if(input.providerUserId != null && input.providerUserId.length > 0){
-		newUser.provider = input.provider;
-		newUser.providerUserId = input.providerUserId;
-	}
-
-	try {
-		newUser = await newUser.save();
-	} catch (error) {
-		logger.error("newUser.save() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//init userHistory
-	const historyItem = {
-		userId: newUser._id.toString(),
-		transactionDescription: "New User registered"
-	}
-
-	userHistoryService.initUserHistory(historyItem)
-	.catch(() => {
-		logger.error(`User record(${newUser._id.toString()}) created, but initUserHistory failed ${JSON.stringify(historyItem)}.`);
-	});
-
-	//map to output obj
-	let userOutput = userObjectMapper.toOutputObj(newUser);
-	//add activation key to userOutput
-	userOutput.activationKey = newUser.activationKey;
-
-	return userOutput;
-}
 
 async function findUser(input) {
-	//validate input data
 	const schema = Joi.object({
 		id: Joi
 			.string()
@@ -138,7 +16,6 @@ async function findUser(input) {
 	});
 	utility.validateInput(schema, input);
 
-	//validate userId
 	if (mongoose.Types.ObjectId.isValid(input.id) == false)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid id" };
 
@@ -159,15 +36,13 @@ async function findUser(input) {
 		}
 	}
 
-	if (!user) {
+	if (!user)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "No user found" };
-	}
 
 	return userObjectMapper.toOutputObj(user);
 }
 
 async function findSocialUser(input) {
-	//validate input data
 	const schema = Joi.object({
 		provider: Joi
 			.string()
@@ -181,7 +56,6 @@ async function findSocialUser(input) {
 	});
 	utility.validateInput(schema, input);
 
-	//find user with provider and providerUserId
 	let user;
 	try {
 		user = await User.findOne({
@@ -193,15 +67,13 @@ async function findSocialUser(input) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (user == null) {
+	if (!user)
 		throw { name: customError.RESOURCE_NOT_FOUND, message: "No user found" };
-	}
 
 	return userObjectMapper.toOutputObj(user);
 }
 
 async function activate(input) {
-	//validate input data
 	const schema = Joi.object({
 		activationKey: Joi
 			.string()
@@ -209,7 +81,7 @@ async function activate(input) {
 	});
 	utility.validateInput(schema, input);
 
-	//find target user
+	let targetUser;
 	try {
 		targetUser = await User.findOne({
 			"activationKey": input.activationKey
@@ -219,14 +91,14 @@ async function activate(input) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (targetUser == null) {
+	if (!targetUser)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
-	}
 
-	//set user status to ACTIVE
-	//set new lastUpdateTime
-	//delete activationKey
-	targetUser.status = ACTIVE_STATUS;
+	//hold old status and activation key, incase we need to roll back
+	const oldStatus = {...targetUser.status}
+	const oldActivationKey = {...targetUser.activationKey};
+
+	targetUser.status = "ACTIVE";
 	targetUser.lastUpdateTime = new Date();
 	targetUser.activationKey = undefined;
 
@@ -237,23 +109,33 @@ async function activate(input) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//save userHistory
-	const historyItem = {
-		targetUserId: targetUser._id.toString(),
-		transactionDescription: "User activation",
-		triggerByUser: targetUser
+	const eventQueueName = "userActivated";
+	const msg = {
+		userId: targetUser._id
 	}
 
-	userHistoryService.addHistoryItem(historyItem)
-	.catch(() => {
-		logger.error(`User(${targetUser._id.toString()}) activated, but failed to addHistoryItem ${JSON.stringify(historyItem)}`);
+	await utility.publishEvent(msg, eventQueueName, targetUser, async () => {
+		logger.error("rolling back user activation");
+		
+		try{
+			targetUser.status = oldStatus;
+			targetUser.activationKey = oldActivationKey;
+
+			await targetUser.save();
+		}catch(error){
+			logger.error("findOneAndDelete error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Rollback save user Error" };
+		}
 	});
 
-	return userObjectMapper.toOutputObj(targetUser);
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`, 
+		newUserActivatedEventMsg: msg
+	};
 }
 
 async function updateLastLogin(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		userId: Joi
 			.string()
@@ -261,22 +143,19 @@ async function updateLastLogin(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let targetUser = await getTargetUser(input.userId);
-
-	//check for authorization. if USER_ADMIN or user.id is same as targetUser._id
-	let authorize = false;
-	if (targetUser.groups.includes(USER_ADMIN_GROUP) == true || targetUser._id == input.userId) {
-		authorize = true;
+	let targetUser;
+	try {
+		targetUser = await User.findById(userId);
+	} catch (err) {
+		logger.error("User.findById() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find User Error" };
 	}
+	
+	if(!targetUser)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid userId" };
 
-	if (authorize == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
+	targetUser.lastLoginTime = new Date();
 
-	//update lastLoginTime
-	targetUser.lastLoginTime = moment().toDate();
-
-	//save to db
 	try {
 		targetUser = await targetUser.save();
 	} catch (err) {
@@ -284,96 +163,12 @@ async function updateLastLogin(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	return userObjectMapper.toOutputObj(targetUser); 
-}
-
-async function editPersonalInfo(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		userId: Joi
-			.string()
-			.min(1)
-			.required(),
-		personalInfo: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate personalInfo input. Set nameRequired to false because this is only an edit
-	//maybe user only wants to edit birthday or gender
-	input.personalInfo.nameRequired = false;
-	profileHelper.validatePersonalInfoInput(input.personalInfo);
-
-	//get target user
-	let targetUser = await getTargetUser(input.userId);
-	
-	//set personalInfo attributes
-	targetUser = profileHelper.setPersonalInfo(input.personalInfo, targetUser);
-
-	//save record
-	return await saveUser(targetUser);
-}
-
-async function editContact(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		userId: Joi
-			.string()
-			.min(1)
-			.required(),
-		contact: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate user input
-	profileHelper.validateContactInput(input.contact);
-
-	//get target crew
-	let targetUser = await getTargetUser(input.userId);
-
-	//set contact attributes
-	targetUser = profileHelper.setContact(input.contact, targetUser);
-
-	//save record
-	return await saveUser(targetUser);
-}
-
-async function editPicture(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		userId: Joi
-			.string()
-			.min(1)
-			.required(),
-		picture: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate picture input
-	profileHelper.validatePictureInput(input.picture);
-
-	//get target user
-	let targetUser = await getTargetCrew(input.userId);
-
-	//set pictuer attributes
-	targetUser = profileHelper.setPicture(input.picture, targetUser);
-
-	//save record
-	return await saveCrew(targetUser);
+	return targetUser; 
 }
 
 module.exports = {
-	createNewUser,
 	findUser,
 	findSocialUser,
 	activate,
-	updateLastLogin,
-	editPersonalInfo,
-	editContact,
-	editPicture
+	updateLastLogin
 }

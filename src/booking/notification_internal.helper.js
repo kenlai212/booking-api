@@ -1,7 +1,8 @@
 const config = require("config");
 const moment = require("moment");
 
-const logger = require("../common/logger").logger;
+const utility = require("../common/utility");
+const {logger, customError} = utility;
 
 const notificationService = require("../notification/notification.service");
 const bookingAPIUser = require("../common/bookingAPIUser");

@@ -1,6 +1,6 @@
-const logger = require("../common/logger").logger;
+const utility = require("../common/utility");
+const {logger, customError} = utility;
 
-const customError = require("../common/customError");
 const bookingService = require("../booking/booking.service");
 
 async function findBooking(bookingId){

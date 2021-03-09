@@ -1,4 +1,5 @@
-const logger = require("../common/logger").logger;
+const utility = require("../common/utility");
+const {logger} = utility;
 
 const partyService = require("../party/party.service");
 

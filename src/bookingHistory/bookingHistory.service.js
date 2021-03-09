@@ -2,9 +2,8 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const customError = require("../common/customError");
+const {logger, customError} = utility;
 
-const logger = require("../common/logger").logger;
 const BookingHistory = require("./bookingHistory.model").BookingHistory;
 const bookingHelper = require("./booking_internal.helper");
 

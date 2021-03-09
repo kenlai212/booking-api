@@ -5,8 +5,9 @@ const Joi = require("joi");
 const moment = require("moment");
 const config = require("config");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
+const utility = require("../common/utility");
+const {logger, customError} = utility;
+
 const userAuthorization = require("../common/middleware/userAuthorization");
 
 const NOTIFICATION_ADMIN_GROUP = "NOTIFICATION_ADMIN";

@@ -3,8 +3,7 @@ const moment = require("moment");
 const Joi = require("joi");
 
 const utility = require("../../common/utility");
-const customError = require("../../common/customError");
-const logger = require("../../common/logger").logger;
+const {logger, customError} = utility;
 
 const bookingCommon = require("../booking.common");
 

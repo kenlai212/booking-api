@@ -2,13 +2,11 @@
 const Joi = require("joi");
 const mongoose = require("mongoose");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
 const utility = require("../common/utility");
+const {logger, customError} = utility;
 
 const { Customer } = require("./customer.model");
 const partyHelper = require("./party_internal.helper");
-const profileHelper = require("../common/profile/profile.helper");
 
 //private function
 async function getTargetCustomer(customerId){
@@ -235,82 +233,6 @@ async function editStatus(input, user) {
 	return await saveCustomer(targetCustomer);
 }
 
-async function editPersonalInfo(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		customerId: Joi
-			.string()
-			.min(1)
-			.required(),
-		personalInfo: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate personalInfo input
-	input.personalInfo.nameRequired = false;
-	profileHelper.validatePersonalInfoInput(input.personalInfo);
-
-	//get target customer
-	let targetCustomer = await getTargetCustomer(input.customerId);
-	
-	//set personalInfo attributes
-	targetCustomer = profileHelper.setPersonalInfo(input.personalInfo, targetCustomer);
-
-	//save record
-	return await saveCustomer(targetCustomer);
-}
-
-async function editContact(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		cusotmerId: Joi
-			.string()
-			.min(1)
-			.required(),
-		contact: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate contact input
-	profileHelper.validateContactInput(input.contact);
-
-	//get target customer
-	let targetCustomer = await getTargetCustomer(input.customerId);
-
-	//set contact attributes
-	targetCustomer = profileHelper.setContact(input.contact, targetCustomer);
-
-	//save record
-	return await saveCustomer(targetCustomer);
-}
-
-async function editPicture(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		customerId: Joi
-			.string()
-			.min(1)
-			.required(),
-		picture: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate picture input
-	profileHelper.validatePictureInput(input.picture);
-
-	let targetCustomer = await getTargetCustomer(input.customerId);
-
-	targetCustomer = profileHelper.setPicture(input.picture, targetCustomer);
-
-	return await saveCustomer(targetCustomer);
-}
-
 function customerToOutputObj(customer) {
 	var outputObj = new Object();
 	outputObj.id = customer._id.toString();
@@ -335,8 +257,5 @@ module.exports = {
 	newCustomer,
 	findCustomer,
 	deleteCustomer,
-	editStatus,
-	editPersonalInfo,
-	editContact,
-	editPicture
+	editStatus
 }

@@ -1,5 +1,5 @@
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
+const utility = require("../common/utility");
+const {logger} = utility;
 
 const occupancyService = require("../occupancy/occupancy.service");
 

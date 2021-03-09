@@ -2,15 +2,22 @@
 const {OAuth2Client} = require("google-auth-library");
 const axios = require("axios");
 
-const logger = require("../logger").logger;
-const customError = require("../customError");
+const utility = require("../common/utility");
+const {logger, customError} = utility;
 
 const FACEBOOK_GRAPH_API_URL = "https://graph.facebook.com";
 
 async function getSocialProfileFromFacebook(token){
 	const url = `${FACEBOOK_GRAPH_API_URL}/me?fields=id,name,email,picture&access_token=${token}`;
 
-	const response = await axios.get(url);
+	let response;
+	try{
+		response = await axios.get(url);
+	}catch(error){
+		logger.error("Facebook graph api error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Facebook Graph API error" };
+	}
+	
 	const data = response.data;
 
 	let socialProfile = new SocialProfile();

@@ -1,32 +1,7 @@
-const amqp = require('amqplib/callback_api');
-const moment = require("moment");
-
-const {logger} = require("../common/logger");
-const customError = require("./customError");
+const amqp = require('amqplib');
+const { createLogger, format, transports } = require("winston");
 
 require("dotenv").config();
-
-function isoStrToDate(isoStr, utcOffset) {
-	const dateStr = isoStr.substr(0, 10);
-	const dateRes = dateStr.split("-");
-
-	const timeStr = isoStr.substr(11, 8);
-	const timeRes = timeStr.split(":")
-
-	const targetDateTime = moment()
-		.utcOffset(parseInt(utcOffset))
-		.set({
-			year: parseInt(dateRes[0]),
-			month: parseInt(dateRes[1]) - 1,
-			date: parseInt(dateRes[2]),
-			hour: parseInt(timeRes[0]),
-			minute: parseInt(timeRes[1]),
-			second: parseInt(timeRes[2]),
-			millisecond: 0
-		}).toDate();
-
-	return targetDateTime;
-}
 
 function validateInput(schema, input){
 	const result = schema.validate(input);
@@ -48,41 +23,105 @@ function userGroupAuthorization(userGroups, allowGroups){
     }
 }
 
-function publishEvent(message, queueName, user){
-    amqp.connect(process.env.AMQP_URL, function(error0, connection) {
-        if (error0) {
-			logger.err("utility.publishEvent error : ", error0);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "AMQP Connection problem" };
-        }
-        
-        connection.createChannel(function(error1, channel) {
-            if (error1) {
-				logger.err("utility.publishEvent error : ", error1);
-				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Create Channel problem" };
-            }
-            
-			if(!user){
-				throw { name: customError.INTERNAL_SERVER_ERROR, message: "Missing User"}
-			}
-			message.user = user;
-            var msg = JSON.stringify(message);
+async function publishEvent(message, queueName, user, rollback){
+    if(!user){
+        rollback();
+        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Missing User"}
+    }
+    message.user = user;
+    var msg = JSON.stringify(message);
 
-            channel.assertQueue(queueName, {
-                durable: true
-            });
-
-            channel.sendToQueue(queueName, Buffer.from(msg));
-        });
-
-        setTimeout(function() {
-            connection.close();
-        }, 500);
+    let connection;
+    try{
+        connection = await amqp.connect(process.env.AMQP_URL);
+    }catch(error){
+        rollback();
+	 	logger.error("utility.publishEvent error : ", error);
+	 	throw { name: customError.INTERNAL_SERVER_ERROR, message: "AMQP Connection problem" };
+    }
+    
+    let channel;
+    try{
+        channel = await connection.createChannel();
+    }catch(error){
+        rollback();
+	 	logger.error("utility.publishEvent error : ", error);
+	 	throw { name: customError.INTERNAL_SERVER_ERROR, message: "Create Channel problem" };
+    }
+    
+    await channel.assertQueue(queueName, {
+        durable: true
     });
+
+    channel.sendToQueue(queueName, Buffer.from(msg));
+
+    channel.close();
+}
+
+async function subscribe(queueName, queueResponse){
+    let connection;
+    try{
+        connection = await amqp.connect(process.env.AMQP_URL);
+    }catch(error){
+        logger.error("utility.subscribe error : ", error);
+	 	throw { name: customError.INTERNAL_SERVER_ERROR, message: "AMQP Connection problem" };
+    }
+
+    let channel;
+    try{
+        channel = await connection.createChannel();
+    }catch(error){
+        rollback();
+	 	logger.error("utility.subscribe error : ", error);
+	 	throw { name: customError.INTERNAL_SERVER_ERROR, message: "Create Channel problem" };
+    }
+
+    await channel.assertQueue(queueName, {
+        durable: true
+    });
+
+    channel.consume(queueName, function(msg){
+        queueResponse(msg);
+    }, { noAck: true });
+
+    console.log(`Listening to ${queueName}`);
+}
+
+const env = process.env.NODE_ENV || "development";
+
+const logger = createLogger({
+    // change level if in dev environment versus production
+    level: env === "development" ? "debug" : "info",
+    format: format.combine(
+        format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
+        format.printf(
+            info => `${info.timestamp} ${info.level} : ${info.message}`
+        )
+    ),
+    transports: [
+        new transports.Console({
+            level: 'info',
+            format: format.combine(
+                format.colorize(),
+                format.printf(info => `${info.timestamp} ${info.level}: ${info.message}`)
+            )
+        })
+    ]
+});
+
+const customError = {
+    UNAUTHORIZED_ERROR: "UnauthorizedError",
+    BAD_REQUEST_ERROR: "BadRequestError",
+    INTERNAL_SERVER_ERROR: "InternalServerError",
+    RESOURCE_NOT_FOUND_ERROR: "ResourceNotFound",
+    JWT_ERROR: "JWTError"
 }
 
 module.exports = {
-	isoStrToDate,
 	validateInput,
 	userGroupAuthorization,
-	publishEvent
+	publishEvent,
+    subscribe,
+    logger,
+    customError
 }

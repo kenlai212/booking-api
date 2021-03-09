@@ -1,26 +1,12 @@
 "use strict";
 const Joi = require("joi");
-const moment = require("moment");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
-const userAuthorization = require("../common/middleware/userAuthorization");
-const FuelReservior = require("./fuelReservior.model").FuelReservior;
+const utility = require("../common/utility");
+const {logger, customError} = utility;
 
-const ASSET_ADMIN_GROUP = "ASSET_ADMIN";
-const ASSET_USER_GROUP = "ASSET_USER";
+const {FuelReservior} = require("./fuelReservior.model");
 
 async function newFuelReservior(input, user) {
-	const rightsGroup = [
-		ASSET_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	//validate input data
 	const schema = Joi.object({
 		reserviorName: Joi
 			.string()
@@ -29,11 +15,7 @@ async function newFuelReservior(input, user) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 	
 	let existingReservior;
 	try {
@@ -43,12 +25,11 @@ async function newFuelReservior(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (existingReservior != null) {
+	if (existingReservior)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: `FuelReservior with assetId(${input.assetId}) already exist` };
-	}
 	
 	let fuelReservior = new FuelReservior();
-	fuelReservior.lastUpdateTime = moment().toDate();
+	fuelReservior.lastUpdateTime = new Date();
 	fuelReservior.reserviorName = input.reserviorName;
 	fuelReservior.assetId = input.assetId;
 	fuelReservior.fullCanisters = 0;
@@ -58,7 +39,6 @@ async function newFuelReservior(input, user) {
 	try {
 		fuelReservior = await fuelReservior.save();
 	} catch (err) {
-		console.log("diu!!!!");
 		logger.error("Internal Server Error : ", err);
 		reject({ name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" });
 	}
@@ -67,16 +47,6 @@ async function newFuelReservior(input, user) {
 }
 
 async function editCanisters(input, user) {
-	const rightsGroup = [
-		ASSET_ADMIN_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	//validate input data
 	const schema = Joi.object({
 		assetId: Joi
 			.string()
@@ -90,11 +60,7 @@ async function editCanisters(input, user) {
 			.min(0)
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	let fuelReservior;
 	try {
@@ -104,7 +70,7 @@ async function editCanisters(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (fuelReservior == null) {
+	if (!fuelReservior) {
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid assetId" };
 	}
 
@@ -122,27 +88,12 @@ async function editCanisters(input, user) {
 }
 
 async function findFuelReservior(input, user) {
-	const rightsGroup = [
-		ASSET_ADMIN_GROUP,
-		ASSET_USER_GROUP
-	]
-
-	//validate user
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	//validate input data
 	const schema = Joi.object({
 		assetId: Joi
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	let fuelReservior;
 	try {
@@ -152,9 +103,8 @@ async function findFuelReservior(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (fuelReservior == null) {
+	if (!fuelReservior)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "None found" };
-	}
 
 	return fuelReserviorToOutputObj(fuelReservior);
 }

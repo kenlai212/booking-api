@@ -4,7 +4,9 @@ const config = require("config");
 const cors = require('cors');
 require("dotenv").config();
 
-const logger = require("./src/common/logger").logger;
+const utility = require("./src/common/utility");
+const {logger, customError} = utility;
+
 const bookingAPIUser = require("./src/common/bookingAPIUser")
 const bookingRoutes = require("./src/booking/booking.routes");
 const pricingRoutes = require("./src/pricing/pricing.routes");
@@ -20,6 +22,8 @@ const bookingHistoryRoutes = require("./src/bookingHistory/bookingHistroy.routes
 const partyRoutes = require("./src/party/party.routes");
 const customerRoutes = require("./src/customer/customer.routes");
 const invoiceRoutes = require("./src/invoice/invoice.routes");
+
+const partyListener = require("./src/party/party.listener");
 
 const app = express();
 app.use(cors());
@@ -77,5 +81,7 @@ mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useN
 		logger.error("Bootup Error", err);
 		throw err;
 	});
+
+partyListener.listen();
 
 module.exports = app;

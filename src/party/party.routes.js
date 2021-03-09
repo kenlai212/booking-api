@@ -10,8 +10,9 @@ router.post("/party", authenticateAccessToken, logIncommingRequest, controller.c
 router.put("/party/personal-info", authenticateAccessToken, logIncommingRequest, controller.editPersonalInfo);
 router.put("/party/contact", authenticateAccessToken, logIncommingRequest, controller.editContact);
 router.put("/party/picture", authenticateAccessToken, logIncommingRequest, controller.editPicture);
-router.put("/party/add-role", authenticateAccessToken, logIncommingRequest, controller.addRole);
-router.put("/party/delete-role", authenticateAccessToken, logIncommingRequest, controller.removeRole);
+router.put("/party/role/add", authenticateAccessToken, logIncommingRequest, controller.addRole);
+router.put("/party/role/remove", authenticateAccessToken, logIncommingRequest, controller.removeRole);
+router.put("/party/preferred-contact-method", authenticateAccessToken, logIncommingRequest, controller.changePreferredContactMethod);
 router.post("/party/message", authenticateAccessToken, logIncommingRequest, controller.sendMessage);
 router.post("/party/registration-invite", authenticateAccessToken, logIncommingRequest, controller.sendRegistrationInvite);
 router.delete("/party/:partyId", authenticateAccessToken, logIncommingRequest, controller.deleteParty);

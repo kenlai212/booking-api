@@ -1,16 +1,12 @@
 "use strict";
 const Joi = require("joi");
-const moment = require("moment");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
-const Boat = require("./boat.model").Boat;
+const utility = require("../common/utility");
+const {logger, customError} = utility;
 
-const ASSET_ADMIN_GROUP = "ASSET_ADMIN";
-const ASSET_USER_GROUP = "ASSET_USER";
+const {Boat} = require("./boat.model");
 
 async function newBoat(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		boatName: Joi
 			.string()
@@ -19,11 +15,7 @@ async function newBoat(input, user) {
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	let existingBoat;
 	try {
@@ -33,12 +25,11 @@ async function newBoat(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (existingBoat != null) {
+	if (existingBoat)
 		throw { name: customError.BAD_REQUEST_ERROR, message: `Boat with assetId(${input.assetId}) already exist` };
-	}
 
 	let boat = new Boat();
-	boat.lastUpdateTime = moment().toDate();
+	boat.lastUpdateTime = new Date()
 	boat.boatName = input.boatName;
 	boat.assetId = input.assetId;
 	boat.fuelLevel = 0;
@@ -55,7 +46,6 @@ async function newBoat(input, user) {
 }
 
 async function setFuelLevel(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		assetId: Joi
 			.string()
@@ -66,11 +56,7 @@ async function setFuelLevel(input, user) {
 			.max(100)
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	let boat;
 	try {
@@ -80,12 +66,11 @@ async function setFuelLevel(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (boat == null) {
+	if (!boat)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid assetId" };
-	}
 
 	boat.fuelLevel = input.fuelLevel;
-	boat.lastUpdateTime = moment().toDate();
+	boat.lastUpdateTime = new Date();
 
 	try {
 		boat = await boat.save();
@@ -98,17 +83,12 @@ async function setFuelLevel(input, user) {
 }
 
 async function findBoat(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		assetId: Joi
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	let boat;
 	try {
@@ -118,9 +98,8 @@ async function findBoat(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	if (boat == null) {
+	if (!boat)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "None found" };
-	}
 
 	return boatToOutputObj(boat);
 }

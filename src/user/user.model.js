@@ -9,23 +9,8 @@ const userSchema = new mongoose.Schema({
 	status: String,
 	registrationTime: Date,
 	activationKey: String,
-	resetPasswordKey: String,
 	groups: [{ type: String }],
-	lastLoginTime: Date,
-	personalInfo: {
-		name: String,
-		dob: Date,
-		gender: String
-	},
-	contact: {
-		telephoneCountryCode: String,
-		telephoneNumber: String,
-		emailAddress: String
-	},
-	picture: {
-		url: String
-	}
-
+	lastLoginTime: Date
 });
 
 const User = mongoose.model("User", userSchema);

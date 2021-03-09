@@ -2,13 +2,12 @@
 const Joi = require("joi");
 const mongoose = require("mongoose");
 
-const logger = require("../common/logger").logger;
-const customError = require("../common/customError");
 const utility = require("../common/utility");
+const {logger, customError} = utility;
+
 const { Crew } = require("./crew.model");
 const assignmentHistoryService = require("./assignmentHistory.service");
 const partyHelper = require("./party_internal.helper");
-const profileHelper = require("../common/profile/profile.helper");
 
 //private function
 async function getTargetCrew(crewId){
@@ -216,101 +215,6 @@ async function editStatus(input, user) {
 	return await saveCrew(targetCrew);
 }
 
-async function editPersonalInfo(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		crewId: Joi
-			.string()
-			.min(1)
-			.required(),
-		personalInfo: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate personalInfo input
-	input.personalInfo.nameRequired = false;
-	profileHelper.validatePersonalInfoInput(input.personalInfo);
-
-	//get target crew
-	let targetCrew = await getTargetCrew(input.crewId);
-	
-	//set personalInfo attributes
-	targetCrew = profileHelper.setPersonalInfo(input.personalInfo, targetCrew);
-
-	//save record
-	targetCrew = await saveCrew(targetCrew);
-
-	//publish edit crew personal info event to queue
-	try{
-		partyMq.toEditPersonalInfoQueue(targetParty);
-	}catch(error){
-		console.log(error);
-		logger.err("partyMq.toEditPersonalInfoQueue error : ", error);
-
-		//rolling back personalInfo
-		targetParty = profileHelper.setPersonalInfo(oldPersonalInfo, targetParty);
-		await saveParty(targetParty);
-
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return targetCrew;
-}
-
-async function editContact(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		crewId: Joi
-			.string()
-			.min(1)
-			.required(),
-		contact: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate contact input
-	profileHelper.validateContactInput(input.contact);
-
-	//get target crew
-	let targetCrew = await getTargetCrew(input.crewId);
-
-	//set contact attributes
-	targetCrew = profileHelper.setContact(input.contact, targetCrew);
-
-	//save record
-	return await saveCrew(targetCrew);
-}
-
-async function editPicture(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		crewId: Joi
-			.string()
-			.min(1)
-			.required(),
-		picture: Joi
-			.object()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	//validate picture input
-	profileHelper.validatePictureInput(input.picture);
-
-	//get target crew
-	let targetCrew = await getTargetCrew(input.crewId);
-
-	//set pictuer attributes
-	targetCrew = profileHelper.setPicture(input.picture, targetCrew);
-
-	//save record
-	return await saveCrew(targetCrew);
-}
-
 function crewToOutputObj(crew) {
 	var outputObj = new Object();
 	outputObj.id = crew._id.toString();
@@ -335,8 +239,5 @@ module.exports = {
 	newCrew,
 	findCrew,
 	deleteCrew,
-	editStatus,
-	editPersonalInfo,
-	editContact,
-	editPicture
+	editStatus
 }

@@ -1,6 +1,8 @@
 const moment = require("moment");
 
-const logger = require("../common/logger").logger;
+const utility = require("../common/utility");
+const {logger, customError} = utility;
+
 const bookngAPIUser = require("../common/bookingAPIUser");
 const occupancyService = require("../occupancy/occupancy.service");
 

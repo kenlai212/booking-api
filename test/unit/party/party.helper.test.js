@@ -1,4 +1,5 @@
-const customError = require("../../../src/common/customError");
+const utility = require("../../../src/common/utility");
+const {customError} = utility;
 
 const partyHelper = require("../../../src/party/party.helper");
 const { Party } = require("../../../src/party/party.model");
@@ -135,11 +136,57 @@ describe("Test party.helper.getContactMethod",() => {
     it("party doesn't have contact, throw error",() => {
         let party = new Party();
         
+        let throwError;
+        try{
+            partyHelper.getContactMethod(party)
+        }catch(error){
+            throwError = error;
+        }
+
         expect.assertions(1);
-        
-        return expect(partyHelper.getContactMethod(party)).toThrow({ 
-            name: customError.BAD_REQUEST_ERROR, 
-            message: `No contact method available` 
+        expect(throwError).toEqual({ name: customError.BAD_REQUEST_ERROR, message: `No contact method available` });
+
+        return;
+    });
+
+    it("party doesn't have preferredContactMethod contact, default EMAIL",() => {
+        let party = new Party();
+        party.contact = {emailAddress : "tester@test.com"}
+
+        expect.assertions(1);
+        return expect(partyHelper.getContactMethod(party)).toEqual("EMAIL");
+    });
+
+    it("party has preferredContactMethod contact, expect SMS",() => {
+        let party = new Party();
+        party.contact = {emailAddress : "tester@test.com"}
+        party.preferredContactMethod = "SMS"
+
+        expect.assertions(1);
+        return expect(partyHelper.getContactMethod(party)).toEqual("SMS");
+    });
+});
+
+describe("Test party.helper.validatePartyId",() => {
+    it("party.findById error, expect error", () => {
+        Party.findById = jest.fn().mockRejectedValue(new Error("Party.findById error"));
+
+        expect.assertions(1);
+
+        return expect(partyHelper.validatePartyId("6033c2789440f647f077fb79")).rejects.toEqual({
+            name: customError.INTERNAL_SERVER_ERROR, 
+            message: "Find Party Error"
         });
     });
+
+    it("no party found, expect error", () => {
+        Party.findById = jest.fn().mockResolvedValue(null);
+
+        expect.assertions(1);
+
+        return expect(partyHelper.validatePartyId("6033c2789440f647f077fb79")).rejects.toEqual({
+            name: customError.RESOURCE_NOT_FOUND_ERROR, 
+            message: "Invalid partyId"
+        });
+    })
 });

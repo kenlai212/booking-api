@@ -2,10 +2,9 @@
 const Joi = require("joi");
 
 const utility = require("../../common/utility");
-const customError = require("../../common/customError");
+const {logger, customError} = utility;
 
 const bookingCommon = require("../booking.common");
-const profileHelper = require("../../common/profile/profile.helper");
 const customerHelper = require("../customer_internal.helper");
 
 async function addHost(input, user){
@@ -49,13 +48,13 @@ async function addHost(input, user){
 	}else{
 		//no customerId provided. This will be a new customer
 
-		profileHelper.validatePersonalInfoInput(input.personalInfo);
+		bookingHelper.validatePersonalInfoInput(input.personalInfo);
 
 		if(input.contact)
-			profileHelper.validateContactInput(input.contact);
+		bookingHelper.validateContactInput(input.contact);
 
 		if(input.picture)
-			profileHelper.validatePictureInput(input.picture);
+		bookingHelper.validatePictureInput(input.picture);
 
 		const newCustomerInput = {
 			personalInfo: input.personalInfo,

@@ -1,9 +1,6 @@
 "use strict";
-const mongoose = require("mongoose");
-const moment = require("moment");
-
-const customError = require("../common/customError");
-const logger = require("../common/logger").logger;
+const utility = require("../common/utility");
+const {logger, customError} = utility;
 
 const Booking = require("./booking.model").Booking;
 const bookingDurationHelper = require("./bookingDuration.helper");
