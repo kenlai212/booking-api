@@ -5,7 +5,7 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const bookingCommon = require("../booking/booking.common");
+const invoiceHelper = require("./invoice.helper");
 const { Invoice } = require("./invoice.model");
 
 const PAID_STATUS = "PAID";
@@ -13,7 +13,6 @@ const PARTIAL_PAID_STATUS = "PARTIAL_PAID";
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 
 async function addNewInvoice(input, user){
-	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
@@ -59,7 +58,6 @@ async function addNewInvoice(input, user){
 	invoice.balance = input.totalAmount;
 	invoice.paymentStatus = AWAITING_PAYMENT_STATUS;
 
-	//save invoice record
 	try{
 		invoice = await invoice.save()
 	}catch(error){
@@ -67,65 +65,10 @@ async function addNewInvoice(input, user){
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	return invoiceToOutputObj(invoice);
-}
-
-async function findInvoice(input, user){
-	//validate input data
-	const schema = Joi.object({
-		id: Joi
-			.number()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	let invoice;
-	try{
-		invoice = await Invoice.findById(input.id);
-	}catch(error){
-		logger.error("Invoice.findById Error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if(!invoice){
-		try{
-			invoice = await Invoice.findOne({bookingId : input.id});
-		}catch(error){
-			logger.error("Invoice.findOne Error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}	
-	}
-
-	if(!inovice)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid id" };
-
-	return invoiceToOutputObj(invoice);
-}
-
-async function searchInvoices(input, user){
-	let invoices;
-	try {
-		invoices = await Invoice.find();
-	} catch (err) {
-		logger.error("Invoice.find Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//set outputObjs
-	var outputObjs = [];
-	invoices.forEach((item) => {
-		outputObjs.push(invoiceToOutputObj(item));
-
-	});
-
-	return {
-		"count": outputObjs.length,
-		"invoices": outputObjs
-	};
+	return invoice;
 }
 
 async function makePayment(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		amount: Joi
 			.number()
@@ -140,9 +83,8 @@ async function makePayment(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let invoice = await getTargetInvoice(input.bookingId);
+	let invoice = await invoiceHelper.getTargetInvoice(input.bookingId);
 	
-	//Validate currency
 	if (input.currency != invoice.currency) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: `Payment must be made in ${invoice.currency}` };
 	}
@@ -164,8 +106,7 @@ async function makePayment(input, user) {
 		totalPaymentAmount += payment.amount;
 	});
 
-	//calculate balance
-	invoice.balance = calculateBalance(invoice.totalAmount, totalPaymentAmount);
+	invoice.balance = invoiceHelper.calculateBalance(invoice.totalAmount, totalPaymentAmount);
 
 	//set paymentStatus
 	let paymentStatus;
@@ -178,7 +119,6 @@ async function makePayment(input, user) {
 	}
 	invoice.paymentStatus = paymentStatus;
 
-	//update record
 	try{
 		invoice = await invoice.save();
 	}catch(error){
@@ -186,14 +126,10 @@ async function makePayment(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Made payment ${JSON.stringify(payment)} to booking(${input.bookingId})`, user);
-
-	return invoiceToOutputObj(invoice);
+	return invoice;
 }
 
 async function applyDiscount(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
@@ -212,9 +148,8 @@ async function applyDiscount(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let invoice = await getTargetInvoice(input.bookingId);
+	let invoice = await invoiceHelper.getTargetInvoice(input.bookingId);
 
-	//check currency
 	if(invoice.currency != input.currency){
 		throw { name: customError.BAD_REQUEST_ERROR, message: `Must apply discount in ${invoice.currency}` };
 	}
@@ -229,13 +164,10 @@ async function applyDiscount(input, user) {
 	}
 	invoice.discounts.push(discount);
 	
-	//calculate totalAmount
-	invoice.totalAmount = calculateTotalAmount(invoice.regularAmount, invoice.discounts);
+	invoice.totalAmount = invoiceHelper.calculateTotalAmount(invoice.regularAmount, invoice.discounts);
 	
-	//calculate balance
-	invoice.balance = calculateBalance(invoice.totalAmount, invoice.paidAmount);
+	invoice.balance = invoiceHelper.calculateBalance(invoice.totalAmount, invoice.paidAmount);
 
-	//update record
 	try{
 		invoice = await invoice.save();
 	}catch(error){
@@ -243,14 +175,10 @@ async function applyDiscount(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Discount ${JSON.stringify(discount)} applied to booking(${booking._id.toString()})`, user);
-
-	return invoiceToOutputObj(invoice);
+	return invoice;
 }
 
 async function removeDiscount(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
@@ -261,7 +189,7 @@ async function removeDiscount(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let invoice = await getTargetInvoice(input.bookingId);
+	let invoice = await invoiceHelper.getTargetInvoice(input.bookingId);
 	
 	//find discount
 	let targetDiscount;
@@ -277,13 +205,10 @@ async function removeDiscount(input, user) {
 	if (!targetDiscount)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Discount not found" };
 
-	//calculate totalAmount
-	invoice.totalAmount = calculateTotalAmount(invoice.regularAmount, invoice.discounts);
+	invoice.totalAmount = invoiceHelper.calculateTotalAmount(invoice.regularAmount, invoice.discounts);
 
-	//calculate balance
-	invoice.balance = calculateBalance(invoice.totalAmount, invoice.paidAmount);
+	invoice.balance = invoiceHelper.calculateBalance(invoice.totalAmount, invoice.paidAmount);
 
-	//update record
 	try{
 		invoice = await invoice.save();
 	}catch(error){
@@ -291,92 +216,11 @@ async function removeDiscount(input, user) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//add history item
-	bookingCommon.addBookingHistoryItem(bookingOutput.id, `Removed discount ${JSON.stringify(targetDiscount)} from booking(${booking._id.toString()})`, user);
-
 	return bookingOutput;
-}
-
-//private function
-async function getTargetInvoice(bookingId){
-	if (!mongoose.Types.ObjectId.isValid(bookingId))
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-
-	let invoice;
-	try {
-		invoice = await Invoice.findOne({bookingId: input.bookingId});
-	} catch (err) {
-		logger.error("Invoice.findOne Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	if (!invoice)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-
-	return invoice
-}
-
-//private function
-function calculateBalance(totalAmount, paidAmount) {
-	return totalAmount - paidAmount;
-}
-
-//private function
-function calculateTotalAmount(regularAmount, discounts) {
-	let totalDiscountAmount = 0;
-
-	if (discounts != null) {
-		discounts.forEach(discount => {
-			totalDiscountAmount += discount.amount;
-		});
-	}
-
-	return regularAmount - totalDiscountAmount;
-}
-
-//privaate function
-function invoiceToOutputObj(invoice){
-	let outputObj = new Object();
-	outputObj.id = invoice._id;
-	outputObj.bookingId = invoice.bookingId;
-	outputObj.regularAmount = invoice.regularAmount;
-	outputObj.totalAmount = invoice.totalAmount;
-	outputObj.balance = invoice.balance;
-	outputObj.currency = invoice.currency;
-	outputObj.unitPrice = invoice.unitPrice;
-	outputObj.paymentStatus = invoice.paymentStatus;
-
-	if (invoice.discounts && invoice.discounts.length > 0) {
-		outputObj.discounts = [];
-
-		invoice.discounts.forEach(discount => {
-			outputObj.discounts.push({
-				discountId: discount._id.toString(),
-				amount: discount.amount,
-				discountCode: discount.discountCode
-			});
-		});
-	}
-
-	if (invoice.payments && invoice.payments.length > 0) {
-		outputObj.payments = [];
-
-		invoice.payments.forEach(payment => {
-			outputObj.payments.push({
-				paymentId: payment._id.toString(),
-				amount: payment.amount,
-				paymentCode: payment.paymentCode
-			});
-		});
-	}
-
-	return outputObj;
 }
 
 module.exports = {
 	addNewInvoice,
-	findInvoice,
-	searchInvoices,
 	makePayment,
 	applyDiscount,
 	removeDiscount

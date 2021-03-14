@@ -1,12 +1,12 @@
 "use strict";
 const mongoose = require("mongoose");
 
-const customerSchema = new mongoose.Schema({
+const staffSchema = new mongoose.Schema({
 	personId: String,
 	status: String
 });
 
-const customerPersonSchema = new mongoose.Schema({
+const staffPersonSchema = new mongoose.Schema({
 	personId: String,
 	personalInfo: {
 		name: String,
@@ -23,10 +23,10 @@ const customerPersonSchema = new mongoose.Schema({
 	}
 });
 
-const Customer = mongoose.model("Customer", customerSchema);
-const CustomerPerson = mongoose.model("CustomerPerson", customerPersonSchema);
+const Staff = mongoose.model("Staff", staffSchema);
+const StaffPerson = mongoose.model("StaffPerson", staffPersonSchema);
 
 module.exports = {
-	Customer,
-	CustomerPerson
+	Staff,
+	StaffPerson
 }

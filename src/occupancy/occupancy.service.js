@@ -1,7 +1,5 @@
 "use strict";
 const Joi = require("joi");
-const moment = require('moment');
-const mongoose = require("mongoose");
 
 const utility = require("../common/utility");
 const {logger, customError} = utility;
@@ -10,151 +8,97 @@ const Occupancy = require("./occupancy.model").Occupancy;
 const occupancyHelper = require("./occupancy.helper");
 
 async function checkAvailability(input){
-	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
-		assetId: Joi
-			.string()
-			.required()
-			.valid("A001", "MC_NXT20")
+		assetId: Joi.string().required(),
+		bookingType: Joi.string().required()
 	});
+	utility.validateInput(schema, input);
 
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	occupancyHelper.validateAssetId(input.assetId);
+
+	occupancyHelper.validateBookingType(input.bookingType);
 
 	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
 	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
-	//startTime cannot be later then endTime
-	if (startTime > endTime) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
-	}
+	occupancyHelper.validateOccupancyTime(startTime, endTime);
 
-	//find all occupancies with in search start and end time
-	//expand search range to -1 day from startTime and +1 from endTime 
-	const searchTimeRangeStart = moment(startTime).subtract(1, 'days');
-	const searchTimeRangeEnd = moment(endTime).add(1, 'days');
-
-	let occupancies;
-	try {
-		occupancies = await Occupancy.find(
-			{
-				startTime: { $gte: searchTimeRangeStart },
-				endTime: { $lt: searchTimeRangeEnd },
-				assetId: input.assetId
-			})
-	} catch (err) {
-		logger.error("Occupancy.find Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//check availibility, if false, reject
-	const isAvailable = occupancyHelper.checkAvailability(startTime, endTime, occupancies);
+	const isAvailable = await occupancyHelper.checkAvailability(startTime, endTime);
 
 	return {isAvailable: isAvailable}
 }
 
 async function releaseOccupancy(input) {
-	//validate input data
 	const schema = Joi.object({
-		bookingId: Joi
+		occupancyId: Joi
 			.string()
-			.required(),
-		bookingType: Joi
-			.string()
-			.valid("CUSTOMER_BOOKING","OWNER_BOOKING","MAINTAINANCE")
+			.required()
 	});
+	utility.validateInput(schema, input);
 
-	const result = schema.validate(input);
-	if (result.error) {
-		throw{ name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') }
-	}
-
-	//validate bookingId
-	if (mongoose.Types.ObjectId.isValid(input.bookingId) == false) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId" }
-	}
-
-	//find target occupancy
-	let targetOccupancy;
+	let occupancy;
 	try {
-		targetOccupancy = await Occupancy.findOne({ bookingId: input.bookingId, bookingType: input.bookingType }) 
+		occupancy = await Occupancy.findById(inpt.occupancyId) 
 	} catch (err) {
-		logger.error("Occupancy.findOne() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Occupancy.findOne not available" }
+		logger.error("Occupancy.findById error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Occupancy Error" }
 	}
 
-	if (targetOccupancy == null) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingId & bookingType" }
-	}
+	if (!occupancy)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid occupancyId" }
 
-	//delete targetOccupancy
 	try {
-		await Occupancy.findByIdAndDelete(targetOccupancy._id);
+		await Occupancy.findByIdAndDelete(occupancy._id);
 	} catch (err) {
 		logger.error("Occupancy.findByIdAndDelete() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Occupancy.findByIdAndDelete not available" }
 	}
 
-	return { "result": "SUCCESS" };
+	//publish releaseOccupancy event
+	const eventQueueName = "releaseOccupancy";
+	await utility.publishEvent(input, eventQueueName, user, async () => {
+		logger.error("rolling back releaseOccupancy");
+		
+		try{
+			await occupancy.save();
+		}catch(error){
+			logger.error("occupancy.save error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Occupancy Error" };
+		}
+	});
 
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		eventMsg: {
+			occupancyId: input.occupancyId
+		}
+	};
 }
 
 async function occupyAsset(input) {
-	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
-		assetId: Joi
-			.string()
-			.required()
-			.valid("A001", "MC_NXT20"),
-		bookingId: Joi
-			.string()
-			.min(1)
-			.required(),
-		bookingType: Joi
-			.string()
-			.valid("CUSTOMER_BOOKING", "OWNER_BOOKING", "MAINTAINANCE",null)
-			.required()
+		assetId: Joi.string().required(),
+		bookingType: Joi.string().required()
 	});
+	utility.validateInput(schema, input);
 
-	const result = schema.validate(input);
-	if (result.error)
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
+	occupancyHelper.validateAssetId(input.assetId);
+
+	occupancyHelper.validateBookingType(input.bookingType);
 
 	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
 	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
-	//startTime cannot be later then endTime
-	if (startTime > endTime)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
+	occupancyHelper.validateOccupancyTime(startTime, endTime, input.bookingType);
 
-	//find all occupancies with in search start and end time
-	//expand search range to -1 day from startTime and +1 from endTime 
-	const searchTimeRangeStart = moment(startTime).subtract(1, 'days');
-	const searchTimeRangeEnd = moment(endTime).add(1, 'days');
-
-	let occupancies;
-	try {
-		occupancies = await Occupancy.find(
-			{
-				startTime: { $gte: searchTimeRangeStart },
-				endTime: { $lt: searchTimeRangeEnd },
-				assetId: input.assetId
-			})
-	} catch (err) {
-		logger.error("Occupancy.find Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//check availibility, if false, reject
-	const isAvailable = occupancyHelper.checkAvailability(startTime, endTime, occupancies);
+	const isAvailable = await occupancyHelper.checkAvailability(startTime, endTime, occupancies);
 
 	if (!isAvailable)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" };
@@ -164,7 +108,6 @@ async function occupyAsset(input) {
 	occupancy.startTime = startTime;
 	occupancy.endTime = endTime;
 	occupancy.assetId = input.assetId;
-	occupancy.bookingId = input.bookingId;
 	occupancy.bookingType = input.bookingType;
 
 	try {
@@ -174,73 +117,28 @@ async function occupyAsset(input) {
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	return occupancyToOutputObj(occupancy);
-}
-
-async function getOccupancies(input) {
-	//validate input data
-	const schema = Joi.object({
-		startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
-		utcOffset: Joi.number().min(-12).max(14).required(),
-		assetId: Joi
-			.string()
-			.required()
-			.valid("A001", "MC_NXT20")
-	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-	
-	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
-	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
-
-	if (startTime > endTime) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
-	}
-
-	let occupancies;
-	try {
-		occupancies = await Occupancy.find({
-			startTime: { $gte: startTime },
-			endTime: { $lt: endTime },
-			assetId: input.assetId
-		})
-	} catch (err) {
-		logger.error("Internal Server Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//set outputObjs
-	var outputObjs = [];
-	occupancies.forEach((item) => {
-		outputObjs.push(occupancyToOutputObj(item));
-
+	//publish occupyAsset event
+	const eventQueueName = "occupyAsset";
+	await utility.publishEvent(input, eventQueueName, user, async () => {
+		logger.error("rolling back occupyAsset");
+		
+		try{
+			await Occupancy.findByIdAndDelete(occupancy._id);
+		}catch(error){
+			logger.error("Occupancy.findByIdAndDelete error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Rollback Delete Occupancy Error" };
+		}
 	});
 
 	return {
-		"count": outputObjs.length,
-		"occupancies": outputObjs
+		status: "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		eventMsg: occupancy
 	};
-}
-
-function occupancyToOutputObj(occupancy) {
-	var outputObj = new Object();
-	outputObj.id = occupancy._id;
-	outputObj.startTime = moment(occupancy.startTime).toISOString();
-	outputObj.endTime = moment(occupancy.endTime).toISOString();
-	outputObj.assetId = occupancy.assetId;
-	outputObj.bookingId = occupancy.bookingId;
-	outputObj.bookingType = occupancy.bookingType;
-
-	return outputObj;
 }
 
 module.exports = {
 	occupyAsset,
 	releaseOccupancy,
-	getOccupancies,
 	checkAvailability
 }

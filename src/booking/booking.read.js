@@ -1,44 +1,70 @@
 "use strict";
+const Joi = require("joi");
+
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const Booking = require("./booking.model").Booking;
-const bookingDurationHelper = require("./bookingDuration.helper");
-const customerHelper = require("./customer_internal.helper");
-const crewHelper = require("./crew/crew_internal.helper");
-const bookingAPIUser = require("../common/bookingAPIUser");
+const {Booking} = require("./booking.model");
 
-//constants for user groups
-const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
-const BOOKING_USER_GROUP = "BOOKING_USER";
+async function viewBookings(input, user) {
+	const schema = Joi.object({
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
+	});
+	utility.validateInput(schema, input);
 
-const ACCEPTED_TELEPHONE_COUNTRY_CODES = ["852", "853", "86"];
+	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
+	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
-async function saveBooking(booking){
+	if (startTime > endTime) {
+		throw { name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be later then endTime" };
+	}
+	
+	let bookings;
 	try {
-		booking = await booking.save();
+		bookings = await Booking.find(
+			{
+				startTime: { $gte: startTime },
+				endTime: { $lt: endTime }
+			})
+			.sort("startTime");
 	} catch (err) {
-		logger.error("booking.save Error", err);
+		logger.error("Booking.find Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
-
-	return bookingToOutputObj(booking);
+	
+	var outputObjs = [];
+	for (const booking of bookings) {
+		const outputObj = await bookingToOutputObj(booking);
+		outputObjs.push(outputObj);
+	}
+	
+	return {
+		"count": outputObjs.length,
+		"bookings": outputObjs
+	};
 }
 
-async function getBooking(bookingId){
+async function findBookingById(input, user) {
+	//validate input data
+	const schema = Joi.object({
+		bookingId: Joi.string().min(1).required()
+	});
+	utility.validateInput(schema, input);
+
 	let booking;
 	try {
-		booking = await Booking.findById(bookingId);
+		booking = await Booking.findById(input.bookingId);
 	} catch (err) {
-		logger.error("Booking.findById Error : ", err);
+		logger.error("Booking.findById Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
 	}
 
-	//if no booking found, it's a bad bookingId,
 	if (!booking)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-
-	return booking;
+	
+	return bookingToOutputObj(booking);
 }
 
 async function bookingToOutputObj(booking) {
@@ -129,10 +155,6 @@ async function bookingToOutputObj(booking) {
 }
 
 module.exports = {
-	BOOKING_ADMIN_GROUP,
-	BOOKING_USER_GROUP,
-	ACCEPTED_TELEPHONE_COUNTRY_CODES,
-	bookingToOutputObj,
-	getBooking,
-	saveBooking
+	viewBookings,
+	findBookingById
 }

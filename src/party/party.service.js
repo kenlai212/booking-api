@@ -508,7 +508,7 @@ async function createNewParty(input, user){
 			await Party.findOneAndDelete({ _id: party._id });
 		}catch(error){
 			logger.error("findOneAndDelete error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Party Error" };
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find and Delete Party Error" };
 		}
 	});
 

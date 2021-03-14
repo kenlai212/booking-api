@@ -1,117 +1,84 @@
 "use strict";
-const uuid = require('uuid');
 const moment = require("moment");
 const Joi = require("joi");
 
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const bookingCommon = require("./booking.common");
+const {Booking, BookingOccupancy} = require("./booking.model");
 
-const {Booking} = require("./booking.model");
-const occupancyHelper = require("./occupancy_internal.helper");
+const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
+const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
+const CANCELLED_STATUS = "CANCELLED";
+const FULFILLED_STATUS = "FULFILLED"
 
-//constants for booking types
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
 const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
 
 async function bookNow(input, user) {
 	//validate input data
 	const schema = Joi.object({
-		startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
-		utcOffset: Joi.number().min(-12).max(14).required(),
-		assetId: Joi.string().min(1).required(),
+		occupancyId: Joi.string.min(1).required(),
 		bookingType: Joi
 			.string()
 			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
 			.required(),
-		crewId: Joi.string().min(1),
-		customerId: Joi.string().allow(null),
-		personalInfo: Joi.object().when("customerId", { is: null, then: Joi.required() }),
-		contact: Joi.object().allow(null),
-		picture: Joi.object().allow(null)
+		customerId: Joi.string.min(1).allow(null)
 	});
 	utility.validateInput(schema, input);
 
-	if(!input.customerId && !input.personalInfo)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "customerId or personalInfo in mandatory" };
-
-	// //validate host data
-	// if(!input.customerId){
-	// 	bookingHelper.validatePersonalInfoInput(input.personalInfo);
-
-	// 	if(input.contact)
-	// 	bookingHelper.validateContactInput(input.contact);
-	
-	// 	if(input.picture)
-	// 	bookingHelper.validatePictureInput(input.picture);
-	// }
-
-	//validate assetId
-	if(input.assetId != "MC_NXT20"){
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid assetId" };
+	let bookingOccupancy;
+	try{
+		bookingOccupancy = await BookingOccupancy.findOne({_id: input.occupancyId});
+	}catch(error){
+		logger.error("BookingOccupancy.findOne error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find BookingOccupancy Error" };
 	}
 
-	//TODO validate if user can do OWNER_BOOKING
-
-	//set start and end time
-	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
-	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
-
-	//check if endTime is earlier then startTime
-	if (startTime > endTime) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
+	if(!bookingOccupancy){
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid occuapncyId" };
 	}
 
-	if (input.bookingType == CUSTOMER_BOOKING_TYPE) {
-		//check minimum booking duration, maximum booking duration, earliest startTime
-		try {
-			//bookingDurationHelper.checkMimumDuration(startTime, endTime);
-			//bookingDurationHelper.checkMaximumDuration(startTime, endTime);
-			//bookingDurationHelper.checkEarliestStartTime(startTime, UTC_OFFSET);
-			//bookingDurationHelper.checkLatestEndTime(endTime, UTC_OFFSET);
-		} catch (err) {
-			throw { name: customError.BAD_REQUEST_ERROR, message: err };
-		}
+	//set and save booking object
+	let booking = new Booking();
+	booking.occupancyId = input.occupancyId;
+	booking.creationTime = new Date();
+	booking.createdBy = user._id,
+	booking.bookingType = input.bookingType;
+	booking.status = AWAITING_CONFIRMATION_STATUS;
+
+	if(input.customerId){
+		booking.hostCustomerId = input.customerId;
 	}
 
-	//check for retro booking (booing before current time)
-	if (startTime < moment().toDate() || endTime < moment().toDate()) {
-		throw{ name: customError.BAD_REQUEST_ERROR, message: "Booking cannot be in the past" };
+	try{
+		booking = await booking.save();
+	}catch(error){
+		logger.error("booking.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Booking Error" };
 	}
-
-	const bookingId = uuid.v4();
-	input.bookingId = bookingId;
-
-	//save occupancy record
-	const occupyAssetInput = {
-		startTime: input.startTime,
-		endTime: input.endTime,
-		utcOffset: input.utcOffset,
-		assetId: input.assetId,
-		bookingId: bookingId,
-		bookingType: input.bookingType
-	}
-	await occupancyHelper.occupyAsset(occupyAssetInput);
 
 	//publish newBooking event
-	try{
-		utility.publishEvent(input, "newBooking");
-	}catch(error){
-		console.log(error);
-		logger.err("utility.publishEvent error : ", error);
+	const eventQueueName = "newBooking";
+	await utility.publishEvent(input, eventQueueName, user, async () => {
+		logger.error("rolling back new bookint");
+		
+		try{
+			await Booking.findOneAndDelete({ _id: booking._id });
+		}catch(error){
+			logger.error("findOneAndDelete error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find and Delete Booking Error" };
+		}
+	});
 
-		//TODO rolling occupancy		
-
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	return {bookingId: bookingId};
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		eventMsg: booking
+	};
 }
 
 async function reschedule(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi.string().min(1).required()
 	});
@@ -128,54 +95,7 @@ async function reschedule(input, user) {
 	//TODO......
 }
 
-async function viewBookings(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
-		utcOffset: Joi.number().min(-12).max(14).required(),
-	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
-	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
-
-	if (startTime > endTime) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be later then endTime" };
-	}
-	
-	//get bookings
-	let bookings;
-	try {
-		bookings = await Booking.find(
-			{
-				startTime: { $gte: startTime },
-				endTime: { $lt: endTime }
-			})
-			.sort("startTime");
-	} catch (err) {
-		logger.error("Booking.find Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	var outputObjs = [];
-	for (const booking of bookings) {
-		const outputObj = await bookingCommon.bookingToOutputObj(booking);
-		outputObjs.push(outputObj);
-	}
-	
-	return {
-		"count": outputObjs.length,
-		"bookings": outputObjs
-	};
-}
-
-async function findBookingById(input, user) {
-	//validate input data
+async function confirmBooking(input, user){
 	const schema = Joi.object({
 		bookingId: Joi.string().min(1).required()
 	});
@@ -183,21 +103,132 @@ async function findBookingById(input, user) {
 
 	let booking;
 	try {
-		booking = await Booking.findById(input.bookingId);
+		booking = await Booking.findById(bookingId);
 	} catch (err) {
-		logger.error("Booking.findById Error", err);
+		logger.error("Booking.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Booking Error" };
+	}
+
+	if (!booking)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+
+	//change status
+	booking.status = CONFIRMED_BOOKING_STATUS;
+
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return booking;
+}
+
+async function fulfillBooking(input, user) {
+	const schema = Joi.object({
+		bookingId: Joi.string().min(1).required(),
+		fulfilledHours: Joi.number().min(0.5).required()
+	});
+	utility.validateInput(schema, input);
+
+	let booking;
+	try {
+		booking = await Booking.findById(bookingId);
+	} catch (err) {
+		logger.error("Booking.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Booking Error" };
 	}
 
 	if (!booking)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 	
-	return bookingCommon.bookingToOutputObj(booking);
+	if (booking.status === FULFILLED_STATUS)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already fulfilled" };
+
+	//check fulfilledHours not longer booking duration
+	if (input.fulfilledHours > booking.durationByHours)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Fulfilled Hours cannot be longer then booking duration" };
+
+	//check if booking is cancelled
+	if (booking.status === CANCELLED_STATUS)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot fulfilled a cancelled booking" };
+
+	booking.fulfilledHours = input.fulfilledHours;
+	booking.status = FULFILLED_STATUS;
+
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return booking;
+}
+
+async function cancelBooking(input, user) {
+	const schema = Joi.object({
+		bookingId: Joi.string().min(1).required()
+	});
+	utility.validateInput(schema, input);
+
+	let booking;
+	try {
+		booking = await Booking.findById(bookingId);
+	} catch (err) {
+		logger.error("Booking.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Booking Error" };
+	}
+
+	if (!booking)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+
+	//check if booking is already CANCELLED
+	if (booking.status === CANCELLED_STATUS)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already cancelled" };
+
+	//check if booking is already FULFILLED
+	if (booking.status === FULFILLED_STATUS)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot cancel an already fulfilled booking" };
+
+	const oldStatus = {...booking.status};
+
+	booking.status = CANCELLED_STATUS;
+
+	try {
+		booking = await booking.save();
+	} catch (err) {
+		logger.error("booking.save Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	//publish cancelBooking event
+	const eventQueueName = "cancelBooking";
+	await utility.publishEvent(input, eventQueueName, user, async () => {
+		logger.error("rolling back cancelBooking");
+		
+		booking.status = oldStatus;
+
+		try{
+			await booking.save();
+		}catch(error){
+			logger.error("findOneAndDelete error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find and Delete Booking Error" };
+		}
+	});
+
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${eventQueueName} queue`,
+		eventMsg: booking
+	};
 }
 
 module.exports = {
 	bookNow,
-	viewBookings,
-	findBookingById,
-	reschedule
+	reschedule,
+	confirmBooking,
+	fulfillBooking,
+	cancelBooking
 }

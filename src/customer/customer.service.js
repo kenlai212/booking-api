@@ -1,192 +1,53 @@
 "use strict";
 const Joi = require("joi");
-const mongoose = require("mongoose");
 
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const { Customer } = require("./customer.model");
-const partyHelper = require("./party_internal.helper");
-
-//private function
-async function getTargetCustomer(customerId){
-	//validate customerId
-	if (mongoose.Types.ObjectId.isValid(customerId) == false) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
-	}
-
-	let customer;
-	try {
-		customer = await Customer.findById(customerId);
-	} catch (err) {
-		logger.error("Customer.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	if (customer == null) {
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
-	}
-
-	return customer;
-}
-
-//private function
-async function saveCustomer(customer){
-	//save to db
-	try {
-		customer = await customer.save();
-	} catch (err) {
-		logger.error("customer.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return customerToOutputObj(customer);
-}
-
-async function findCustomer(input, user) {
-
-	//validate input data
-	const schema = Joi.object({
-		id: Joi
-			.string()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	if (!mongoose.Types.ObjectId.isValid(input.id))
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
-
-	let targetCustomer;
-
-	//try to find targetCustomer by id first
-	try {
-		targetCustomer = await Customer.findById(input.id);
-	} catch (err) {
-		logger.error("Customer.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
-	//if no targetCustomer found, try to find by partyId 
-	if(!targetCustomer){
-		try {
-			targetCustomer = await Customer.findOne({partyId : input.id});
-		} catch (err) {
-			logger.error("Customer.findOne Error : ", err);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-		}
-	}
-
-	if(!targetCustomer)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
-
-	return customerToOutputObj(targetCustomer);
-}
-
-async function searchCustomers(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		status: Joi
-			.string()
-			.valid("ACTIVE", "INACTIVE", null)
-	});
-	utility.validateInput(schema, input);
-
-	let searchCriteria;
-	if (input.status != null) {
-		searchCriteria = {
-			"status": input.status
-		}
-	}
-
-	let customers;
-	try {
-		customers = await Customer.find(searchCriteria);
-	} catch (err) {
-		logger.error("Customer.find Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	//set outputObjs
-	var outputObjs = [];
-	customers.forEach((item) => {
-		outputObjs.push(customerToOutputObj(item));
-
-	});
-
-	return {
-		"count": outputObjs.length,
-		"customers": outputObjs
-	};
-}
+const { Customer, CustomerPerson } = require("./customer.model");
+const customerHelper = require("./customer.helper");
 
 async function newCustomer(input, user) {
-	//validate input data
 	const schema = Joi.object({
-		partyId: Joi
+		personId: Joi
 			.string()
 			.min(1)
-			.allow(null),
-		personalInfo: Joi
-			.object()
-			.when("partyId", { is: null, then: Joi.required() }),
-		contact: Joi
-			.object()
-			.allow(null),
-		picture: Joi
-			.object()
 			.allow(null)
 	});
 	utility.validateInput(schema, input);
 
-	let customer = new Customer();
-	customer.status = "ACTIVE";
-
-	//Establish the targetParty. It could be an existing party
-	//or create a new party
-	let targetParty;
-
-	if(input.partyId){
-		//input.partyId is provided. Find existing party
-		targetParty = await partyHelper.getParty(input.partyId, user);
-	}else{
-		//input.partyId not provided. Create new Party
-		const newParty = {
-			personalInfo: input.personalInfo,
-			contact: input.contact,
-			picture: input.picture
-		}
-
-		targetParty = await partyHelper.createNewParty(newParty);
+	//validate person
+	let customerPerson;
+	try{
+		customerPerson = CustomerPerson.findOne({personId: input.personId});
+	}catch(error){
+		logger.error("CustomerPerson.findOne error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find CustomerPerson Error" };
 	}
+
+	if(!customerPerson)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid personId" };
 
 	//check if customer with the same partyId already exist
 	let existingCustomer;
 	try{
-		existingCustomer = await Customer.findOne({partyId: targetParty.id});
+		existingCustomer = await Customer.findOne({personId: customerPerson.personId});
 	}catch(error){
 		logger.error("Customer.findOne error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Customer Error" };
 	}
 
-	if(existingCustomer){
+	if(existingCustomer)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Customer already exist" };
-	}
 	
-	//set customer attribuest
-	customer.partyId = targetParty.id;
-	customer.personalInfo = targetParty.personalInfo;
-
-	if(targetParty.contact)
-		customer.contact = targetParty.contact;
+	let customer = new Customer();
+	customer.status = "ACTIVE";
+	customer.personId = input.personId;
 	
-	if(targetParty.picture)
-		customer.picture = targetParty.picture;
-
 	return await saveCustomer(customer);
 }
 
 async function deleteCustomer(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		customerId: Joi
 			.string()
@@ -195,23 +56,20 @@ async function deleteCustomer(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//get target customer
-	const targetCustomer = await getTargetCustomer(input.customerId);
+	const targetCustomer = await customerHelper.getTargetCustomer(input.customerId);
 
-	//delete customer record
 	try {
 		await Customer.findByIdAndDelete(targetCustomer._id.toString());
 	} catch (err) {
 		console.log(err);
 		logger.error("Customer.findByIdAndDelete() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Customer Error" };
 	}
 
 	return { "status": "SUCCESS" }
 }
 
 async function editStatus(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		customerId: Joi
 			.string()
@@ -224,38 +82,15 @@ async function editStatus(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//get target customer
-	let targetCustomer = await getTargetCustomer(input.customerId);
+	let targetCustomer = await customerHelper.getTargetCustomer(input.customerId);
 
-	//update status
 	targetCustomer.status = input.status;
 
 	return await saveCustomer(targetCustomer);
 }
 
-function customerToOutputObj(customer) {
-	var outputObj = new Object();
-	outputObj.id = customer._id.toString();
-	outputObj.status = customer.status;
-	outputObj.partyId = customer.partyId;
-
-	outputObj.personalInfo = customer.personalInfo;
-
-	if(customer.contact.telephoneNumber != null || customer.contact.emailAddress != null){
-		outputObj.contact = customer.contact;
-	}
-	
-	if(customer.picture.url != null){
-		outputObj.picture = customer.picture;
-	}
-
-	return outputObj;
-}
-
 module.exports = {
-	searchCustomers,
 	newCustomer,
-	findCustomer,
 	deleteCustomer,
 	editStatus
 }

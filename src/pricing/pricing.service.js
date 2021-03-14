@@ -5,29 +5,10 @@ const config = require("config");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const userAuthorization = require("../common/middleware/userAuthorization");
-
 const CUSTOMER_BOOKING = "CUSTOMER_BOOKING";
 const OWNER_BOOKING = "OWNER_BOOKING";
 
-const PRICING_ADMIN_GROUP = "PRICING_ADMIN";
-const PRICING_USER_GROUP = "PRICING_USER";
-const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
-const BOOKING_USER_GROUP = "BOOKING_USER"
-
 function calculateTotalAmount(input, user) {
-	const rightsGroup = [
-		PRICING_ADMIN_GROUP,
-		PRICING_USER_GROUP,
-		BOOKING_ADMIN_GROUP,
-		BOOKING_USER_GROUP
-	]
-	
-	//validate user group
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { status: 401, message: "Insufficient Rights"};
-	}
-
 	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
@@ -38,11 +19,7 @@ function calculateTotalAmount(input, user) {
 			.required()
 			.valid(CUSTOMER_BOOKING, OWNER_BOOKING)
 	});
-	
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
+	utility.validateInput(schema, input);
 
 	const startTime = utility.isoStrToDate(input.startTime, 0);
 	const endTime = utility.isoStrToDate(input.endTime, 0);
@@ -64,7 +41,7 @@ function calculateTotalAmount(input, user) {
 	let discounts = [];
 
 	//check for OWNER discount
-	if (input.bookingType == "OWNER_BOOKING") {
+	if (input.bookingType === "OWNER_BOOKING") {
 		const totalDiscount = config.get("pricing.ownerDiscount") * durationByHours;
 		const discount = {
 			amount: totalDiscount,

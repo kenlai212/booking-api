@@ -5,10 +5,10 @@ const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const utility = require("../common/utility");
 
 const bookingService = require("./booking.service");
+const bookingRead = require("./booking.read");
 const bookingCommon = require("./booking.common");
 
 const bookNow = asyncMiddleware(async (req) => {
-	//validate user
 	utility.userGroupAuthorization(req.user.groups, [
 		bookingCommon.BOOKING_ADMIN_GROUP,
 		bookingCommon.BOOKING_USER_GROUP
@@ -18,27 +18,52 @@ const bookNow = asyncMiddleware(async (req) => {
 });
 
 const searchBookings = asyncMiddleware(async (req) => {
-	//validate user
 	utility.userGroupAuthorization(req.user.groups, [
 		bookingCommon.BOOKING_ADMIN_GROUP
 	]);
 
 	const queryObject = url.parse(req.url, true).query;
-	return await bookingService.viewBookings(queryObject, req.user);
+	return await bookingRead.viewBookings(queryObject, req.user);
+});
+
+const cancelBooking = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [
+		bookingCommon.BOOKING_ADMIN_GROUP
+	]);
+
+	return await bookingService.cancelBooking(req.body, req.user);
+});
+
+const fulfillBooking = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [
+		bookingCommon.BOOKING_ADMIN_GROUP
+	]);
+
+	return await bookingService.fulfillBooking(req.body, req.user);
 });
 
 const findBooking = asyncMiddleware(async (req) => {
-	//validate user
 	utility.userGroupAuthorization(req.user.groups, [
 		bookingCommon.BOOKING_ADMIN_GROUP,
 		bookingCommon.BOOKING_USER_GROUP
 	]);
 
-	return await bookingService.findBookingById(req.params, req.user);
+	return await bookingRead.findBookingById(req.params, req.user);
+});
+
+const confirmBooking = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [
+		bookingCommon.BOOKING_ADMIN_GROUP
+	]);
+
+	return await bookingService.confirmBooking(req.body, req.user);
 });
 
 module.exports = {
 	bookNow,
+	confirmBooking,
+	cancelBooking,
+	fulfillBooking,
 	searchBookings,
 	findBooking
 }
