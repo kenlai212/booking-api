@@ -6,7 +6,7 @@ const {logger, customError} = utility;
 
 const {Boat} = require("./boat.model");
 
-async function newBoat(input, user) {
+async function newBoat(input) {
 	const schema = Joi.object({
 		boatName: Joi
 			.string()
@@ -45,7 +45,7 @@ async function newBoat(input, user) {
 	return boatToOutputObj(boat);
 }
 
-async function setFuelLevel(input, user) {
+async function setFuelLevel(input) {
 	const schema = Joi.object({
 		assetId: Joi
 			.string()
@@ -82,7 +82,7 @@ async function setFuelLevel(input, user) {
 	return boatToOutputObj(boat);
 }
 
-async function findBoat(input, user) {
+async function findBoat(input) {
 	const schema = Joi.object({
 		assetId: Joi
 			.string()

@@ -1,11 +1,11 @@
 "use strict";
-const moment = require("moment");
 const Joi = require("joi");
 
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
 const {Booking, BookingOccupancy} = require("./booking.model");
+const bookingHelper = require("./booking.helper");
 
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
@@ -16,7 +16,6 @@ const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
 const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
 
 async function bookNow(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		occupancyId: Joi.string.min(1).required(),
 		bookingType: Joi
@@ -51,12 +50,7 @@ async function bookNow(input, user) {
 		booking.hostCustomerId = input.customerId;
 	}
 
-	try{
-		booking = await booking.save();
-	}catch(error){
-		logger.error("booking.save error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Booking Error" };
-	}
+	booking = await bookingHelper.saveBooking(booking);
 
 	//publish newBooking event
 	const eventQueueName = "newBooking";
@@ -84,8 +78,7 @@ async function reschedule(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//get booking
-	let booking;
+	let booking = await bookingHelper.findBooking(input.bookingId);
 	try{
 		booking = await bookingCommon.getBooking(input.bookingId);
 	}catch(error){
@@ -101,70 +94,35 @@ async function confirmBooking(input, user){
 	});
 	utility.validateInput(schema, input);
 
-	let booking;
-	try {
-		booking = await Booking.findById(bookingId);
-	} catch (err) {
-		logger.error("Booking.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Booking Error" };
-	}
-
-	if (!booking)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-
-	//change status
+	let booking = await bookingHelper.findBooking(input.bookingId);
+	
 	booking.status = CONFIRMED_BOOKING_STATUS;
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return booking;
+	return await bookingHelper.saveBooking(booking);
 }
 
-async function fulfillBooking(input, user) {
+async function fulfillBooking(input) {
 	const schema = Joi.object({
 		bookingId: Joi.string().min(1).required(),
 		fulfilledHours: Joi.number().min(0.5).required()
 	});
 	utility.validateInput(schema, input);
 
-	let booking;
-	try {
-		booking = await Booking.findById(bookingId);
-	} catch (err) {
-		logger.error("Booking.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Booking Error" };
-	}
-
-	if (!booking)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	let booking = await bookingHelper.findBooking(input.bookingId);
 	
 	if (booking.status === FULFILLED_STATUS)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already fulfilled" };
 
-	//check fulfilledHours not longer booking duration
 	if (input.fulfilledHours > booking.durationByHours)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Fulfilled Hours cannot be longer then booking duration" };
 
-	//check if booking is cancelled
 	if (booking.status === CANCELLED_STATUS)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot fulfilled a cancelled booking" };
 
 	booking.fulfilledHours = input.fulfilledHours;
 	booking.status = FULFILLED_STATUS;
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return booking;
+	return await bookingHelper.saveBooking(booking);
 }
 
 async function cancelBooking(input, user) {
@@ -173,22 +131,11 @@ async function cancelBooking(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let booking;
-	try {
-		booking = await Booking.findById(bookingId);
-	} catch (err) {
-		logger.error("Booking.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Booking Error" };
-	}
-
-	if (!booking)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-
-	//check if booking is already CANCELLED
+	let booking = bookingHelper.findBooking(input.bookingId);
+	
 	if (booking.status === CANCELLED_STATUS)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already cancelled" };
 
-	//check if booking is already FULFILLED
 	if (booking.status === FULFILLED_STATUS)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot cancel an already fulfilled booking" };
 
@@ -196,12 +143,7 @@ async function cancelBooking(input, user) {
 
 	booking.status = CANCELLED_STATUS;
 
-	try {
-		booking = await booking.save();
-	} catch (err) {
-		logger.error("booking.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	booking = bookingHelper.saveBooking(bookin);
 
 	//publish cancelBooking event
 	const eventQueueName = "cancelBooking";

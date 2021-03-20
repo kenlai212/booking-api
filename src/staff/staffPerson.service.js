@@ -35,6 +35,15 @@ async function newCustomerPerson(input){
     return customerPerson;
 }
 
+async function editContact(input){}
+
+async function editPersonalInfo(input){}
+
+async function editPicture(input){}
+
 module.exports = {
-	newCustomerPerson
+	newCustomerPerson,
+    editContact,
+    editPicture,
+    editPersonalInfo
 }

@@ -4,34 +4,10 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const BookingHistory = require("./bookingHistory.model").BookingHistory;
-const bookingHelper = require("./booking_internal.helper");
-
-async function getBookingHistory(input, user) {
-	//validate input data
-	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	let bookingHistory;
-	try {
-		bookingHistory = await BookingHistory.findById(input.bookingId);
-	} catch (error) {
-		logger.error("BookingHistory.findOne Error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	if(!bookingHistory)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-
-	return bookingHistoryToOutputObj(bookingHistory);
-}
+const {BookingHistory} = require("./bookingHistory.model");
+const bookingHistoryHelper = require("./bookingHistory.helper");
 
 async function initBookingHistory(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
@@ -51,7 +27,7 @@ async function initBookingHistory(input, user) {
 		existingBookingHistory = await BookingHistory.findById(input.bookingId);
 	} catch (error) {
 		logger.error("BookingHistory.findOne Error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find BookingHistory Error" };
 	}
 
 	if (existingBookingHistory)
@@ -73,14 +49,13 @@ async function initBookingHistory(input, user) {
 		bookingHistory = await bookingHistory.save();
 	} catch (error) {
 		logger.error("bookingHistory.save Error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save BookingHistory Error" };
 	}
 
 	return bookingHistoryToOutputObj(bookingHistory);
 }
 
 async function addHistoryItem(input, user) {
-	//validate input data
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
@@ -95,17 +70,7 @@ async function addHistoryItem(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	//find bookingHistory
-	let bookingHistory;
-	try {
-		bookingHistory = await BookingHistory.findById(input.bookingId);
-	} catch (error) {
-		logger.error("BookingHistory.findOne Error", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
- 
-	if (!bookingHistory)
-		throw { name: customError.BAD_REQUEST_ERROR, message: `Invalid bookingId(${input.bookingId})` };
+	let bookingHistory = await bookingHistoryHelper.findBookingHistory(input.bookingHistory);
 
 	//set new history item
 	const historyItem = {
@@ -116,27 +81,10 @@ async function addHistoryItem(input, user) {
 	};
 	bookingHistory.history.push(historyItem);
 
-	//save booking history
-	try {
-		bookingHistory = await bookingHistory.save();
-	} catch (error) {
-		logger.error("bookingHistory.save Error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return bookingHistoryToOutputObj(bookingHistory);
-}
-
-function bookingHistoryToOutputObj(bookingHistory){
-	let outputObj = new Object();
-	outputObj.id = bookingHistory._id;
-	outputObj.history = bookingHistory.history;
-
-	return outputObj;
+	return await bookingHistoryHelper.saveBookingHistory(bookingHistory);
 }
 
 module.exports = {
 	initBookingHistory,
-	addHistoryItem,
-	getBookingHistory
+	addHistoryItem
 }

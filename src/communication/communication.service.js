@@ -8,29 +8,7 @@ const config = require("config");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const NOTIFICATION_ADMIN_GROUP = "NOTIFICATION_ADMIN";
-const NOTIFICATION_POWER_USER_GROUP = "NOTIFICATION_POWER_USER";
-const NOTIFICATION_USER_GROUP = "NOTIFICATION_USER";
-
-/**
-By : Ken Lai
-Date : Mar 18, 2020
-
-send email using aws ses service
-**/
-async function sendEmail(input, user){
-	const rightsGroup = [
-		NOTIFICATION_ADMIN_GROUP,
-		NOTIFICATION_POWER_USER_GROUP,
-		NOTIFICATION_USER_GROUP
-	]
-
-	//validate user group
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	//validate input data
+async function sendEmail(input){
 	const schema = Joi.object({
 		sender: Joi
 			.string()
@@ -49,13 +27,8 @@ async function sendEmail(input, user){
 			.string()
 			.required()
 	});
-
-	const result = schema.validate(input);
-	if (result.error) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: result.error.details[0].message.replace(/\"/g, '') };
-	}
-
-	//set email
+	utility.validateInput(schema, input);
+	
 	var transporter = nodemailer.createTransport({
 		host: config.get("notification.email.provider"),
 		port: config.get("notification.email.port"),
@@ -91,25 +64,7 @@ async function sendEmail(input, user){
 	}	
 }
 
-/**
-By : Ken Lai
-Date : Apr 08, 2020
-
-send sms using aws sns service
-**/
-async function sendSMS(input, user) {
-	const rightsGroup = [
-		NOTIFICATION_ADMIN_GROUP,
-		NOTIFICATION_POWER_USER_GROUP,
-		NOTIFICATION_USER_GROUP
-	]
-
-	//validate user group
-	if (userAuthorization(user.groups, rightsGroup) == false) {
-		throw { name: customError.UNAUTHORIZED_ERROR, message: "Insufficient Rights" };
-	}
-
-	//validate input data
+async function sendSMS(input) {
 	const schema = Joi.object({
 		message: Joi
 			.string()
@@ -121,6 +76,7 @@ async function sendSMS(input, user) {
 			.string()
 			.required()
 	});
+	utility.validateInput(schema, input);
 
 	const result = schema.validate(input);
 	if (result.error) {

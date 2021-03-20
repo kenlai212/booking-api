@@ -7,7 +7,7 @@ const {logger, customError} = utility;
 const { Customer, CustomerPerson } = require("./customer.model");
 const customerHelper = require("./customer.helper");
 
-async function newCustomer(input, user) {
+async function newCustomer(input) {
 	const schema = Joi.object({
 		personId: Joi
 			.string()
@@ -47,7 +47,7 @@ async function newCustomer(input, user) {
 	return await saveCustomer(customer);
 }
 
-async function deleteCustomer(input, user) {
+async function deleteCustomer(input) {
 	const schema = Joi.object({
 		customerId: Joi
 			.string()

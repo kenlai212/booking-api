@@ -12,7 +12,7 @@ const PAID_STATUS = "PAID";
 const PARTIAL_PAID_STATUS = "PARTIAL_PAID";
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 
-async function addNewInvoice(input, user){
+async function addNewInvoice(input){
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
@@ -58,30 +58,24 @@ async function addNewInvoice(input, user){
 	invoice.balance = input.totalAmount;
 	invoice.paymentStatus = AWAITING_PAYMENT_STATUS;
 
-	try{
-		invoice = await invoice.save()
-	}catch(error){
-		logger.error("invoice.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return invoice;
+	return await invoiceHelper.saveInvoice(invoice);
 }
 
-async function makePayment(input, user) {
+async function makePayment(input) {
 	const schema = Joi.object({
 		amount: Joi
 			.number()
 			.required(),
 		currency: Joi
 			.string()
-			.valid("HKD","CNY")
 			.required(),
 		bookingId: Joi
 			.string()
 			.required()
 	});
 	utility.validateInput(schema, input);
+
+	invoiceHelper.validateCurrency(input.currency);
 
 	let invoice = await invoiceHelper.getTargetInvoice(input.bookingId);
 	
@@ -119,17 +113,10 @@ async function makePayment(input, user) {
 	}
 	invoice.paymentStatus = paymentStatus;
 
-	try{
-		invoice = await invoice.save();
-	}catch(error){
-		logger.error("invoice.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return invoice;
+	return await invoiceHelper.saveInvoice(invoice);
 }
 
-async function applyDiscount(input, user) {
+async function applyDiscount(input) {
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
@@ -139,14 +126,16 @@ async function applyDiscount(input, user) {
 			.required(),
 		currency: Joi
 			.string()
-			.valid("HKD")
 			.required(),
 		discountCode: Joi
 			.string()
-			.valid("WEEKDAY_DISCOUNT", "OWNER_DISCOUNT", "VIP_DISCOUNT")
 			.required()
 	});
 	utility.validateInput(schema, input);
+
+	invoiceHelper.validateDiscountCode(input.discountCode);
+
+	invoiceHelper.validateCurrency(input.currency);
 
 	let invoice = await invoiceHelper.getTargetInvoice(input.bookingId);
 
@@ -209,14 +198,7 @@ async function removeDiscount(input, user) {
 
 	invoice.balance = invoiceHelper.calculateBalance(invoice.totalAmount, invoice.paidAmount);
 
-	try{
-		invoice = await invoice.save();
-	}catch(error){
-		logger.error("invoice.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return bookingOutput;
+	return invoiceHelper.saveInvoice(invoice);
 }
 
 module.exports = {

@@ -1,4 +1,12 @@
+"use strict";
 const mongoose = require("mongoose");
+
+const boatSchema = new mongoose.Schema({
+	lastUpdateTime: Date,
+	assetId: String,
+	boatName: String,
+	fuelLevel: Number
+});
 
 const fuelReserviorSchema = new mongoose.Schema({
 	assetId: String,
@@ -9,7 +17,9 @@ const fuelReserviorSchema = new mongoose.Schema({
 });
 
 const FuelReservior = mongoose.model("FuelReservior", fuelReserviorSchema);
+const Boat = mongoose.model("Boat", boatSchema);
 
 module.exports = {
-	FuelReservior
+	Boat,
+    FuelReservior
 }

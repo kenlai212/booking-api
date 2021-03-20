@@ -18,10 +18,22 @@ const bookingOccupancySchema = new mongoose.Schema({
 	assetId: String
 });
 
+const bookingHistorySchema = new mongoose.Schema({
+	_id: String,
+	history: [{
+		transactionTime: Date,
+		transactionDescription: String,
+		userId: String,
+		userName: String
+	}]
+});
+
+const BookingHistory = mongoose.model("BookingHistory", bookingHistorySchema);
 const BookingOccupancy = mongoose.model("Occupancy", bookingOccupancySchema);
 const Booking = mongoose.model("Booking", bookingSchema);
 
 module.exports = {
 	Booking,
-	BookingOccupancy
+	BookingOccupancy,
+	BookingHistory
 }

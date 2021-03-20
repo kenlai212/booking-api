@@ -3,16 +3,17 @@ const express = require("express");
 
 const logIncommingRequest = require("../common/middleware/logIncommingRequest");
 const authenticateAccessToken = require("../common/middleware/authenticateAccessToken");
-const customerController = require("./customer.controller");
+const staffController = require("./customer.controller");
 
 const router = express.Router();
-router.post("/customer", logIncommingRequest, authenticateAccessToken, customerController.newCustomer);
-router.get("/customers", logIncommingRequest, authenticateAccessToken, customerController.searchCustomers);
-router.get("/customer/:id", logIncommingRequest, authenticateAccessToken, customerController.findCustomer);
-router.delete("/customer/:customerId", logIncommingRequest, authenticateAccessToken, customerController.deleteCustomer);
-router.put("/customer/status", logIncommingRequest, authenticateAccessToken, customerController.editStatus);
-router.put("/customer/personal-info", logIncommingRequest, authenticateAccessToken, customerController.editPersonalInfo);
-router.put("/customer/contact", logIncommingRequest, authenticateAccessToken, customerController.editContact);
-router.put("/customer/picture", logIncommingRequest, authenticateAccessToken, customerController.editPicture);
+router.post("/staff", logIncommingRequest, authenticateAccessToken, staffController.newStaff);
+router.delete("/staff/:staffId", logIncommingRequest, authenticateAccessToken, staffController.deleteStaff);
+router.put("/staff/status", logIncommingRequest, authenticateAccessToken, staffController.editStatus);
+router.put("/staff/personal-info", logIncommingRequest, authenticateAccessToken, staffController.editPersonalInfo);
+router.put("/staff/contact", logIncommingRequest, authenticateAccessToken, staffController.editContact);
+router.put("/staff/picture", logIncommingRequest, authenticateAccessToken, staffController.editPicture);
+
+router.get("/staffs", logIncommingRequest, authenticateAccessToken, staffController.searchCustomers);
+router.get("/customer/:id", logIncommingRequest, authenticateAccessToken, staffController.findCustomer);
 
 module.exports = router;

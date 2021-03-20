@@ -5,7 +5,7 @@ const userSchema = new mongoose.Schema({
 	userType: String,
 	provider: String,
 	providerUserId: String,
-	partyId: String,
+	personId: String,
 	status: String,
 	registrationTime: Date,
 	activationKey: String,

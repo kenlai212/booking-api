@@ -5,11 +5,9 @@ const mongoose = require("mongoose");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const { Customer } = require("./customer.model");
+const { Staff, StaffPerson } = require("./staff.model");
 
-async function findCustomer(input, user) {
-
-	//validate input data
+async function findStaff(input) {
 	const schema = Joi.object({
 		id: Joi
 			.string()
@@ -18,36 +16,44 @@ async function findCustomer(input, user) {
 	utility.validateInput(schema, input);
 
 	if (!mongoose.Types.ObjectId.isValid(input.id))
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid id" };
 
-	let targetCustomer;
+	let staff;
 
-	//try to find targetCustomer by id first
+	//try to find targetStaff by id first
 	try {
-		targetCustomer = await Customer.findById(input.id);
+		staff = await Staff.findById(input.id);
 	} catch (err) {
-		logger.error("Customer.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		logger.error("Staff.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Staff Error" };
 	}
 	
-	//if no targetCustomer found, try to find by partyId 
-	if(!targetCustomer){
+	//if no targetStaff found, try to find by personId
+	if(!staff){
 		try {
-			targetCustomer = await Customer.findOne({partyId : input.id});
+			staff = await Staff.findOne({personId : input.id});
 		} catch (err) {
-			logger.error("Customer.findOne Error : ", err);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+			logger.error("Staff.findById Error : ", err);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Staff Error" };
 		}
 	}
 
-	if(!targetCustomer)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
+	if(!staff)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid id" };
 
-	return customerToOutputObj(targetCustomer);
+	//find staffPerson
+	let staffPerson;
+	try{
+		staffPerson = StaffPerson.findOne({personId: staff.personId});
+	}catch(error){
+		logger.error("StaffPerson.findOne Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find StaffPerson Error" };
+	}
+
+	return staffToOutputObj(staff, staffPerson);
 }
 
-async function searchCustomers(input, user) {
-	//validate input data
+async function searchStaffs(input) {
 	const schema = Joi.object({
 		status: Joi
 			.string()
@@ -62,47 +68,54 @@ async function searchCustomers(input, user) {
 		}
 	}
 
-	let customers;
+	let staffs;
 	try {
-		customers = await Customer.find(searchCriteria);
+		staffs = await Staff.find(searchCriteria);
 	} catch (err) {
-		logger.error("Customer.find Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+		logger.error("Staff.find Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Staff Error" };
+	} 
 
 	//set outputObjs
 	var outputObjs = [];
-	customers.forEach((item) => {
-		outputObjs.push(customerToOutputObj(item));
+	staffs.forEach((staff) => {
+		let staffPerson;
+		try{
+			staffPerson = StaffPerson.findOne({personId: staff.personId});
+		}catch(error){
+			logger.error("StaffPerson.findOne Error : ", err);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find StaffPerson Error" };
+		}
 
+		outputObjs.push(staffToOutputObj(staff, stafPerson));
 	});
 
 	return {
 		"count": outputObjs.length,
-		"customers": outputObjs
+		"staffs": outputObjs
 	};
 }
 
-function customerToOutputObj(customer) {
+function staffToOutputObj(staff, staffPerson) {
 	var outputObj = new Object();
-	outputObj.id = customer._id.toString();
-	outputObj.status = customer.status;
-	outputObj.partyId = customer.partyId;
+	outputObj.id = staff._id.toString();
+	outputObj.status = staff.status;
+	outputObj.partyId = staff.partyId;
 
-	outputObj.personalInfo = customer.personalInfo;
+	outputObj.personalInfo = staffPerson.personalInfo;
 
-	if(customer.contact.telephoneNumber != null || customer.contact.emailAddress != null){
-		outputObj.contact = customer.contact;
+	if(staffPerson.contact.telephoneNumber != null || staffPerson.contact.emailAddress != null){
+		outputObj.contact = staffPerson.contact;
 	}
 	
-	if(customer.picture.url != null){
-		outputObj.picture = customer.picture;
+	if(staffPerson.picture.url != null){
+		outputObj.picture = staffPerson.picture;
 	}
 
 	return outputObj;
 }
 
 module.exports = {
-	searchCustomers,
-	findCustomer
+	searchStaffs,
+	findStaff
 }

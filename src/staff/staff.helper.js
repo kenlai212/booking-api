@@ -4,36 +4,38 @@ const mongoose = require("mongoose");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-async function getTargetCustomer(customerId){
-	if (!mongoose.Types.ObjectId.isValid(customerId))
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
+const {Staff} = require("./staff.model");
 
-	let customer;
+async function getTargetStaff(staffId){
+	if (!mongoose.Types.ObjectId.isValid(staffId))
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid staffId" };
+
+	let staff;
 	try {
-		customer = await Customer.findById(customerId);
+		staff = await Staff.findById(staffId);
 	} catch (err) {
-		logger.error("Customer.findById Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Customer Error" };
+		logger.error("Staff.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Staff Error" };
 	}
 	
-	if (!customer)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
+	if (!staff)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid staffId" };
 
-	return customer;
+	return staff;
 }
 
-async function saveCustomer(customer){
+async function saveStaff(staff){
 	try {
-		customer = await customer.save();
+		staff = await staff.save();
 	} catch (err) {
-		logger.error("customer.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Customer Error" };
+		logger.error("staff.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Staff Error" };
 	}
 
-	return customer;
+	return staff;
 }
 
 module.exports = {
-	getTargetCustomer,
-    saveCustomer
+	getTargetStaff,
+    saveStaff
 }
