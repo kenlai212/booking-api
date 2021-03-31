@@ -1,5 +1,6 @@
 "use strict";
 const mongoose = require("mongoose");
+const moment = require("moment");
 
 const utility = require("../common/utility");
 const {logger, customError} = utility;
@@ -17,12 +18,12 @@ function validateGender(gender){
 }
 
 function validateDob(dob, utcOffset){
-	if(utcOffset)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "utcOffset is mandatory" };
+	utility.validateDateIsoStr(dob, utcOffset);
 
-	const birthday = moment(dob).add(utcOffset).toDate();
+	//TODO cannot be later then today
+	//TODO cannot be under 18
 
-	return birthday;
+	return true;
 }
 
 function validateEmailAddress(emailAddress){
@@ -93,45 +94,35 @@ function validateRole(role){
 function personToOutputObj(person){
     let outputObj = new Object();
 	outputObj.id = person._id.toString();
+	outputObj.creationTime = person.creationTime;
+	outputObj.lastUpdateTime = person.lastUpdateTime;
 
 	if(person.userId){
 		outputObj.userId = person.userId;
 	}
 	
-	if(person.personalInfo){
-		outputObj.personalInfo = new Object();
-
-		if(person.personalInfo.name)
-			outputObj.personalInfo.name = person.personalInfo.name;
-
-		if(person.personalInfo.dob)
-			outputObj.personalInfo.dob = person.personalInfo.dob;
-
-		if(person.personalInfo.gender)
-			outputObj.personalInfo.gender = person.personalInfo.gender;
+	if(person.name){
+		outputObj.name = person.name;
 	}
 	
-	if(person.contact){
-		outputObj.contact = new Object();
-
-		if(person.contact.emailAddress)
-			outputObj.contact.emailAddress = person.contact.emailAddress;
-
-		if(person.contact.telephoneCountryCode)
-			outputObj.contact.telephoneCountryCode = person.contact.telephoneCountryCode;
-
-		if(person.contact.telephoneNumber)
-			outputObj.contact.telephoneNumber = person.contact.telephoneNumber;
+	if(person.dob){
+		outputObj.dob = peerson.dob;
 	}
 
-	if(person.picture){
-		outputObj.picture = new Object();
-
-		if(person.picture.url)
-			outputObj.picture.url = person.picture.url;
+	if(person.gender){
+		outputObj.gender = peerson.gender;
 	}
 
-	if(person.roles)
+	if(person.emailAddress){
+		outputObj.emailAddress = peerson.emailAddress;
+	}
+
+	if(person.phoneNumber){
+		outputObj.countryCode = person.countryCode;
+		outputObj.phoneNumber = person.phoneNumber;
+	}
+
+	if(person.roles && person.roles.length > 0)
 		outputObj.roles = person.roles;
 
 	if(person.preferredContactMethod){

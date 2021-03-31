@@ -8,25 +8,36 @@ const customerSchema = new mongoose.Schema({
 
 const customerPersonSchema = new mongoose.Schema({
 	personId: String,
-	personalInfo: {
-		name: String,
-		dob: Date,
-		gender: String
-	},
-	contact: {
-		telephoneCountryCode: String,
-		telephoneNumber: String,
-		emailAddress: String
-	},
-	picture: {
-		url: String
-	}
+	name: String,
+	dob: Date,
+	gender: String,
+	phoneNumber: String,
+	countryCode: String,
+	emailAddress: String,
+	profilePictureUrl: String
+});
+
+const newCustomerRequestSchema = new mongoose.Schema({
+	requestTime: Date,
+	requestedBy: String,
+	status: String,
+	name: String,
+	dob: Date,
+	gender: String,
+	phoneNumber: String,
+	countryCode: String,
+	emailAddress: String,
+	customerId: String,
+	personId: String,
+	eventPublishedTime: Date
 });
 
 const Customer = mongoose.model("Customer", customerSchema);
 const CustomerPerson = mongoose.model("CustomerPerson", customerPersonSchema);
+const NewCustomerRequest = mongoose.model("NewCustomerRequest", newCustomerRequestSchema);
 
 module.exports = {
 	Customer,
-	CustomerPerson
+	CustomerPerson,
+	NewCustomerRequest
 }

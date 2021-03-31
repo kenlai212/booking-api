@@ -5,21 +5,20 @@ const cors = require('cors');
 require("dotenv").config();
 
 const utility = require("./src/common/utility");
-const {logger, customError} = utility;
+const {logger} = utility;
 
 const bookingAPIUser = require("./src/common/bookingAPIUser")
 const bookingRoutes = require("./src/booking/booking.routes");
 const pricingRoutes = require("./src/pricing/pricing.routes");
 const slotRoutes = require("./src/slot/slot.routes");
 const occupancyRoutes = require("./src/occupancy/occupancy.routes");
-const crewRoutes = require("./src/crew/crew.routes");
+const staffRoutes = require("./src/staff/staff.routes");
 const userRoutes = require("./src/user/user.routes");
 const authenticationRoutes = require("./src/authentication/authentication.routes");
 const communicationRoutes = require("./src/communication/communication.routes");
 const notificationRoutes = require("./src/notification/notification.routes");
 const assetRoutes = require("./src/asset/asset.routes");
-const bookingHistoryRoutes = require("./src/bookingHistory/bookingHistroy.routes");
-const partyRoutes = require("./src/party/party.routes");
+const personRoutes = require("./src/person/person.routes");
 const customerRoutes = require("./src/customer/customer.routes");
 const invoiceRoutes = require("./src/invoice/invoice.routes");
 
@@ -34,14 +33,13 @@ app.use("/", occupancyRoutes);
 app.use("/", pricingRoutes);
 app.use("/", bookingRoutes);
 app.use("/", slotRoutes);
-app.use("/", crewRoutes);
+app.use("/", staffRoutes);
 app.use("/", userRoutes);
 app.use("/", authenticationRoutes);
 app.use("/", communicationRoutes);
 app.use("/", notificationRoutes);
 app.use("/", assetRoutes);
-app.use("/", bookingHistoryRoutes);
-app.use("/", partyRoutes);
+app.use("/", personRoutes);
 app.use("/", customerRoutes);
 app.use("/", invoiceRoutes);
 

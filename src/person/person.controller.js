@@ -6,6 +6,7 @@ const utility = require("../common/utility");
 
 const personRead = require("./person.read");
 const personService = require("./person.service");
+const personDomain = require("./person.domain");
 
 const PERSON_ADMIN_GROUP = "PERSON_ADMIN";
 const PERSON_USER_GROUP = "PERSON_USER";
@@ -23,46 +24,70 @@ const readPersons = asyncMiddleware(async (req) => {
 	return await personRead.readPersons(queryObject, req.user);
 });
 
-const editPicture = asyncMiddleware(async (req) => {
+const createParty = asyncMiddleware(async (req) => {
 	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
 
-	return await personService.editPicture(req.body, req.user);
-});
-
-const editContact = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
-
-	return await personService.editContact(req.body, req.user);
-});
-
-const editPersonalInfo = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
-
-	return await personService.editPersonalInfo(req.body, req.user);
-});
-
-const createNewParty = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
-
-	return await personService.createNewParty(req.body, req.user);
+	return await personDomain.createParty(req.body, req.user);
 });
 
 const deleteParty = asyncMiddleware(async (req) => {
 	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP]);
 
-	return await personService.deleteParty(req.body, req.user);
+	return await personDomain.deleteParty(req.body, req.user);
 });
 
-const addRole = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP]);
+const updateName = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
 
-	return await personService.addRole(req.body, req.user);
+	return await personDomain.updateName(req.body, req.user);
 });
 
-const removeRole = asyncMiddleware(async (req) => {
+const updateDob = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
+
+	return await personDomain.updateDob(req.body, req.user);
+});
+
+const updateGender = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
+
+	return await personDomain.updateGender(req.body, req.user);
+});
+
+const updateEmailAddress = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
+
+	return await personDomain.updateEmailAddress(req.body, req.user);
+});
+
+const updateMobile = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
+
+	return await personDomain.updateMobile(req.body, req.user);
+});
+
+const updateProfilePicture = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
+
+	return await personDomain.updateProfilePicture(req.body, req.user);
+});
+
+const updateRoles = asyncMiddleware(async (req) => {
 	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP]);
 
-	return await personService.removeRole(req.body, req.user);
+	return await personDomain.updateRoles(req.body, req.user);
+});
+
+const updatePreferredContactMethod = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP]);
+
+	return await personDomain.editPreferredContactMethod(req.body, req.user);
+});
+
+const updatePreferredLanguage = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP]);
+
+	return await personDomain.editPreferredLanguage(req.body, req.user);
 });
 
 const sendMessage = asyncMiddleware(async (req) => {
@@ -77,23 +102,20 @@ const sendRegistrationInvite = asyncMiddleware(async (req) => {
 	return await personService.sendRegistrationInvite(req.body, req.user);
 });
 
-const changePreferredContactMethod = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP]);
-
-	return await personService.changePreferredContactMethod(req.body, req.user);
-});
-
 module.exports = {
 	readPerson,
 	readPersons,
 	deleteParty,
-	createNewParty,
-	editPersonalInfo,
-	editContact,
-	editPicture,
-	addRole,
-	removeRole,
+	createParty,
+	updateName,
+	updateDob,
+	updateGender,
+	updateEmailAddress,
+	updateMobile,
+	updateProfilePicture,
+	updateRoles,
+	updatePreferredContactMethod,
+	updatePreferredLanguage,
 	sendMessage,
-	sendRegistrationInvite,
-	changePreferredContactMethod
+	sendRegistrationInvite
 }

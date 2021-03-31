@@ -6,55 +6,43 @@ const utility = require("../common/utility");
 
 const bookingService = require("./booking.service");
 const bookingRead = require("./booking.read");
-const bookingCommon = require("./booking.common");
+
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
+const BOOKING_USER_GROUP = "BOOKING_USER";
 
 const bookNow = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [
-		bookingCommon.BOOKING_ADMIN_GROUP,
-		bookingCommon.BOOKING_USER_GROUP
-	]);
+	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP,BOOKING_USER_GROUP]);
 
 	return await bookingService.bookNow(req.body, req.user);
 });
 
 const searchBookings = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]);
+	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP]);
 
 	const queryObject = url.parse(req.url, true).query;
 	return await bookingRead.viewBookings(queryObject, req.user);
 });
 
 const cancelBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]);
+	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP]);
 
 	return await bookingService.cancelBooking(req.body, req.user);
 });
 
 const fulfillBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]);
+	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP]);
 
 	return await bookingService.fulfillBooking(req.body, req.user);
 });
 
 const findBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [
-		bookingCommon.BOOKING_ADMIN_GROUP,
-		bookingCommon.BOOKING_USER_GROUP
-	]);
+	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP, BOOKING_USER_GROUP]);
 
 	return await bookingRead.findBookingById(req.params, req.user);
 });
 
 const confirmBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [
-		bookingCommon.BOOKING_ADMIN_GROUP
-	]);
+	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP]);
 
 	return await bookingService.confirmBooking(req.body, req.user);
 });

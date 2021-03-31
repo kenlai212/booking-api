@@ -4,7 +4,52 @@ const mongoose = require("mongoose");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-async function getTargetCustomer(customerId){
+function validateGender(gender){
+	const validGender = [
+		"MALE",
+		"FEMALE"
+	]
+
+	if(!validGender.includes(gender))
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid gender" };
+}
+
+function validateDob(dob, utcOffset){
+	utility.validateDateIsoStr(dob, utcOffset);
+
+	//TODO cannot be later then today
+	//TODO cannot be under 18
+
+	return true;
+}
+
+function validateEmailAddress(emailAddress){
+	const re = /^(([^<>()[\]\\.,;:\s@"]+(\.[^<>()[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/;
+    
+	if(re.test(String(emailAddress).toLowerCase())){
+		return true;
+	}else{
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid emailAddress format" };
+	}
+}
+
+function validatePhoneNumber(countryCode, phoneNumber){
+	const validCountryCode = [
+		"852",
+		"853",
+		"82"
+	]
+
+	if(!validCountryCode.includes(countryCode))
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid countryCode" };
+
+	if(phoneNumber.length < 7)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid phoneNumber" };
+
+	return true;
+}
+
+async function getCustomer(customerId){
 	if (!mongoose.Types.ObjectId.isValid(customerId))
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
 
@@ -34,6 +79,10 @@ async function saveCustomer(customer){
 }
 
 module.exports = {
-	getTargetCustomer,
-    saveCustomer
+	getCustomer,
+    saveCustomer,
+	validateGender,
+	validateDob,
+	validateEmailAddress,
+	validatePhoneNumber
 }

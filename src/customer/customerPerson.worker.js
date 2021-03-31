@@ -1,7 +1,9 @@
 const utility = require("../common/utility");
 const {logger} = utility;
 
-const customerPersonService = require("./customerPerson.service");
+const customerPersonDomain = require("./customerPerson.domain");
+const customerDomain = require("./customer.domain");
+const customerService = require("./customer.service");
 
 function listen(){
     const newPersonQueueName = "newPerson";
@@ -11,8 +13,18 @@ function listen(){
 
         let newPersonMsg = JSON.parse(msg.content);
         const person = newPersonMsg.person;
+        const customerId = newPersonMsg.customerId;
 
-        await customerPersonService.newCustomerPerson(person);
+        try{
+            await customerPersonDomain.createCustomerPerson(person);
+
+            await customerDomain.updatePersonId({"customerId": customerId, "personId": person.id});
+    
+            await customerService.completeNewCustomerRequest({"customerId": customerId, "personId": person.id});
+        }catch(error){
+            throw error;
+        }
+        
     });
 }
 

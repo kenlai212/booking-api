@@ -31,11 +31,12 @@ async function readPersons(input){
 		name: Joi
             .string()
             .min(1)
+			.allow(null)
 	});
 	utility.validateInput(schema, input);
 
 	let searchCriteria;
-	if (input.name) {
+	if(input && input.name) {
 		searchCriteria = {
 			"name": input.name
 		}

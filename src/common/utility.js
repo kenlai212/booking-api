@@ -1,7 +1,47 @@
 const amqp = require('amqplib');
 const { createLogger, format, transports } = require("winston");
+const moment = require("moment");
 
 require("dotenv").config();
+
+function validateDateIsoStr(isoStr, utcOffset){
+	if(!isoStr)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "isoStr is mandatory" };
+	
+	const dateMoment = moment(isoStr);
+	if(!dateMoment.isValid)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid isoStr" };
+
+	if(!utcOffset)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "utcOffset is mandatory" };
+
+	if(utcOffset < -12 || utcOffset > 14)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid utcOffset" };
+
+	return true;
+}
+
+function isoStrToDate(isoStr, utcOffset) {
+	const dateStr = isoStr.substr(0, 10);
+	const dateRes = dateStr.split("-");
+
+	const timeStr = isoStr.substr(11, 8);
+	const timeRes = timeStr.split(":")
+
+	const targetDateTime = moment()
+		.utcOffset(parseInt(utcOffset))
+		.set({
+			year: parseInt(dateRes[0]),
+			month: parseInt(dateRes[1]) - 1,
+			date: parseInt(dateRes[2]),
+			hour: parseInt(timeRes[0]),
+			minute: parseInt(timeRes[1]),
+			second: parseInt(timeRes[2]),
+			millisecond: 0
+		}).toDate();
+
+	return targetDateTime;
+}
 
 function validateInput(schema, input){
 	const result = schema.validate(input);
@@ -118,6 +158,8 @@ const customError = {
 }
 
 module.exports = {
+    validateDateIsoStr,
+    isoStrToDate,
 	validateInput,
 	userGroupAuthorization,
 	publishEvent,
