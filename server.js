@@ -22,8 +22,6 @@ const personRoutes = require("./src/person/person.routes");
 const customerRoutes = require("./src/customer/customer.routes");
 const invoiceRoutes = require("./src/invoice/invoice.routes");
 
-const partyListener = require("./src/party/party.listener");
-
 const app = express();
 app.use(cors());
 
@@ -79,7 +77,5 @@ mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useN
 		logger.error("Bootup Error", err);
 		throw err;
 	});
-
-partyListener.listen();
 
 module.exports = app;

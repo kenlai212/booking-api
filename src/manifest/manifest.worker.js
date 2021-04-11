@@ -2,20 +2,23 @@
 const utility = require("../../common/utility");
 const {logger} = utility;
 
-const manifestService = require("./manifest.service");
+const manifestDomain = require("./manifest.doman");
+
+const NEW_BOOKING_QUEUE_NAME = "NEW_BOOKING";
 
 function listen(){
-    const newBookingQueueName = "newBooking";
-
-    utility.subscribe(newBookingQueueName, async function(msg){
-        logger.info(`Heard ${newBookingQueueName} event(${msg})`);
+    utility.subscribe(NEW_BOOKING_QUEUE_NAME, async function(msg){
+        logger.info(`Heard ${NEW_BOOKING_QUEUE_NAME} event(${msg})`);
 
         const msgJSON = JSON.parse(msg.content); 
-        let input = msgJSON.booking;
-        let user = msgJSON.user;
+
+        const input = {
+            bookingId: msgJSON.bookingId,
+            guests:[msgJSON.customerId]
+        }
 
         try{
-            await manifestService.newManifest(input,user);
+            await manifestDomain.newManifest(input, msgJSON.user);
         }catch(error){
             throw error;
         }

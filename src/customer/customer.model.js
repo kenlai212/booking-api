@@ -6,7 +6,7 @@ const customerSchema = new mongoose.Schema({
 	status: String
 });
 
-const customerPersonSchema = new mongoose.Schema({
+const personSchema = new mongoose.Schema({
 	personId: String,
 	name: String,
 	dob: Date,
@@ -17,7 +17,7 @@ const customerPersonSchema = new mongoose.Schema({
 	profilePictureUrl: String
 });
 
-const newCustomerRequestSchema = new mongoose.Schema({
+const newPersonRequestSchema = new mongoose.Schema({
 	requestTime: Date,
 	requestedBy: String,
 	status: String,
@@ -33,11 +33,11 @@ const newCustomerRequestSchema = new mongoose.Schema({
 });
 
 const Customer = mongoose.model("Customer", customerSchema);
-const CustomerPerson = mongoose.model("CustomerPerson", customerPersonSchema);
-const NewCustomerRequest = mongoose.model("NewCustomerRequest", newCustomerRequestSchema);
+const Person = mongoose.model("CustomerPerson", personSchema);
+const NewPersonRequest = mongoose.model("NewPersonRequest", newPersonRequestSchema);
 
 module.exports = {
 	Customer,
-	CustomerPerson,
-	NewCustomerRequest
+	Person,
+	NewPersonRequest
 }

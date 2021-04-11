@@ -7,7 +7,7 @@ const {logger, customError} = utility;
 const { Staff, StaffPerson } = require("./staff.model");
 const staffHelper = require("./staff.helper");
 
-async function newStaff(input, user) {
+async function createStaff(input) {
 	const schema = Joi.object({
 		personId: Joi
 			.string()
@@ -47,7 +47,7 @@ async function newStaff(input, user) {
 	return await staffHelper.saveStaff(staff);
 }
 
-async function deleteStaff(input, user) {
+async function deleteStaff(input) {
 	const schema = Joi.object({
 		staffId: Joi
 			.string()
@@ -68,7 +68,7 @@ async function deleteStaff(input, user) {
 	return { "status": "SUCCESS" }
 }
 
-async function editStatus(input, user) {
+async function updateStatus(input) {
 	const schema = Joi.object({
 		customerId: Joi
 			.string()
@@ -89,7 +89,7 @@ async function editStatus(input, user) {
 }
 
 module.exports = {
-	newStaff,
+	createStaff,
 	deleteStaff,
-	editStatus
+	updateStatus
 }

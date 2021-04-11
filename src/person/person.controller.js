@@ -24,16 +24,16 @@ const readPersons = asyncMiddleware(async (req) => {
 	return await personRead.readPersons(queryObject, req.user);
 });
 
-const createParty = asyncMiddleware(async (req) => {
+const createPerson = asyncMiddleware(async (req) => {
 	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP, PERSON_USER_GROUP]);
 
-	return await personDomain.createParty(req.body, req.user);
+	return await personDomain.createPerson(req.body, req.user);
 });
 
-const deleteParty = asyncMiddleware(async (req) => {
+const deletePerson = asyncMiddleware(async (req) => {
 	utility.userGroupAuthorization(req.user.groups, [PERSON_ADMIN_GROUP]);
 
-	return await personDomain.deleteParty(req.body, req.user);
+	return await personDomain.deletePerson(req.body, req.user);
 });
 
 const updateName = asyncMiddleware(async (req) => {
@@ -105,8 +105,8 @@ const sendRegistrationInvite = asyncMiddleware(async (req) => {
 module.exports = {
 	readPerson,
 	readPersons,
-	deleteParty,
-	createParty,
+	deletePerson,
+	createPerson,
 	updateName,
 	updateDob,
 	updateGender,

@@ -4,7 +4,7 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const {Boat} = require("./boat.model");
+const {Boat} = require("./asset.model");
 
 async function newBoat(input) {
 	const schema = Joi.object({

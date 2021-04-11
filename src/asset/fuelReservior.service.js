@@ -4,7 +4,7 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const {FuelReservior} = require("./fuelReservior.model");
+const {FuelReservior} = require("./asset.model");
 
 async function newFuelReservior(input, user) {
 	const schema = Joi.object({

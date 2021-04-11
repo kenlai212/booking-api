@@ -3,11 +3,11 @@ const express = require("express");
 
 const logIncommingRequest = require("../common/middleware/logIncommingRequest");
 const authenticateAccessToken = require("../common/middleware/authenticateAccessToken");
-const controller = require("./party.controller");
+const controller = require("./person.controller");
 
 const router = express.Router();
-router.post("/person", authenticateAccessToken, logIncommingRequest, controller.createNewPerson);
-router.delete("/person/:partyId", authenticateAccessToken, logIncommingRequest, controller.deletePerson);
+router.post("/person", authenticateAccessToken, logIncommingRequest, controller.createPerson);
+router.delete("/person/:personId", authenticateAccessToken, logIncommingRequest, controller.deletePerson);
 router.put("/person/name", authenticateAccessToken, logIncommingRequest, controller.updateName);
 router.put("/person/dob", authenticateAccessToken, logIncommingRequest, controller.updateDob);
 router.put("/person/gender", authenticateAccessToken, logIncommingRequest, controller.updateGender);

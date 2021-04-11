@@ -4,8 +4,11 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const Occupancy = require("./occupancy.model").Occupancy;
+const occupancyDomain = require("./occupancy.domain");
 const occupancyHelper = require("./occupancy.helper");
+
+const OCCUPY_ASSET_QUEUE_NAME = "OCCUPY_ASSET";
+const RELEASE_OCCUPANCY_QUEUE_NAME = "RELEASE_OCCUPANCY"
 
 async function checkAvailability(input){
 	const schema = Joi.object({
@@ -39,43 +42,18 @@ async function releaseOccupancy(input) {
 	});
 	utility.validateInput(schema, input);
 
-	let occupancy;
-	try {
-		occupancy = await Occupancy.findById(inpt.occupancyId) 
-	} catch (err) {
-		logger.error("Occupancy.findById error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Occupancy Error" }
-	}
-
-	if (!occupancy)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid occupancyId" }
-
-	try {
-		await Occupancy.findByIdAndDelete(occupancy._id);
-	} catch (err) {
-		logger.error("Occupancy.findByIdAndDelete() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Occupancy.findByIdAndDelete not available" }
-	}
+	let occupancy = occupancyDomain.readOccupancy(input.occupancyId);
 
 	//publish releaseOccupancy event
-	const eventQueueName = "releaseOccupancy";
-	await utility.publishEvent(input, eventQueueName, user, async () => {
-		logger.error("rolling back releaseOccupancy");
-		
-		try{
-			await occupancy.save();
-		}catch(error){
-			logger.error("occupancy.save error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Occupancy Error" };
-		}
-	});
+	await utility.publishEvent(input, RELEASE_OCCUPANCY_QUEUE_NAME, user);
+
+	//delete from db
+	await occupancyDomain.deleteOccupancy(occupancy._id);
 
 	return {
 		status: "SUCCESS",
 		message: `Published event to ${eventQueueName} queue`,
-		eventMsg: {
-			occupancyId: input.occupancyId
-		}
+		eventMsg: input
 	};
 }
 
@@ -103,42 +81,66 @@ async function occupyAsset(input) {
 	if (!isAvailable)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" };
 
-	//set up occupancy object for saving
-	var occupancy = new Occupancy();
-	occupancy.startTime = startTime;
-	occupancy.endTime = endTime;
-	occupancy.assetId = input.assetId;
-	occupancy.bookingType = input.bookingType;
-
-	try {
-		occupancy = await occupancy.save();
-	} catch (err) {
-		logger.error("occupancy.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	//save to db
+	const createOccupancyInput = {
+		startTime : startTime,
+		endTime : endTime,
+		assetId : input.assetId,
+		bookingType : input.bookingType,
+		status : "AWAITING_CONFIRMATION"
 	}
 
+	const occupancy = await occupancyDomain.createOccupancy(createOccupancyInput);
+
 	//publish occupyAsset event
-	const eventQueueName = "occupyAsset";
-	await utility.publishEvent(input, eventQueueName, user, async () => {
+	const eventMsg = {
+		occupancyId : occupancy._id,
+		startTime : occupancy.startTime,
+		endTime: occupancy.endTime,
+		utcOffset: input.utcOffset,
+		assetId: occupancy.assetId,
+		bookingType: occupancy.bookingType,
+		status: occupancy.status
+	}
+
+	await utility.publishEvent(eventMsg, OCCUPY_ASSET_QUEUE_NAME, user, async () => {
 		logger.error("rolling back occupyAsset");
 		
-		try{
-			await Occupancy.findByIdAndDelete(occupancy._id);
-		}catch(error){
-			logger.error("Occupancy.findByIdAndDelete error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Rollback Delete Occupancy Error" };
-		}
+		await occupancyDomain.deleteOccupancy(occupancy._id);
 	});
 
 	return {
 		status: "SUCCESS",
 		message: `Published event to ${eventQueueName} queue`,
-		eventMsg: occupancy
+		eventMsg: eventMsg
 	};
+}
+
+async function confirmOccupancy(input){
+	const schema = Joi.object({
+		occupancyId: Joi
+			.string()
+			.required()
+	});
+	utility.validateInput(schema, input);
+
+	let occupancy = occupancyDomain.readOccupancy(input.occupancyId);
+
+	const confirmedStatus = "CONFIRMED";
+
+	if(occupancy.status === confirmedStatus)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Occupancy already confirmed" };
+
+	occupancy.status = confirmedStatus;
+
+	occupancy = await occupancyDomain.updateOccupancy(occupancy);
+
+	return occupancy;
 }
 
 module.exports = {
 	occupyAsset,
 	releaseOccupancy,
+	confirmOccupancy,
 	checkAvailability
 }

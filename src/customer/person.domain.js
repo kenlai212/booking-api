@@ -4,10 +4,10 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const { CustomerPerson } = require("./customer.model");
+const { Person } = require("./customer.model");
 const customerHelper = require("./customer.helper");
 
-async function createCustomerPerson(input){
+async function createPerson(input){
     const schema = Joi.object({
 		personId: Joi.string().min(1).required(),
         name: Joi.string().required(),
@@ -21,45 +21,61 @@ async function createCustomerPerson(input){
 	});
 	utility.validateInput(schema, input);
 
-    let customerPerson = new CustomerPerson();
-    customerPerson.personId = input.personId;
-    customerPerson.name = input.name;
+    let person = new Person();
+    person.personId = input.personId;
+    person.name = input.name;
 
     if(input.dob){
         customerHelper.validateDob(input.dob, input.utcOffset);
-        customerPerson.dob = utility.isoStrToDate(input.dob, input.utcOffset);
+        person.dob = utility.isoStrToDate(input.dob, input.utcOffset);
     }
 
     if(input.gender){
         customerHelper.validateGender(input.gender);
-        customerPerson.gender = input.gender;
+        person.gender = input.gender;
     }
 
     if(input.phoneNumber){
         customerHelper.validatePhoneNumber(input.countryCode, input.phoneNumber);
-        customerPerson.countryCode(input.countryCode);
-        customerPerson.phoneNumber(input.phoneNumber);
+        person.countryCode(input.countryCode);
+        person.phoneNumber(input.phoneNumber);
     }
 
     if(input.emailAddress){
         customerHelper.validateEmailAddress(input.emailAddress);
-        customerPerson.emailAddress = input.emailAddress;
+        person.emailAddress = input.emailAddress;
     }
 
     if(input.profilePictureUrl)
-        customerPerson.profilePictureUrl = input.profilePictureUrl;
+        person.profilePictureUrl = input.profilePictureUrl;
         
 
     try{
-        customerPerson = await customerPerson.save();
+        person = await person.save();
     }catch(error){
         logger.error("customerPerson.save error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save CustomerPerson Error" };
     }
 
-    return customerPerson;
+    return person;
+}
+
+async function readPerson(personId){
+    let person;
+	try{
+		person = Person.findOne({personId: personId});
+	}catch(error){
+		logger.error("Person.findOne error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Person Error" };
+	}
+
+	if(!person)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid personId" };
+
+    return person;
 }
 
 module.exports = {
-    createCustomerPerson
+    createPerson,
+    readPerson
 }

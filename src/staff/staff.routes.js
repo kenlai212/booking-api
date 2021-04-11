@@ -3,17 +3,14 @@ const express = require("express");
 
 const logIncommingRequest = require("../common/middleware/logIncommingRequest");
 const authenticateAccessToken = require("../common/middleware/authenticateAccessToken");
-const staffController = require("./customer.controller");
+const staffController = require("./staff.controller");
 
 const router = express.Router();
-router.post("/staff", logIncommingRequest, authenticateAccessToken, staffController.newStaff);
+router.post("/staff", logIncommingRequest, authenticateAccessToken, staffController.createStaff);
 router.delete("/staff/:staffId", logIncommingRequest, authenticateAccessToken, staffController.deleteStaff);
-router.put("/staff/status", logIncommingRequest, authenticateAccessToken, staffController.editStatus);
-router.put("/staff/personal-info", logIncommingRequest, authenticateAccessToken, staffController.editPersonalInfo);
-router.put("/staff/contact", logIncommingRequest, authenticateAccessToken, staffController.editContact);
-router.put("/staff/picture", logIncommingRequest, authenticateAccessToken, staffController.editPicture);
+router.put("/staff/status", logIncommingRequest, authenticateAccessToken, staffController.updateStatus);
 
-router.get("/staffs", logIncommingRequest, authenticateAccessToken, staffController.searchCustomers);
-router.get("/customer/:id", logIncommingRequest, authenticateAccessToken, staffController.findCustomer);
+router.get("/staffs", logIncommingRequest, authenticateAccessToken, staffController.searchStaffs);
+router.get("/staff/:id", logIncommingRequest, authenticateAccessToken, staffController.findStaff);
 
 module.exports = router;

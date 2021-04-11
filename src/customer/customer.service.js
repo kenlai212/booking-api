@@ -6,9 +6,9 @@ const {logger, customError} = utility;
 
 const customerHelper = require("./customer.helper");
 const customerDomain = require("./customer.domain");
-const { NewCustomerRequest, Customer } = require("./customer.model");
+const { NewPersonRequest, Customer } = require("./customer.model");
 
-async function initiateNewCustomerRequest(input, user) {
+async function newCustomer(input, user) {
 	const schema = Joi.object({
 		personId: Joi.string(),
 		person: Joi.object({
@@ -26,35 +26,15 @@ async function initiateNewCustomerRequest(input, user) {
 	if(!input.personId && !input.person)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Either personId or person is mandatory" };	
 
-	let newCustomerRequest = new NewCustomerRequest();
-	newCustomerRequest.creationTime = new Date();
-	newCustomerRequest.createdBy = user.personId;
-
 	let customer;
 	if(input.personId){
 		//if personId is provided, it should already in customerPerson DB, create customer record with personId
 		customer = customerDomain.createCustomer({personId: input.personId});
-		newCustomerWorker.customerId = customer._id.toString();
-
-		newCustomerRequest.status = "COMPLETE";
-
-		//save newCustomerRequest
-		try{
-			newCustomerRequest = await newCustomerRequest.save();
-		}catch(error){
-			//since newCustomerRequest failed to save, roll back customer record
-			try{
-				await Customer.findByIdAndDelete(customer._id);
-			}catch(error){
-				logger.error("fail to rollback Customer.findByIdAndDelete : ", error);
-			}
-				
-			logger.error("newCustomerWork.save error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save NewCustomerWork Error" };
-		}
 	}else{
 		//if not personId provided, wait for person domain for a newPerson event.
-
+		let newCustomerRequest = new NewPersonRequest();
+		newCustomerRequest.creationTime = new Date();
+		newCustomerRequest.createdBy = user.personId;
 		newCustomerRequest.status = "AWAITING_PERSON_CREATION";
 
 		if(input.person.name)
@@ -99,22 +79,23 @@ async function initiateNewCustomerRequest(input, user) {
 		//Since this is a new person (personId was not provided), 
 		//need to publish to newCustomerPerson queue for person domain to pick up.
 		const eventQueueName = "newCustomer";
-		await utility.publishEvent(newCustomerRequest, eventQueueName, user)
-			.then(() => {
-				newCustomerRequest.eventPublishedTime = new Date();
+
+		try{
+			await utility.publishEvent(newCustomerRequest, eventQueueName, user)
+		}catch(error){
+			//since newCustomerPerson event failed to published, rool back customer and newCustomerRequest
+			await cancelNewCustomerRequest({newCustomerRequestId: newCustomerRequest._id});
+			throw error;
+		}
+		
+		newCustomerRequest.eventPublishedTime = new Date();
 	
-				try{
-					newCustomerRequest = await newCustomerRequest.save();
-				}catch(error){
-					logger.error("newCustomerWork.save error : ", error);
-					throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save NewCustomerWork Error" };
-				}
-			})
-			.catch(error => {
-				//since newCustomerPerson event failed to published, rool back customer and newCustomerRequest
-				await cancelNewCustomerRequest({newCustomerRequestId: newCustomerRequest._id});
-				throw error;
-			});
+		try{
+			newCustomerRequest = await newCustomerRequest.save();
+		}catch(error){
+			logger.error("newCustomerWork.save error : ", error);
+			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save NewCustomerWork Error" };
+		}
 	}
 }
 
@@ -137,7 +118,7 @@ async function completeNewCustomerRequest(input){
 
 	let newCustomerRequest;
 	try{
-		newCustomerRequest = NewCustomerRequest.findById(input.newCustomerRequestId);
+		newCustomerRequest = NewPersonRequest.findById(input.newCustomerRequestId);
 	}catch(error){
 		logger.error("NewCustomerRequest.findOne error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find NewCustomerWork Error" };
@@ -169,7 +150,7 @@ async function cancelNewCustomerRequest(input){
 	//find newCustomerRequest record
 	let newCustomerRequest;
 	try{
-		newCustomerRequest = NewCustomerRequest.findById(input.newCustomerRequestId);
+		newCustomerRequest = NewPersonRequest.findById(input.newCustomerRequestId);
 	}catch(error){
 		logger.error("NewCustomerRequest.findById error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find NewCustomerWork Error" };
@@ -200,7 +181,7 @@ async function cancelNewCustomerRequest(input){
 
 	//delete newCustomerRecord record
 	try{
-		await NewCustomerRequest.findByIdAndDelete(newCustomerRequest._id);
+		await NewPersonRequest.findByIdAndDelete(newCustomerRequest._id);
 	}catch(error){
 		logger.error("NewCustomerRequest.findByIdAndDelete error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete NewCustomerWork Error" };

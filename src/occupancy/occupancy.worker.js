@@ -9,12 +9,27 @@ function listen(){
     utility.subscribe(cancelBookingQueueName, async function(msg){
         logger.info(`Heard ${cancelBookingQueueName} event(${msg})`);
 
-        let cancelBookingMsg = JSON.parse(msg.content);
+        let jsonMsg = JSON.parse(msg.content);
+        
         const input = {
-            occupancyId: cancelBookingMsg.occupancyId
+            occupancyId: jsonMsg.occupancyId
         }
 
-        await occupancyService.releaseOccupancy(input, cancelBookingMsg.user);
+        await occupancyService.releaseOccupancy(input, jsonMsg.user);
+    });
+
+    const newBookingQueueName = "newBooking";
+
+    utility.subscribe(newBookingQueueName, async function(msg){
+        logger.info(`Heard ${newBookingQueueName} event(${msg})`);
+
+        let jsonMsg = JSON.parse(msg.content);
+        
+        const input = {
+            occupancyId: jsonMsg.occupancyId
+        }
+
+        await occupancyService.confirmOccupancy(input, jsonMsg.user);
     });
 }
 

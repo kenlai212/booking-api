@@ -5,7 +5,8 @@ const occupancySchema = new mongoose.Schema({
 	bookingType: String,
 	startTime: Date,
 	endTime: Date,
-	assetId: String
+	assetId: String,
+	status: String
 });
 
 const Occupancy = mongoose.model("Occupancy", occupancySchema);

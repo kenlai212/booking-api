@@ -13,8 +13,8 @@ const userObject = {
 		"NOTIFICATION_USER",
 		"USER_ADMIN",
 		"ASSET_ADMIN",
-		"CREW_ADMIN",
-		"PARTY_ADMIN",
+		"STAFF_ADMIN",
+		"PERSON_ADMIN",
 		"CUSTOMER_ADMIN",
 		"INVOICE_ADMIN"]
 }

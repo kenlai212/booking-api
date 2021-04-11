@@ -1,22 +1,22 @@
 const utility = require("../common/utility");
 const {logger} = utility;
 
-const customerPersonDomain = require("./customerPerson.domain");
+const personDomain = require("./person.domain");
 const customerDomain = require("./customer.domain");
 const customerService = require("./customer.service");
 
-function listen(){
-    const newPersonQueueName = "newPerson";
+const NEW_PERSON_QUEUE_NAME = "NEW_PERSON";
 
-    utility.subscribe(newPersonQueueName, async function(msg){
-        logger.info(`Heard ${newPersonQueueName} event(${msg})`);
+function listen(){
+    utility.subscribe(NEW_PERSON_QUEUE_NAME, async function(msg){
+        logger.info(`Heard ${NEW_PERSON_QUEUE_NAME} event(${msg})`);
 
         let newPersonMsg = JSON.parse(msg.content);
         const person = newPersonMsg.person;
         const customerId = newPersonMsg.customerId;
 
         try{
-            await customerPersonDomain.createCustomerPerson(person);
+            await personDomain.createCustomerPerson(person);
 
             await customerDomain.updatePersonId({"customerId": customerId, "personId": person.id});
     

@@ -8,19 +8,11 @@ const staffSchema = new mongoose.Schema({
 
 const staffPersonSchema = new mongoose.Schema({
 	personId: String,
-	personalInfo: {
-		name: String,
-		dob: Date,
-		gender: String
-	},
-	contact: {
-		telephoneCountryCode: String,
-		telephoneNumber: String,
-		emailAddress: String
-	},
-	picture: {
-		url: String
-	}
+	name: String,
+	countryCode: String,
+	phoneNumber: String,
+	emailAddresses: String,
+	profilePictureUrl: String,
 });
 
 const Staff = mongoose.model("Staff", staffSchema);

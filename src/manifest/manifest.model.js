@@ -1,9 +1,14 @@
 "use strict";
 const mongoose = require("mongoose");
 
-const guestSchema = new mongoose.Schema({
+const customerSchema = new mongoose.Schema({
 	customerId: String,
-	partyId: String
+	name: String,
+	gender: String,
+	phoneNumber: String,
+	countryCode: String,
+	emailAddress: String,
+	profilePictureUrl: String
 });
 
 const manifestSchema = new mongoose.Schema({
@@ -18,9 +23,9 @@ const manifestSchema = new mongoose.Schema({
 });
 
 const Manifest = mongoose.model("Manifest", manifestSchema);
-const Guest = mongoose.model("Guest", guestSchema);
+const Customer = mongoose.model("ManifestCustomer", customerSchema);
 
 module.exports = {
 	Manifest,
-	Guest
+	Customer
 }
