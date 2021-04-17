@@ -4,7 +4,11 @@ const Joi = require("joi");
 const utility = require("../../common/utility");
 const {logger, customError} = utility;
 
-const { Roster, CrewMember } = require("./roster.model");
+const rosterDomain = require("./roster.domain");
+const staffDomain = require("./staff.domain");
+
+const ASSIGN_CREW_QUEUE_NAME = "ASSIGN_CREW";
+const RELEAVE_CREW_QUEUE_NAME = "RELEAVE_CREW";
 
 async function newRoster(input, user){
 	const schema = Joi.object({
@@ -18,24 +22,13 @@ async function newRoster(input, user){
 	utility.validateInput(schema, input);
 
 	input.crew.forEach(staffId => {
-		let crewMember;
-		try{
-			crewMember = await CrewMember.findOne({customerId: staffId});
-		}catch(error){
-			logger.error("CrewMember.findOne : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find CrewMember Error" };
-		}
-
-		if(!crewMember){
-			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid staffId" };
-		}
+		await staffDomain.readStaff(staffId);
 	})
 
-	let roster = new Roster();
+	let createRosterInput;
+	createRosterInput.bookingId = input.bookingId;
 
-	roster.bookingId = input.bookingId;
-
-	roster.crew = [];
+	createRosterInput.crew = [];
 	input.crew.forEach(staffId => {
 		roster.crew.push({
 			staffId: staffId,
@@ -44,14 +37,7 @@ async function newRoster(input, user){
 		});
 	});
 
-	try{
-		roster = await roster.save();
-	}catch(error){
-		logger.error("roster.save error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Roster Error" };
-	}
-
-	return roster;
+	return rosterDomain.createRoster(createRosterInput);
 }
 
 async function relieveCrew(input, user) {
@@ -65,21 +51,15 @@ async function relieveCrew(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let roster;
-	try{
-		roster = await Roster.findOne({bookingId: input.bookingId});
-	}catch(error){
-		logger.error("Roster.findOne error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Roster Error" };
-	}
-
-	if(!roster)
-		throw {name: customerError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId"};
+	let roster = rosterDomain.readRoster(input.bookingId);
 
 	if (!roster.crew)
 		throw {name: customerError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid staffId"};
 
-	
+	//get oldCrew incase we need to row back
+	const oldCrew = {...roster.crew}
+
+	//splice staffId from crew array
 	let crewFound = false;
 	roster.crew.forEach(function (crew, index, object) {
 		if (crew.staffId === input.staffId) {
@@ -90,15 +70,24 @@ async function relieveCrew(input, user) {
 
 	if (!crewFound)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid crewId" };
-
-	try{
-		roster = await roster.save();
-	}catch(error){
-		logger.error("roster.save error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Roster Error" };
-	}
 	
-	return roster;
+	//save to db
+	roster = await rosterDomain.updateRoster(roster);
+
+	//publish event
+	await utility.publishEvent(input, RELEAVE_CREW_QUEUE_NAME, user, async () => {
+		logger.error("rolling releave assign crew");
+		
+		roster.crew = oldCrew;
+
+		await rosterDomain.updateRoster(roster);
+	});
+
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${RELEAVE_CREW_QUEUE_NAME} queue`, 
+		eventMsg: input
+	};
 }
 
 async function assignCrew(input, user) {
@@ -112,32 +101,14 @@ async function assignCrew(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let roster;
-	try{
-		roster = await Roster.findOne({bookingId: input.bookingId});
-	}catch(error){
-		logger.error("Roster.findOne error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Roster Error" };
-	}
+	let roster = await rosterDomain.readRoster(input.bookingId);
 
-	if(!roster)
-		throw {name: customerError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId"};
-
-	let crewMember;
-	try {
-		crewMember = await CrewMember.findOne({staffId: staffId});
-	} catch (error) {
-		logger.error("CrewMember.findOne Error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Crew Member Error" };
-	}
-	
-	if (!crewMember)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid staffId" };
+	let staff = await staffDomain.readStaff(input.staffId);
 	
     //check if targetCrew is already assigned to booking
     if(roster.crew && roster.crew.length > 0){
         roster.crew.forEach(crewMember => {
-            if (crewMember.staffId === input.staffId) {
+            if (crewMember.staffId === staff.staffId) {
                 throw { name: customError.BAD_REQUEST_ERROR, message: `Target crew already assigned to this roster` };
             }
         });
@@ -151,36 +122,27 @@ async function assignCrew(input, user) {
 		roster.crew = [];
 
 	roster.crew.push({
-		staffId: input.staffId,
+		staffId: staff.staffId,
 		assignmentTime: new Date(),
 		assignmentBy: user.id
 	});
 
-	try{
-		roster = await roster.save();
-	}catch(error){
-		logger.error("roster.save error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Roster Error" };
-	}
+	//save to db
+	roster = await rosterDomain.updateRoster(roster);
 
-	const eventQueueName = "addCrew";
-	await utility.publishEvent(input, eventQueueName, user, async () => {
+	//publish event
+	await utility.publishEvent(input, ASSIGN_CREW_QUEUE_NAME, user, async () => {
 		logger.error("rolling back assign crew");
 		
 		roster.crew = oldCrew;
 
-		try{
-			await roster.save();
-		}catch(error){
-			logger.error("roster.save error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Roolback Save Roster Error" };
-		}
+		await rosterDomain.updateRoster(roster);
 	});
 
 	return {
 		status: "SUCCESS",
-		message: `Published event to ${eventQueueName} queue`, 
-		addCrewEventMsg: input
+		message: `Published event to ${ASSIGN_CREW_QUEUE_NAME} queue`, 
+		eventMsg: input
 	};
 }
 

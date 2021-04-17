@@ -2,7 +2,12 @@
 const url = require("url");
 
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
+const utility = require("../common/utility");
+
 const userService = require("./user.service");
+const userRead = require("./user.read");
+
+const USER_ADMIN_GROUP = "USER_ADMIN";
 
 const findUser = asyncMiddleware(async (req) => {
 	return await userService.findUser(req.params);
@@ -21,24 +26,52 @@ const updateLastLogin = asyncMiddleware(async (req) => {
 	return await userService.updateLastLogin(req.body, req.user);
 });
 
-const editPersonalInfo = asyncMiddleware(async (req) => {
-	return await userService.editPersonalInfo(req.body, req.user);
+const searchUsers = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+
+	return await userRead.searchUsers(req.user);
 });
 
-const editContact = asyncMiddleware(async (req) => {
-	return await userService.editContact(req.body, req.user);
+const assignGroup = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+
+	return await adminService.assignGroup(req.body, req.user);
 });
 
-const editPicture = asyncMiddleware(async (req) => {
-	return await userService.editPicture(req.body, req.user);
+const unassignGroup = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+
+	return await adminService.unassignGroup(req.params, req.user);
 });
+
+const deleteUser = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+
+	return await adminService.deleteUser(req.params, req.user);
+});
+
+const resendActivationEmail = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+
+	return await adminService.resendActivationEmail(req.body, req.user);
+});
+
+const searchGroups = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+
+	return await adminService.searchGroups(req.body, req.user);
+});
+
 
 module.exports = {
 	findUser,
 	findSocialUser,
 	activate,
 	updateLastLogin,
-	editPersonalInfo,
-	editContact,
-	editPicture
+	searchUsers,
+	assignGroup,
+	unassignGroup,
+	deleteUser,
+	resendActivationEmail,
+	searchGroups
 }

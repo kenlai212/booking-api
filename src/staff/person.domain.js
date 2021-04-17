@@ -4,7 +4,7 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const { Person } = require("./customer.model");
+const { Person } = require("./staff.model");
 
 async function createPerson(input){
     const schema = Joi.object({

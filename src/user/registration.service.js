@@ -4,16 +4,15 @@ const uuid = require("uuid");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const User = require("./user.model").User;
+const userDomain = require("./user.domain");
 const socialProfileHelper = require("./socialProfile.helper");
 
-const NEW_USER_REGISTERED_Q_NAME = "newUserRegistered";
+const NEW_USER_QUEUE_NAME = "NEW_USER";
 
 async function invitedSocialRegister(input){
 	const schema = Joi.object({
 		provider: Joi
 			.string()
-			.valid("FACEBOOK", "GOOGLE")
 			.required(),
 		providerToken: Joi
 			.string()
@@ -24,6 +23,8 @@ async function invitedSocialRegister(input){
 			.required()
 	});
 	utility.validateInput(schema, input);
+
+	socialProfileHelper.validateProvider(input.provider);
 
 	//get user attributes form provider token
 	let socialProfile;
@@ -39,49 +40,27 @@ async function invitedSocialRegister(input){
 	}
 
 	//check social profile already used
-	let existingUser;
-	try {
-		existingUser = await User.findOne(
-			{
-				provider: socialProfile.provider,
-				providerUserId: socialProfile.providerUserId
-			});
-	} catch (err) {
-		logger.error("User.findOne() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find User Error" };
-	}
+	let existingUser = userDomain.readUserBySocialProfile(socialProfile.provider, socialProfile.providerUserId);
 
 	if (existingUser)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "providerUserId already exist" };
 	
 	//check if party is already registered
-	try {
-		existingUser = await User.findOne(
-			{
-				partyId: input.partyId
-			});
-	} catch (err) {
-		logger.error("User.findOne() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find User Error" };
-	}
+	existingUser = await userDomain.readUserByPartyId(input.partyId);
 
 	if (existingUser)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Party already registered" };
 
-	let newUser = new User();
-	newUser.registrationTime = new Date();
-	newUser.activationKey = uuid.v4();
-	newUser.status = "AWAITING_ACTIVATION";
-	newUser.partyId = input.partyId;
-	newUser.provider = input.provider;
-	newUser.providerUserId = input.providerUserId;
-
-	try {
-		newUser = await newUser.save();
-	} catch (error) {
-		logger.error("newUser.save() error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save New User Error" };
+	let createUserInput = {
+		registrationTime: new Date(),
+		activationKey: uuid.v4(),
+		status: "AWAITING_ACTIVATION",
+		partyId: input.partyId,
+		provider: input.provider,
+		providerUserId: input.providerUserId
 	}
+		
+	await userDomain.createUser(createUserInput);
 
 	const msg = {
 		userId: newUser._id,
@@ -91,20 +70,15 @@ async function invitedSocialRegister(input){
 		pictureUrl: socialProfile.pictureUrl
 	}
 
-	await utility.publishEvent(msg, NEW_USER_REGISTERED_Q_NAME, newUser, async () => {
+	await utility.publishEvent(msg, NEW_USER_QUEUE_NAME, newUser, async () => {
 		logger.error("rolling back create new user");
 		
-		try{
-			await User.findOneAndDelete({ _id: newUser._id });
-		}catch(error){
-			logger.error("findOneAndDelete error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Rollback Delete User Error" };
-		}
+		await userDomain.deleteUser(user._id);
 	});
 
 	return {
 		status: "SUCCESS",
-		message: `Published event to ${NEW_USER_REGISTERED_Q_NAME} queue`, 
+		message: `Published event to ${NEW_USER_QUEUE_NAME} queue`, 
 		newUserRegisteredEventMsg: msg
 	};
 }
@@ -119,51 +93,34 @@ async function invitedRegister(input){
 	utility.validateInput(schema, input);
 
 	//check if party is already registered
-	try {
-		existingUser = await User.findOne(
-			{
-				partyId: input.partyId
-			});
-	} catch (err) {
-		logger.error("User.findOne() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find User Error" };
-	}
+	let existingUser = await userDomain.readUserByPartyId(input.partyId);
 
 	if (existingUser)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Party already registered" };
 
-	let newUser = new User();
-	newUser.registrationTime = new Date();
-	newUser.activationKey = uuid.v4();
-	newUser.status = "AWAITING_ACTIVATION";
-	newUser.partyId = input.partyId;
-
-	try {
-		newUser = await newUser.save();
-	} catch (error) {
-		logger.error("newUser.save() error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save New User Error" };
+	let createUserInput = {
+		registrationTime: new Date(),
+		activationKey: uuid.v4(),
+		status: "AWAITING_ACTIVATION",
+		partyId: input.partyId
 	}
+	
+	let user = await userDomain.createUser(createUserInput);
 
 	const msg = {
-		userId: newUser._id,
-		partyId: newUser.partyId
+		userId: user._id,
+		partyId: user.partyId
 	}
 
-	await utility.publishEvent(msg, NEW_USER_REGISTERED_Q_NAME, newUser, async () => {
+	await utility.publishEvent(msg, NEW_USER_QUEUE_NAME, user, async () => {
 		logger.error("rolling back create new user");
 		
-		try{
-			await User.findOneAndDelete({ _id: newUser._id });
-		}catch(error){
-			logger.error("findOneAndDelete error : ", error);
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: "Rollback Delete User Error" };
-		}
+		await userDomain.deleteUser(user._id);
 	});
 
 	return {
 		status: "SUCCESS",
-		message: `Published event to ${NEW_USER_REGISTERED_Q_NAME} queue`, 
+		message: `Published event to ${NEW_USER_QUEUE_NAME} queue`, 
 		newUserRegisteredEventMsg: msg
 	};
 }

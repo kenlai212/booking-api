@@ -7,6 +7,13 @@ const {logger, customError} = utility;
 
 const FACEBOOK_GRAPH_API_URL = "https://graph.facebook.com";
 
+function validateProvider(provider){
+	const validProviders = ["FACEBOOK", "GOOGLE"];
+
+	if(!validProviders.includes(provider))
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid provider" };
+}
+
 async function getSocialProfileFromFacebook(token){
 	const url = `${FACEBOOK_GRAPH_API_URL}/me?fields=id,name,email,picture&access_token=${token}`;
 
@@ -73,6 +80,7 @@ class SocialProfile{
 }
 
 module.exports = {
+	validateProvider,
     getSocialProfileFromFacebook,
     getSocialProfileFromGoogle,
     SocialProfile

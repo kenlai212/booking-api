@@ -155,35 +155,6 @@ function getContactMethod(person){
 	return contactMethod;
 }
 
-async function getPerson(personId){
-	if (!mongoose.Types.ObjectId.isValid(personId))
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid personId" };
-
-	let person;
-	try {
-		person = await Person.findById(personId);
-	} catch (err) {
-		logger.error("Person.findById() error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Person Error" };
-	}
-
-	if (!person)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid personId" };
-
-	return person;
-}
-
-async function savePerson(person){
-	try{
-		person = await person.save();
-	}catch(error){
-		logger.error("person.save error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Person Error" };
-	}
-
-	return person;
-}
-
 module.exports = {
 	validateGender,
 	validateDob,
@@ -192,8 +163,6 @@ module.exports = {
 	validateLanguage,
 	validateContactMethod,
 	validateRole,
-    getPerson,
 	getContactMethod,
-	personToOutputObj,
-	savePerson
+	personToOutputObj
 }

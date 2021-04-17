@@ -1,36 +1,22 @@
 "use strict";
 const utility = require("../common/utility");
-const {logger, customError} = utility;
+const {customError} = utility;
 
-const {Claim} = require("./claim.model");
+function validateUserStatus(userStatus){
+    const validUserStatuses = []
 
-async function findClaim(userId){
-    let claim;
-    try{
-        claim = await Claim.findOne({userId: userId});
-    }catch(error){
-        logger.error("Claim.findOne error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Claim Error" };
-    }
-
-    if(!claim)
-        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Invalid userId" };
-
-    return claim;
+    if(!validUserStatuses.includes(userStatus))
+    throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userStatus" };
 }
 
-async function saveClaim(claim){
-    try{
-        claim = await claim.save();
-    }catch(error){
-        logger.error("claim.save error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Claim Error" };
-    }
+function validateGroup(group){
+    const validGroups = []
 
-    return claim;
+    if(!validGroups.includes(group))
+    throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid Group" };
 }
 
 module.exports = {
-	findClaim,
-    saveClaim
+    validateUserStatus,
+    validateGroup
 }

@@ -6,59 +6,53 @@ const utility = require("../common/utility");
 const {logger, customError} = utility;
 
 const invoiceHelper = require("./invoice.helper");
-const { Invoice } = require("./invoice.model");
+const invoiceDomain = require("./invoice.domain");
 
 const PAID_STATUS = "PAID";
 const PARTIAL_PAID_STATUS = "PARTIAL_PAID";
 const AWAITING_PAYMENT_STATUS = "AWAITING_PAYMENT";
 
-async function addNewInvoice(input){
+async function newInvoice(input){
 	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required(),
-		unit: Joi
-			.number()
-			.required(),
-		unitPrice: Joi
-			.number()
-			.required(),
-		currency: Joi
-			.string()
-			.valid("HKD")
-			.required(),
-		discounts: Joi
-			.array()
-			.items(Joi.object({
+		bookingId: Joi.string().required(),
+		currency: Joi.string().required(),
+		items: Joi.array().items(
+            Joi.object({
+                itemCode: Joi.string(),
+                unit: Joi.number(),
+                unitPrice: Joi.number()
+            })
+        ),
+		discounts: Joi.array().items(
+			Joi.object({
 				amount: Joi.number(),
-				discountCode: Joi.string().valid("WEEKDAY_DISCOUNT","VIP_DISCOUNT")
+				discountCode: Joi.string()
 			}))
 	});
 	utility.validateInput(schema, input);
 
-	let invoice = new Invoice();
-	invoice.bookingId = input.bookingId;
-	invoice.unitPrice = input.unitPrice;
-	invoice.currency = input.currency;
+	invoiceHelper.validateCurrency(input.currency);
 
-	invoice.regularAmount = input.unit * input.unitPrice;
+	let createInvoiceInput;
+	createInvoiceInput.bookingId = input.bookingId;
+	createInvoiceInput.currency = input.currency;
+	createInvoiceInput.status = AWAITING_PAYMENT_STATUS;
 
-	invoice.discounts = input.discounts;
-	let totalDiscountAmount = 0;
+	createInvoiceInput.items = [];
+	input.items.forEach(item => {
+		invoiceHelper.validateItemCode(item.itemCode);
+		createInvoiceInput.push(item);
+	});
 
 	if(input.discount){
+		createInvoiceInput.discounts = [];
 		input.discount.forEach(discount => {
-			totalDiscountAmount += discount.amount;
+			invoiceHelper.validateDiscountCode(discount.discountCode);
+			createInvoiceInput.discounts.push(discount);
 		});
 	}
 
-	invoice.totalAmount = invoice.regularAmount - totalDiscountAmount;
-	
-	invoice.paidAmount = 0;
-	invoice.balance = input.totalAmount;
-	invoice.paymentStatus = AWAITING_PAYMENT_STATUS;
-
-	return await invoiceHelper.saveInvoice(invoice);
+	return await invoiceDomain.createInvoice(createInvoiceInput);
 }
 
 async function makePayment(input) {
@@ -77,7 +71,7 @@ async function makePayment(input) {
 
 	invoiceHelper.validateCurrency(input.currency);
 
-	let invoice = await invoiceHelper.getTargetInvoice(input.bookingId);
+	let invoice = await invoiceDomain.readInvoice(input.bookingId);
 	
 	if (input.currency != invoice.currency) {
 		throw { name: customError.BAD_REQUEST_ERROR, message: `Payment must be made in ${invoice.currency}` };
@@ -94,26 +88,18 @@ async function makePayment(input) {
 
 	invoice.payments.push(payment);
 
-	//tally all payment amounts
-	let totalPaymentAmount = 0;
-	invoice.payments.forEach(payment => {
-		totalPaymentAmount += payment.amount;
-	});
-
-	invoice.balance = invoiceHelper.calculateBalance(invoice.totalAmount, totalPaymentAmount);
-
-	//set paymentStatus
-	let paymentStatus;
+	//set status
+	let status;
 	if (totalPaymentAmount === invoice.totalAmount) {
-		paymentStatus = PAID_STATUS;
+		status = PAID_STATUS;
 	} else if (totalPaymentAmount < invoice.totalAmount && totalPaymentAmount > 0) {
-		paymentStatus = PARTIAL_PAID_STATUS;
+		status = PARTIAL_PAID_STATUS;
 	} else if (totalPaymentAmount === 0) {
-		paymentStatus = AWAITING_PAYMENT_STATUS;
+		status = AWAITING_PAYMENT_STATUS;
 	}
-	invoice.paymentStatus = paymentStatus;
+	invoice.paymentStatus = status;
 
-	return await invoiceHelper.saveInvoice(invoice);
+	return await invoiceDomain.updateInvoice(invoice);
 }
 
 async function applyDiscount(input) {
@@ -137,7 +123,7 @@ async function applyDiscount(input) {
 
 	invoiceHelper.validateCurrency(input.currency);
 
-	let invoice = await invoiceHelper.getTargetInvoice(input.bookingId);
+	let invoice = await invoiceDomain.readInvoice(input.bookingId);
 
 	if(invoice.currency != input.currency){
 		throw { name: customError.BAD_REQUEST_ERROR, message: `Must apply discount in ${invoice.currency}` };
@@ -157,14 +143,7 @@ async function applyDiscount(input) {
 	
 	invoice.balance = invoiceHelper.calculateBalance(invoice.totalAmount, invoice.paidAmount);
 
-	try{
-		invoice = await invoice.save();
-	}catch(error){
-		logger.error("invoice.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-
-	return invoice;
+	return invoiceDomain.updateInvoice(invoice);
 }
 
 async function removeDiscount(input, user) {
@@ -178,7 +157,7 @@ async function removeDiscount(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let invoice = await invoiceHelper.getTargetInvoice(input.bookingId);
+	let invoice = await invoiceDomain.readInvoice(input.bookingId);
 	
 	//find discount
 	let targetDiscount;
@@ -198,11 +177,11 @@ async function removeDiscount(input, user) {
 
 	invoice.balance = invoiceHelper.calculateBalance(invoice.totalAmount, invoice.paidAmount);
 
-	return invoiceHelper.saveInvoice(invoice);
+	return invoiceDomain.updateInvoice(invoice);
 }
 
 module.exports = {
-	addNewInvoice,
+	newInvoice,
 	makePayment,
 	applyDiscount,
 	removeDiscount

@@ -4,62 +4,59 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const { Staff, StaffPerson } = require("./staff.model");
-const staffHelper = require("./staff.helper");
+const { Staff} = require("./staff.model");
 
 async function createStaff(input) {
 	const schema = Joi.object({
-		personId: Joi
-			.string()
-			.min(1)
-			.allow(null)
+		personId: Joi.string().required(),
+		status: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
-	//validate person
-	let staffPerson;
-	try{
-		staffPerson = StaffPerson.findOne({personId: input.personId});
-	}catch(error){
-		logger.error("StaffPerson.findOne error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find StaffPerson Error" };
+	let staff = new Staff();
+	staff.status = input.status;
+	staff.personId = input.personId;
+	
+	try {
+		staff = await staff.save();
+	} catch (err) {
+		logger.error("staff.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Staff Error" };
 	}
 
-	if(!staffPerson)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid personId" };
+	return staff;
+}
 
-	//check if staff with the same personId already exist
-	let existingStaff;
+async function readStaff(staffId){
+	let staff;
 	try{
-		existingStaff = await Staff.findOne({personId: staffPerson.personId});
+		staff = await Staff.findById(staffId);
 	}catch(error){
-		logger.error("Staff.findOne error : ", error);
+		logger.error("Staff.findById() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Staff Error" };
 	}
 
-	if(existingStaff)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Staff already exist" };
-	
-	let staff = new Staff();
-	staff.status = "ACTIVE";
-	staff.personId = input.personId;
-	
-	return await staffHelper.saveStaff(staff);
+	if(!staff)
+	throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid staffId" };
+
+	return staff;
 }
 
-async function deleteStaff(input) {
-	const schema = Joi.object({
-		staffId: Joi
-			.string()
-			.min(1)
-			.required()
-	});
-	utility.validateInput(schema, input);
+async function readStaffByPersonId(personId){
+	let staff;
+	try{
+		staff = await Staff.findOne({personId: personId});
+	}catch(error){
+		logger.error("Staff.findOne error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Staff Error" };
+	}
 
-	const targetStaff = await staffHelper.getTargetStaff(input.staffId);
+	return staff;	
+}
 
+async function deleteStaff(staffId) {
 	try {
-		await Staff.findByIdAndDelete(targetStaff._id.toString());
+		await Staff.findByIdAndDelete(staffId);
 	} catch (err) {
 		logger.error("Staff.findByIdAndDelete() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Staff Error" };
@@ -68,28 +65,21 @@ async function deleteStaff(input) {
 	return { "status": "SUCCESS" }
 }
 
-async function updateStatus(input) {
-	const schema = Joi.object({
-		customerId: Joi
-			.string()
-			.min(1)
-			.required(),
-		status: Joi
-			.string()
-			.valid("ACTIVE","INACTIVE")
-			.required()
-	});
-	utility.validateInput(schema, input);
+async function updateStaff(staff) {
+	try {
+		staff = await staff.save();
+	} catch (err) {
+		logger.error("staff.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Staff Error" };
+	}
 
-	let targetStaff = await staffHelper.getTargetStaff(input.customerId);
-
-	targetStaff.status = input.status;
-
-	return await staffHelper.saveCustomer(targetStaff);
+	return staff;
 }
 
 module.exports = {
 	createStaff,
+	readStaff,
+	readStaffByPersonId,
 	deleteStaff,
-	updateStatus
+	updateStaff
 }

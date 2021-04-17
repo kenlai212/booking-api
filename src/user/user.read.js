@@ -73,7 +73,29 @@ async function findSocialUser(input) {
 	return userObjectMapper.toOutputObj(user);
 }
 
+async function searchUsers(user) {
+	//TODO!!!! add paginateion
+	let users;
+	try {
+		users = await User.find();
+	} catch (err) {
+		logger.error("User.find() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	let outputObjs = [];
+	users.forEach(user => {
+		outputObjs.push(userObjectMapper.toOutputObj(user));
+	});
+
+	return {
+		count: outputObjs.length,
+		users: outputObjs
+	}
+}
+
 module.exports = {
 	findUser,
-	findSocialUser
+	findSocialUser,
+	searchUsers
 }

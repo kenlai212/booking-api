@@ -6,7 +6,7 @@ const authenticateAccessToken = require("../common/middleware/authenticateAccess
 const controller = require("./person.controller");
 
 const router = express.Router();
-router.post("/person", authenticateAccessToken, logIncommingRequest, controller.createPerson);
+router.post("/person", authenticateAccessToken, logIncommingRequest, controller.newPerson);
 router.delete("/person/:personId", authenticateAccessToken, logIncommingRequest, controller.deletePerson);
 router.put("/person/name", authenticateAccessToken, logIncommingRequest, controller.updateName);
 router.put("/person/dob", authenticateAccessToken, logIncommingRequest, controller.updateDob);

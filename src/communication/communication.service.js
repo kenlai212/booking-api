@@ -8,27 +8,19 @@ const config = require("config");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
+const communicationHelper = require("./communication.helper");
+
 async function sendEmail(input){
 	const schema = Joi.object({
-		sender: Joi
-			.string()
-			.valid("booking@hebewake.com",
-				"registration@hebewake.com",
-				"booking@gogowake.com",
-				"registration@gogowake.com")
-			.required(),
-		recipient: Joi
-			.string()
-			.required(),
-		emailBody: Joi
-			.string()
-			.required(),
-		subject: Joi
-			.string()
-			.required()
+		sender: Joi.string().required(),
+		recipient: Joi.string().required(),
+		emailBody: Joi.string().required(),
+		subject: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 	
+	communicationHelper.validateSenderEmailAddress(sender);
+
 	var transporter = nodemailer.createTransport({
 		host: config.get("notification.email.provider"),
 		port: config.get("notification.email.port"),
@@ -66,15 +58,9 @@ async function sendEmail(input){
 
 async function sendSMS(input) {
 	const schema = Joi.object({
-		message: Joi
-			.string()
-			.required(),
-		number: Joi
-			.string()
-			.required(),
-		subject: Joi
-			.string()
-			.required()
+		message: Joi.string().required(),
+		number: Joi.string().required(),
+		subject: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 

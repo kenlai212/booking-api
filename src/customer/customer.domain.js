@@ -4,53 +4,63 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const { Customer, CustomerPerson } = require("./customer.model");
-const customerHelper = require("./customer.helper");
-const customerPersonHelper = require("./customerPerson.helper");
+const { Customer } = require("./customer.model");
 
 async function createCustomer(input) {
 	const schema = Joi.object({
-		personId: Joi
-			.string()
-			.required()
+		personId: Joi.string(),
+		status: Joi.string().required()
+		
 	});
 	utility.validateInput(schema, input);
 
     let customer = new Customer();
-	customer.status = "ACTIVE";
+	customer.status = input.status;
+	customer.personId = input.personId;
 
-	let customerPerson = await customerPersonHelper.findCustomerPerson(input.personId);
-	
-	//check for existing customer with this personId
-	let existingCustomer;
 	try{
-		existingCustomer = await Customer.findOne({personId: customerPerson.personId});
+		customer = await customer.save();
 	}catch(error){
-		logger.error("Customer.findOne error : ", error);
+		logger.error("customer.save error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Customer Error" };
+	}
+
+	return customer;
+}
+
+async function readCustomer(customerId){
+	if (!mongoose.Types.ObjectId.isValid(customerId))
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
+
+	let customer;
+	try {
+		customer = await Customer.findById(customerId);
+	} catch (err) {
+		logger.error("Customer.findById Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Customer Error" };
+	}
+	
+	if (!customer)
+		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid customerId" };
+
+	return customer;
+}
+
+async function readCustomerByPersonId(personId){
+	let customer;
+	try {
+		customer = await Customer.findOne({personId: personId});
+	} catch (err) {
+		logger.error("Customer.findone Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Customer Error" };
 	}
 
-	if(existingCustomer)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Customer already exist" };
-
-	customer.personId = input.personId;
-	
-	return await customerHelper.saveCustomer(customer);
+	return customer;
 }
 
-async function deleteCustomer(input) {
-	const schema = Joi.object({
-		customerId: Joi
-			.string()
-			.min(1)
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	const customer = await customerHelper.getCustomer(input.customerId);
-
+async function deleteCustomer(customerId) {
 	try {
-		await Customer.findByIdAndDelete(customer._id.toString());
+		await Customer.findByIdAndDelete(customerId);
 	} catch (error) {
 		logger.error("Customer.findByIdAndDelete() error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Customer Error" };
@@ -59,49 +69,21 @@ async function deleteCustomer(input) {
 	return { "status": "SUCCESS" }
 }
 
-async function updateStatus(input) {
-	const schema = Joi.object({
-		customerId: Joi
-			.string()
-			.min(1)
-			.required(),
-		status: Joi
-			.string()
-			.valid("ACTIVE","INACTIVE")
-			.required()
-	});
-	utility.validateInput(schema, input);
+async function updateCustomer(customer){
+	try {
+		customer = await customer.save();
+	} catch (err) {
+		logger.error("customer.save Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Customer Error" };
+	}
 
-	let customer = await customerHelper.getCustomer(input.customerId);
-
-	customer.status = input.status;
-
-	return await saveCustomer(customer);
-}
-
-async function updatePersonId(input){
-	const schema = Joi.object({
-		customerId: Joi
-			.string()
-			.min(1)
-			.required(),
-		personId: Joi
-			.string()
-	});
-	utility.validateInput(schema, input);
-
-	let customer = await customerHelper.getCustomer(input.customerId);
-
-	let customerPerson = await customerPersonHelper.getCustomerPerson(input.personId);
-
-	customer.personId = customerPerson.personId;
-
-	return await saveCustomer(customer);
+	return customer;
 }
 
 module.exports = {
 	createCustomer,
-	deleteCustomer,
-	updateStatus,
-	updatePersonId
+	readCustomer,
+	readCustomerByPersonId,
+	updateCustomer,
+	deleteCustomer
 }

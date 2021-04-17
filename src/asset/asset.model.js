@@ -1,6 +1,11 @@
 "use strict";
 const mongoose = require("mongoose");
 
+const assetSchema = new mongoose.Schema({
+	orgId: String,
+	assetType: String
+});
+
 const boatSchema = new mongoose.Schema({
 	lastUpdateTime: Date,
 	assetId: String,

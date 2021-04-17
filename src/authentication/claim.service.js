@@ -3,7 +3,7 @@ const Joi = require("joi");
 
 const utility = require("../common/utility");
 
-const {Claim} = require("./claim.model");
+const claimDomain = require("./claim.domain");
 const claimHelper = require("./claim.helper");
 
 async function newClaim(input){
@@ -17,22 +17,24 @@ async function newClaim(input){
 	});
 	utility.validateInput(schema, input);
 
-    let claim = new Claim();
-    claim.userId = input.userId;
-    claim.personId = input.personId;
+    claimHelper.validateUserStatus(input.userStatus);
+
+    let newClaimInput;
+    newClaimInput.userId = input.userId;
+    newClaimInput.personId = input.personId;
 
     if(input.provider)
-        claim.provider = input.provider;
+    newClaimInput.provider = input.provider;
 
     if(input.providerUserId)
-        claim.providerUserId = input.providerUserId;
+    newClaimInput.providerUserId = input.providerUserId;
 
-    claim.userStatus = input.userStatus;
+    newClaimInput.userStatus = input.userStatus;
     
     if(input.groups)
-        claim.groups = input.groups;
+    newClaimInput.groups = input.groups;
 
-    return claimHelper.saveClaim(claim);
+    return await claimDomain.createClaim(newClaimInput);
 }
 
 async function updateStatus(input){
@@ -42,11 +44,13 @@ async function updateStatus(input){
 	});
     utility.validateInput(schema, input);
 
-    let claim = claimHelper.findClaim(input.userId);
+    claimHelper.validateUserStatus(input.userStatus);
+
+    let claim = claimDomain.readClaim(input.userId);
 
     claim.userStatus = input.userStatus;
 
-    return claimHelper.saveClaim(claim);
+    return await claimDomain.updateClaim(claim);
 }
 
 async function updateGroups(input){
@@ -56,11 +60,13 @@ async function updateGroups(input){
 	});
     utility.validateInput(schema, input);
 
-    let claim = claimHelper.findClaim(input.userId);
+    claimHelper.validateGroup(input.group);
+
+    let claim = claimDomain.readClaim(input.userId);
 
     claim.groups = input.groups;
 
-    return claimHelper.saveClaim(claim);
+    return await claimDomain.updateClaim(claim);
 }
 
 module.exports = {

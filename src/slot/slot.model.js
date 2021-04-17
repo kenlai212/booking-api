@@ -1,7 +1,7 @@
 "use strict";
 const mongoose = require("mongoose");
 
-const slotOccupancySchema = new mongoose.Schema({
+const occupancySchema = new mongoose.Schema({
 	occupancyId: String,
 	bookingType: String,
 	startTime: Date,
@@ -9,8 +9,8 @@ const slotOccupancySchema = new mongoose.Schema({
 	assetId: String
 });
 
-const SlotOccupancy = mongoose.model("SlotOccupancy", slotOccupancySchema);
+const Occupancy = mongoose.model("SlotOccupancy", occupancySchema);
 
 module.exports = {
-	SlotOccupancy
+	Occupancy
 }

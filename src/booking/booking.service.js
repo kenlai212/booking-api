@@ -7,7 +7,6 @@ const {logger, customError} = utility;
 const bookingDomain = require("./booking.domain");
 const bookingHelper = require("./booking.helper");
 const occupancyDomain = require("./occupancy.domain");
-const customerDomain = require("./customer.domain");
 
 const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
 const CANCELLED_STATUS = "CANCELLED";
@@ -23,7 +22,7 @@ async function bookNow(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	let customer = customerDomain.readCustomer(input.customerId);
+	bookingHelper.validateBookingType(input.bookingType);
 	
 	let occupancy = occupancyDomain.readOccupancy(input.occupancyId);
 
@@ -39,13 +38,14 @@ async function bookNow(input, user) {
 	let booking = await bookingDomain.createBooking(createBookingInput, user);
 
 	//publish newBooking event
-	const eventMessage = {
-		bookingId: booking._id,
-		customerId: customer.customerId,
-		occupancyId: booking.occupancyId,
-		startTime: booking.startTime,
-		endTime: booking.endTime
-	}
+	let eventMessage;
+	eventMessage.bookingId = booking._id;
+	eventMessage.occupancyId = booking.occupancyId;
+	eventMessage.startTime = booking.startTime;
+	eventMessage.endTime = booking.endTime;
+
+	if(input.customer)
+	eventMessage.customerId = input.customerId;
 
 	await utility.publishEvent(eventMessage, NEW_BOOKING_QUEUE_NAME, user, async () => {
 		logger.error("rolling back new bookint");
@@ -55,7 +55,7 @@ async function bookNow(input, user) {
 
 	return {
 		status: "SUCCESS",
-		message: `Published event to ${eventQueueName} queue`,
+		message: `Published event to ${NEW_BOOKING_QUEUE_NAME} queue`,
 		eventMsg: input
 	};
 }

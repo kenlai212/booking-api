@@ -2,11 +2,10 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const {logger, customError} = utility;
+const {customError} = utility;
 
-const {SlotOccupancy} = require("./slot.model");
 const slotHelper = require("./slot.helper");
-const slotOccupancyHelper = require("./slotOccupancy.helper");
+const occupancyDomain = require("./Occupancy.domain");
 
 const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
 const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
@@ -14,7 +13,7 @@ const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
 const DAY_START = "05:00:00";
 const DAY_END = "19:59:59";
 
-async function getSlots(input, user) {
+async function getSlots(input) {
 	const schema = Joi.object({
 		targetDate: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
@@ -23,9 +22,9 @@ async function getSlots(input, user) {
 	});
 	utility.validateInput(schema, input);
 
-	slotOccupancyHelper.validateAssetId(input.assetId);
+	slotHelper.validateAssetId(input.assetId);
 
-	slotOccupancyHelper.validateBookingType(input.bookingType);
+	slotHelper.validateBookingType(input.bookingType);
 
 	const dayStartIsoStr = input.targetDate + "T" + DAY_START;
 	const dayEndIsoStr = input.targetDate + "T" + DAY_END;
@@ -36,17 +35,7 @@ async function getSlots(input, user) {
 	var slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
 	
 	//get all existing occupancies between dayStarTime and dayEndTime
-	let occupancies;
-	try {
-		occupancies = await SlotOccupancy.find({
-			startTime: { $gte: dayStartTime },
-			endTime: { $lt: dayEndTime },
-			assetId: input.assetId
-		})
-	} catch (err) {
-		logger.error("SlotOccupancy.find Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Search Occupancy Error" };
-	}
+	let occupancies = await occupancyDomain.readOccupancies(dayStartTime, dayEndTime);
 
 	//if customer booking, set 2hrs prior slots restriction
 	if (input.bookingType === CUSTOMER_BOOKING_TYPE)
@@ -96,17 +85,7 @@ async function getEndSlots(input, user) {
 	let slots = slotHelper.generateSlots(dayStartTime, dayEndTime);
 
 	//get all existing occupancies between dayStarTime and dayEndTime
-	let occupancies;
-	try {
-		occupancies = await SlotOccupancy.find({
-			startTime: { $gte: dayStartTime },
-			endTime: { $lt: dayEndTime },
-			assetId: input.assetId
-		})
-	} catch (err) {
-		logger.error("SlotOccupancy.find Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Search Occupancy Error" };
-	}
+	let occupancies = occupancyDomain.readOccupancies(dayStartTime, dayEndTime);
 
 	//set availibility for each slot
 	slots = slotHelper.setSlotsAvailabilities(slots, occupancies);

@@ -6,19 +6,21 @@ const staffSchema = new mongoose.Schema({
 	status: String
 });
 
-const staffPersonSchema = new mongoose.Schema({
+const PersonSchema = new mongoose.Schema({
 	personId: String,
 	name: String,
-	countryCode: String,
+	dob: Date,
+	gender: String,
 	phoneNumber: String,
-	emailAddresses: String,
-	profilePictureUrl: String,
+	countryCode: String,
+	emailAddress: String,
+	profilePictureUrl: String
 });
 
 const Staff = mongoose.model("Staff", staffSchema);
-const StaffPerson = mongoose.model("StaffPerson", staffPersonSchema);
+const Person = mongoose.model("StaffPerson", PersonSchema);
 
 module.exports = {
 	Staff,
-	StaffPerson
+	Person
 }

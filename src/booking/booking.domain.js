@@ -8,11 +8,11 @@ const {Booking} = require("./booking.model");
 
 async function createBooking(input){
     const schema = Joi.object({
-        occupancyId : Joi.string.min(1).required(),
+        occupancyId: Joi.string.min(1).required(),
 	    startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
-	    bookingType = Joi.string.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE),
-        createdBy = Joi.string().required()
+	    bookingType: Joi.string().required(),
+        createdBy: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 

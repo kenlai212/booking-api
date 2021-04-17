@@ -3,11 +3,13 @@ const {logger} = utility;
 
 const claimService = require("./claim.service");
 
-function listen(){
-    const newUserQueueName = "newUser";
+const NEW_USER_QUEUE_NAME = "NEW_USER";
+const USER_STATUS_CHANGED_QUEUE_NAME = "USER_STATUS_CHANGED";
+const USER_GROUPS_CHANGED_QUEUE_NAME = "USER_GROUPS_CHANGED";
 
-    utility.subscribe(newUserQueueName, async function(msg){
-        logger.info(`Heard ${newUserQueueName} event(${msg})`);
+function listen(){
+    utility.subscribe(NEW_USER_QUEUE_NAME, async function(msg){
+        logger.info(`Heard ${NEW_USER_QUEUE_NAME} event(${msg})`);
 
         let newUserMsg = JSON.parse(msg.content);
         const user = newUserMsg.user;
@@ -24,34 +26,30 @@ function listen(){
         await claimService.newClaim(input);
     });
 
-    const userStatusChangeQueueName = "userStatusChange";
+    utility.subscribe( USER_STATUS_CHANGED_QUEUE_NAME, async function(msg){
+        logger.info(`Heard ${ USER_STATUS_CHANGED_QUEUE_NAME} event(${msg})`);
 
-    utility.subscribe(userStatusChangeQueueName, async function(msg){
-        logger.info(`Heard ${userStatusChangeQueueName} event(${msg})`);
+        let statusChangeMsg = JSON.parse(msg.content);
 
-        let msgContent = JSON.parse(msg.content);
-
-        const input = {
-            userId: msgContent._id,
-            userStatus: msgContent.status
+        const udpateStatusInput = {
+            userId: statusChangeMsg._id,
+            userStatus: statusChangeMsg.status
         }
         
-        await claimService.updateStatus(input);
+        await claimService.updateStatus(udpateStatusInput);
     });
 
-    const userGroupsChangeQueueName = "userStatusChange";
+    utility.subscribe(USER_GROUPS_CHANGED_QUEUE_NAME, async function(msg){
+        logger.info(`Heard ${USER_GROUPS_CHANGED_QUEUE_NAME} event(${msg})`);
 
-    utility.subscribe(userStatusChangeQueueName, async function(msg){
-        logger.info(`Heard ${userStatusChangeQueueName} event(${msg})`);
+        let groupsChangeMsg = JSON.parse(msg.content);
 
-        let msgContent = JSON.parse(msg.content);
-
-        const input = {
-            userId: msgContent._id,
-            groups: msgContent.groups
+        const updateGroupsInput = {
+            userId: groupsChangeMsg._id,
+            groups: groupsChangeMsg.groups
         }
         
-        await claimService.updateStatus(input);
+        await claimService.updateGroups(updateGroupsInput);
     });
 }
 

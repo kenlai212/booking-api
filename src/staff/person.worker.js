@@ -2,7 +2,7 @@ const utility = require("../common/utility");
 const {logger} = utility;
 
 const personDomain = require("./person.domain");
-const customerService = require("./customer.service");
+const staffService = require("./staff.service");
 
 const NEW_PERSON_QUEUE_NAME = "NEW_PERSON";
 
@@ -32,10 +32,10 @@ function listen(){
             throw error;
         }
 
-        //if person belongs to CUSTOMER role, update personId in customer record
+        //if person belongs to STAFF role, update personId in customer record
         person.roles.forEach(role => {
-            if(role.roleName === "CUSTOMER"){
-                await customerService.updatePersonId({"customerId": role.referenceId, "personId": person.personId});
+            if(role.roleName === "STAFF"){
+                await staffService.updatePersonId({"staffId": role.referenceId, "personId": person.personId});
             }
         });
     });

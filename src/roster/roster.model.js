@@ -1,9 +1,8 @@
 "use strict";
 const mongoose = require("mongoose");
 
-const crewMemberSchema = new mongoose.Schema({
+const staffSchema = new mongoose.Schema({
 	staffId: String,
-	partyId: String,
 	assignments: [{
 		bookingId: String,
 		startTime: Date,
@@ -20,10 +19,10 @@ const rosterSchema = new mongoose.Schema({
 	}]
 });
 
-const CrewMember = mongoose.model("Crew", crewMemberSchema);
+const Staff = mongoose.model("RosterStaff", staffSchema);
 const Roster = mongoose.model("Roster", rosterSchema);
 
 module.exports = {
-	CrewMember,
+	Staff,
 	Roster
 }

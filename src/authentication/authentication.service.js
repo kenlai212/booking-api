@@ -6,19 +6,14 @@ const utility = require("../common/utility");
 const {logger, customError} = utility;
 
 const socialProfileHelper = require("./socialProfile.helper");
-const {Claim} = require("./claim.model");
+const claimDomain = require("./claim.domain");
 
 const ACCESS_TOKEN_EXPIRES = "1h";
 
 async function socialLogin(input){
 	const schema = Joi.object({
-		provider: Joi
-			.string()
-			.valid("GOOGLE","FACEBOOK"),
-		token: Joi
-			.string()
-			.min(1)
-			.required()
+		provider: Joi.string(),
+		token: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
@@ -34,22 +29,14 @@ async function socialLogin(input){
 			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid Profider" };
 	}
 
-	let claim
-	try {
-		claim = await Claim.findOne({
-			"provider": socialProfile.provider,
-			"providerUserId": socialProfile.providerUserId
-		});
-	} catch (err) {
-		logger.error("User.findOne Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
+	let claim = claimDomain.readClaimByProviderProfile(socialProfile.provider, socialProfile.providerUserId);
 	
 	//set output object
 	const output = {
-		"userId": claim.userId,
-		"partyId": claim.partyId,
-		"status": claim.userStatus
+		userId: claim.userId,
+		partyId: claim.partyId,
+		status: claim.userStatus,
+		groups: claim.groups
 	}
 
 	//sign output object into token

@@ -17,27 +17,10 @@ const personSchema = new mongoose.Schema({
 	profilePictureUrl: String
 });
 
-const newPersonRequestSchema = new mongoose.Schema({
-	requestTime: Date,
-	requestedBy: String,
-	status: String,
-	name: String,
-	dob: Date,
-	gender: String,
-	phoneNumber: String,
-	countryCode: String,
-	emailAddress: String,
-	customerId: String,
-	personId: String,
-	eventPublishedTime: Date
-});
-
 const Customer = mongoose.model("Customer", customerSchema);
 const Person = mongoose.model("CustomerPerson", personSchema);
-const NewPersonRequest = mongoose.model("NewPersonRequest", newPersonRequestSchema);
 
 module.exports = {
 	Customer,
-	Person,
-	NewPersonRequest
+	Person
 }

@@ -2,38 +2,7 @@
 const mongoose = require("mongoose");
 
 const utility = require("../common/utility");
-const {logger, customError} = utility;
-
-const { Invoice } = require("./invoice.model");
-
-async function getTargetInvoice(bookingId){
-	if (!mongoose.Types.ObjectId.isValid(bookingId))
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-
-	let invoice;
-	try {
-		invoice = await Invoice.findOne({bookingId: input.bookingId});
-	} catch (err) {
-		logger.error("Invoice.findOne Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Invoice Error" };
-	}
-	
-	if (!invoice)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
-
-	return invoice
-}
-
-async function saveInvoice(invoice){
-	try{
-		invoice = await invoice.save()
-	}catch(error){
-		logger.error("invoice.save Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Invoice Error" };
-	}
-
-	return invoice;
-}
+const {customError} = utility;
 
 function validateDiscountCode(discountCode){
 	const validDiscountCodes = [
@@ -73,10 +42,8 @@ function calculateTotalAmount(regularAmount, discounts) {
 }
 
 module.exports = {
-    getTargetInvoice,
 	validateDiscountCode,
 	validateCurrency,
-	saveInvoice,
 	calculateBalance,
 	calculateTotalAmount
 }

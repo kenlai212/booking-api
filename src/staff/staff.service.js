@@ -2,14 +2,13 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const {customError} = utility;
+const {logger, customError} = utility;
 
-const customerDomain = require("./customer.domain");
+const staffDomain = require("./staff.domain");
 const personDomain = require("./person.domain");
-const customerHelper = require("./customer.helper");
-const externalPersonService = require("./externalPerson.service");
+const staffHelper = require("./staff.helper");
 
-async function newCustomer(input, user) {
+async function newStaff(input) {
 	const schema = Joi.object({
 		personId: Joi.string(),
 		name: Joi.string().allow(null),
@@ -54,56 +53,66 @@ async function newCustomer(input, user) {
 		person = await externalPersonService.newPerson(externalNewPersonInput);
 	}
 
-	//check for existing customer with this personId
-	let existingCustomer = await customerDomain.readCustomerByPersonId(person.personId);
+	//check for existing staff with this personId
+	let existingStaff = await staffDomain.readStaffByPersonId(person.personId);
 
-	if(existingCustomer)
-	throw { name: customError.BAD_REQUEST_ERROR, message: "Customer already exist" };
+	if(existingStaff)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Staff already exist" };
 
-	const createCustomerInput = {
+	const createStaffInput = {
 		personId : input.personId,
 		status : "ACTIVE"
 	}
 	
-	customer = await customerDomain.createCustomer(createCustomerInput);
+	return await staffDomain.createStaff(createStaffInput);
+}
 
-	return customer;
+async function deleteStaff(input) {
+	const schema = Joi.object({
+		staffId: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	await staffDomain.deleteStaff(input.staffId);
+
+	return { "status": "SUCCESS" }
 }
 
 async function updateStatus(input) {
 	const schema = Joi.object({
-		customerId: Joi.string().required(),
+		staffId: Joi.string().required(),
 		status: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
-	customerHelper.validateInput(input.status);
+    staffHelper.validateStatus(status);
 
-	let customer = await customerDomain.readCustomer(input.customerId);
+	let targetStaff = await staffHelper.getTargetStaff(input.customerId);
 
-	customer.status = input.status;
+	targetStaff.status = input.status;
 
-	return await customerDomain.updateCustomer(customer);
+	return await staffDomain.updateStaff(targetStaff);
 }
 
 async function updatePersonId(input){
 	const schema = Joi.object({
-		customerId: Joi.string().required(),
+		staffId: Joi.string().required(),
 		personId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
-	let customer = await customerDomain.readCustomer(input.customerId);
+	let staff = await staffDomain.readStaff(input.staffId);
 
 	let person = await personDomain.readPerson(input.personId);
 
-	customer.personId = person.personId;
+	staff.personId = person.personId;
 
-	return await customerDomain.updateCustomer(customer);
+	return await staffDomain.updateStaff(staff);
 }
 
 module.exports = {
-	newCustomer,
+	newStaff,
+	deleteStaff,
 	updateStatus,
-	updatePersonId
+    updatePersonId
 }

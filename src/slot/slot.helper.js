@@ -1,5 +1,36 @@
 const moment = require("moment");
 
+function validateAssetId(assetId){
+	if(assetId != "A001" || assetId != "MC_NXT20")
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid assetId" };
+}
+
+function validateBookingType(bookingType){
+	if(bookingType != "CUSTOMER_BOOKING" || bookingType != "OWNER_BOOKING" || bookingType != "MAINTAINANCE"){
+		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingType" };
+	}
+}
+
+function validateOccupancyTime(startTime, endTime, bookingType){
+    if (startTime > endTime)
+		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
+
+	if (startTime < moment().toDate() || endTime < moment().toDate())
+		throw{ name: customError.BAD_REQUEST_ERROR, message: "Occupancy cannot be in the past" };
+
+	if (bookingType === CUSTOMER_BOOKING_TYPE) {
+		//check minimum booking duration, maximum booking duration, earliest startTime
+		try {
+			//checkMimumDuration(startTime, endTime);
+			//checkMaximumDuration(startTime, endTime);
+			//checkEarliestStartTime(startTime, UTC_OFFSET);
+			//checkLatestEndTime(endTime, UTC_OFFSET);
+		} catch (err) {
+			throw { name: customError.BAD_REQUEST_ERROR, message: err };
+		}
+	}
+}
+
 function generateSlots(dayStartTime, dayEndTime) {
 	let slots = new Array();
 
@@ -88,6 +119,9 @@ function setBetweenBookingBufferSlot(occupancies) {
 }
 
 module.exports = {
+	validateAssetId,
+	validateBookingType,
+	validateOccupancyTime,
 	generateSlots,
 	getSlotByStartTime,
 	setSlotsAvailabilities,
