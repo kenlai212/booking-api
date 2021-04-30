@@ -3,7 +3,7 @@ const Joi = require("joi");
 
 const utility = require("../common/utility");
 
-const personDomain = required("./person.domain");
+const personDomain = require("./person.domain");
 
 async function newPerson(input){
     const schema = Joi.object({
@@ -19,7 +19,7 @@ async function newPerson(input){
 	});
 	utility.validateInput(schema, input);
 
-    let createPersonInput;
+    let createPersonInput = new Object();
     createPersonInput.personId = input.personId;
     createPersonInput.name = input.name;
 

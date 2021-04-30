@@ -9,19 +9,21 @@ const bookingSchema = new mongoose.Schema({
 	endTime: Date,
 	bookingType: String,
 	status: String,
-	fulfilledHours: Number,
-	hostCustomerId: String
+	fulfilledHours: Number
 });
 
-const bookingOccupancySchema = new mongoose.Schema({
+const occupancySchema = new mongoose.Schema({
 	occupancyId: String,
 	startTime: Date,
 	endTime: Date,
-	assetId: String
+	assetId: String,
+	status: String,
+	referenceType: String,
+	referenceId: String
 });
 
 const Booking = mongoose.model("Booking", bookingSchema);
-const Occupancy = mongoose.model("BookingOccupancy", bookingOccupancySchema);
+const Occupancy = mongoose.model("BookingOccupancy", occupancySchema);
 
 module.exports = {
 	Booking,

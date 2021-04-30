@@ -2,7 +2,8 @@
 const mongoose = require("mongoose");
 
 const occupancySchema = new mongoose.Schema({
-	bookingType: String,
+	referenceType: String,
+	referenceId: String,
 	startTime: Date,
 	endTime: Date,
 	assetId: String,

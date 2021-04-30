@@ -4,27 +4,25 @@ const Joi = require("joi");
 const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const Occupancy = require("./occupancy.model").Occupancy;
+const {Occupancy} = require("./occupancy.model");
+const occupancyHelper = require("./occupancy.helper");
 
 async function getOccupancies(input) {
-	//validate input data
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
-		assetId: Joi
-			.string()
-			.required()
-			.valid("A001", "MC_NXT20")
+		assetId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 	
+	occupancyHelper.validateAssetId(input.assetId);
+
 	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
 	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
-	if (startTime > endTime) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
-	}
+	if (startTime > endTime)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
 
 	let occupancies;
 	try {

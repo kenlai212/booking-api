@@ -7,13 +7,12 @@ const authenticateAccessToken = require("../common/middleware/authenticateAccess
 const bookingController = require("./booking.controller");
 
 const router = express.Router();
-router.post("/book-now", authenticateAccessToken, logIncommingRequest, bookingController.bookNow);
-
-router.get("/bookings", authenticateAccessToken, logIncommingRequest, bookingController.searchBookings);
-router.get("/booking/:bookingId", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
-
+router.post("/booking", authenticateAccessToken, logIncommingRequest, bookingController.newBooking);
 router.put("/booking/status/confirm", authenticateAccessToken, logIncommingRequest, bookingController.confirmBooking);
 router.put("/booking/status/cancel", authenticateAccessToken, logIncommingRequest, bookingController.cancelBooking);
 router.put("/booking/status/fulfill", authenticateAccessToken, logIncommingRequest, bookingController.fulfillBooking);
+
+router.get("/bookings", authenticateAccessToken, logIncommingRequest, bookingController.searchBookings);
+router.get("/booking/:bookingId", authenticateAccessToken, logIncommingRequest, bookingController.findBooking);
 
 module.exports = router;

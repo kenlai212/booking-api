@@ -66,7 +66,7 @@ async function createInvoice(input){
 
 async function readInvoice(bookingId){
     if (!mongoose.Types.ObjectId.isValid(bookingId))
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
+	throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid bookingId" };
 
 	let invoice;
 	try {

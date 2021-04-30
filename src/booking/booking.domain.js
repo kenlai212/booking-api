@@ -8,11 +8,12 @@ const {Booking} = require("./booking.model");
 
 async function createBooking(input){
     const schema = Joi.object({
-        occupancyId: Joi.string.min(1).required(),
+        createdBy: Joi.string().required(),
+        occupancyId: Joi.string().required(),
 	    startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
 	    bookingType: Joi.string().required(),
-        createdBy: Joi.string().required()
+        status: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
@@ -24,7 +25,7 @@ async function createBooking(input){
 	booking.creationTime = new Date();
 	booking.createdBy = input.createdBy,
 	booking.bookingType = input.bookingType;
-	booking.status = AWAITING_CONFIRMATION_STATUS;
+	booking.status = input.status;
 
     try{
         booking = await booking.save();

@@ -1,10 +1,10 @@
 "use strict";
 const Joi = require("joi");
 
-const utility = require("../../common/utility");
+const utility = require("../common/utility");
 const {logger, customError} = utility;
 
-const { Manifest} = require("./manifest.model");
+const {Manifest} = require("./manifest.model");
 
 async function createManifest(input, user){
 	const schema = Joi.object({

@@ -1,15 +1,14 @@
-const moment = require('moment');
-const mongoose = require("mongoose");
+const utility = require("../../../src/common/utility");
+const {customError} = utility;
 
 const occupancyService = require("../../../src/occupancy/occupancy.service");
-const Occupancy = require("../../../src/occupancy/occupancy.model").Occupancy;
-const customError = require("../../../src/common/customError");
 const occupancyHelper = require("../../../src/occupancy/occupancy.helper");
+const occupancyDomain = require("../../../src/occupancy/occupancy.domain");
 
 describe('Test occupancy.occupyAsset()', () => {
-    input = {};
-
     it("missing startTime, reject!", () => {
+        input = {};
+
         expect.assertions(1);
 
         return expect(occupancyService.occupyAsset(input)).rejects.toEqual({
@@ -19,7 +18,9 @@ describe('Test occupancy.occupyAsset()', () => {
     });
 
     it("invalid startTime, reject!", () => {
-        input.startTime = "ABC";
+        input = {
+            startTime : "ABC"
+        }
 
         expect.assertions(1);
 
@@ -30,7 +31,9 @@ describe('Test occupancy.occupyAsset()', () => {
     });
 
     it("missing endTime, reject!", () => {
-        input.startTime = "2020-02-02T23:59:59Z";
+        input = {
+            startTime : "2020-02-02T23:59:59Z"
+        }
 
         expect.assertions(1);
 
@@ -41,7 +44,10 @@ describe('Test occupancy.occupyAsset()', () => {
     });
 
     it("invalid endTime, reject!", () => {
-        input.endTime = "ABC";
+        input = {
+            startTime : "2020-02-02T23:59:59Z",
+            endTime : "ABC"
+        }
 
         expect.assertions(1);
 
@@ -52,7 +58,10 @@ describe('Test occupancy.occupyAsset()', () => {
     });
 
     it("missing utcOffset, reject!", () => {
-        input.endTime = "2020-02-02T23:59:59";
+        input = {
+            startTime : "2020-02-02T23:59:59Z",
+            endTime : "2020-02-02T23:59:59"
+        }
 
         expect.assertions(1);
 
@@ -63,7 +72,11 @@ describe('Test occupancy.occupyAsset()', () => {
     });
 
     it("missing assetId, reject!", () => {
-        input.utcOffset = 8;
+        input = {
+            startTime : "2020-02-02T23:59:59Z",
+            endTime : "2020-02-02T23:59:59",
+            utcOffset : 8
+        }
 
         expect.assertions(1);
 
@@ -73,31 +86,13 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("invalid assetId, reject!", () => {
-        input.assetId = "ABC";
-
-        expect.assertions(1);
-
-        return expect(occupancyService.occupyAsset(input)).rejects.toEqual({
-            name: customError.BAD_REQUEST_ERROR,
-            message: "assetId must be one of [A001, MC_NXT20]"
-        });
-    });
-
-    it("Invalid bookingId, reject!", () => {
-        input.assetId = "MC_NXT20";
-        input.bookingId = "123";
-
-        expect.assertions(1);
-
-        return expect(occupancyService.occupyAsset(input)).rejects.toEqual({
-            name: customError.BAD_REQUEST_ERROR,
-            message: "Invalid bookingId"
-        });
-    });
-
     it("Missing bookingType, reject!", () => {
-        input.bookingId = mongoose.Types.ObjectId().toHexString();
+        input = {
+            startTime : "2020-02-02T23:59:59Z",
+            endTime : "2020-02-02T23:59:59",
+            utcOffset : 8,
+            assetId: "A"
+        }
 
         expect.assertions(1);
 
@@ -107,67 +102,67 @@ describe('Test occupancy.occupyAsset()', () => {
         });
     });
 
-    it("startTime grater then endTime, reject!", () => {
-        input.bookingType = "CUSTOMER_BOOKING";
-        input.startTime = "2020-02-02T23:59:59Z";
-        input.endTime = "2020-02-02T22:00:00Z";
+    it("Invalid assetId, reject!", () => {
+        input = {
+            startTime : "2020-02-02T23:59:59Z",
+            endTime : "2020-02-02T23:59:59",
+            utcOffset : 8,
+            assetId: "A",
+            bookingType: "B"
+        }
 
         expect.assertions(1);
 
         return expect(occupancyService.occupyAsset(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
-            message: "endTime cannot be earlier then startTime"
+            message: "Invalid assetId"
         });
     });
 
-    it("Occupancy.find() internal error, reject!", () => {
-        input.startTime = "2020-02-02T22:00:00Z";
-        input.endTime = "2020-02-02T22:59:59Z";
+    it("Invalid bookingType, reject!", () => {
+        input = {
+            startTime : "2020-02-02T23:59:59Z",
+            endTime : "2020-02-02T23:59:59",
+            utcOffset : 8,
+            assetId: "A",
+            bookingType: "B"
+        }
 
-        //setup mock Occupancy.find(), reject with internal error
-        Occupancy.find = jest.fn().mockRejectedValue(new Error("occupancy.find error"));
-
-        expect.assertions(1);
-
-        return expect(occupancyService.occupyAsset(input)).rejects.toEqual({
-            name: customError.INTERNAL_SERVER_ERROR,
-            message: "Internal Server Error"
-        });
-    });
-    
-    it("Timeslot not available, checkAvailability return false, reject!", () => {
-        //setup mock Occupancy.find(), resolve zero occupancy
-        Occupancy.find = jest.fn().mockResolvedValue([]);
-
-        //setup mock occupancyHelper.checkAvailibility, return false;
-        occupancyHelper.checkAvailability = jest.fn().mockReturnValue(false);
+        occupancyHelper.validateAssetId = jest.fn().mockResolvedValue(new Object());
 
         expect.assertions(1);
 
         return expect(occupancyService.occupyAsset(input)).rejects.toEqual({
             name: customError.BAD_REQUEST_ERROR,
-            message: "Timeslot not available"
+            message: "Invalid bookingTime"
         });
-
     });
-    
-    it("occupancy.save() error saving to db, reject!", () => {
-        //setup mock Occupancy.find(), resolve zero occupancy
-        Occupancy.find = jest.fn().mockResolvedValue([]);
 
-        //setup mock occupancyHelper.checkAvailibility, return false;
-        occupancyHelper.checkAvailability = jest.fn().mockReturnValue(true);
+    it("occupancyDomain.readOccupancies internal error, reject!", () => {
+        input = {
+            startTime : "2020-02-02T23:59:59Z",
+            endTime : "2020-02-02T23:59:59",
+            utcOffset : 8,
+            assetId: "A",
+            bookingType: "B"
+        }
 
-        //setup mock occupancy.save, reject
-        Occupancy.prototype.save = jest.fn().mockRejectedValue(new Error("occupancy.save db error"));
+        occupancyHelper.validateAssetId = jest.fn().mockResolvedValue(true);
+
+        occupancyHelper.validateBookingType = jest.fn().mockResolvedValue(true);
+
+        //setup mock occupancyDomain.readOccupancy, reject with internal error
+        occupancyDomain.readOccupancies = jest.fn().mockRejectedValue({
+            name: customError.INTERNAL_SERVER_ERROR,
+            message: "Read Occupancy Error"
+        });
 
         expect.assertions(1);
 
         return expect(occupancyService.occupyAsset(input)).rejects.toEqual({
             name: customError.INTERNAL_SERVER_ERROR,
-            message: "Internal Server Error"
+            message: "Read Occupancy Error"
         });
-
     });
 
     it("success!", () => {

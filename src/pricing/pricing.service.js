@@ -3,10 +3,10 @@ const Joi = require("joi");
 const config = require("config");
 
 const utility = require("../common/utility");
-const {logger, customError} = utility;
+const {customError} = utility;
 
-const CUSTOMER_BOOKING = "CUSTOMER_BOOKING";
-const OWNER_BOOKING = "OWNER_BOOKING";
+const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING";
+const OWNER_BOOKING_TYPE = "OWNER_BOOKING";
 
 function calculateTotalAmount(input, user) {
 	//validate input data
@@ -17,7 +17,7 @@ function calculateTotalAmount(input, user) {
 		bookingType: Joi
 			.string()
 			.required()
-			.valid(CUSTOMER_BOOKING, OWNER_BOOKING)
+			.valid(CUSTOMER_BOOKING_TYPE, OWNER_BOOKING_TYPE)
 	});
 	utility.validateInput(schema, input);
 

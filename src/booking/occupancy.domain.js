@@ -1,5 +1,4 @@
 "use strict";
-const moment = require("moment");
 const Joi = require("joi");
 
 const utility = require("../common/utility");
@@ -13,7 +12,9 @@ async function createOccupancy(input){
         startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
-        assetId: Joi.string().min(1).required()
+        assetId: Joi.string().required(),
+        status: Joi.string().required(),
+        referenceType: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
     
@@ -21,7 +22,9 @@ async function createOccupancy(input){
     occupancy.occupancyId = input.occupancyId;
     occupancy.startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
     occupancy.endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
-    occupancy.assetId = new assetId.assetId;
+    occupancy.assetId = input.assetId;
+    occupancy.status = input.status;
+    occupancy.referenceType = input.referenceType;
 
     try{
         occupancy = await occupancy.save();
@@ -36,7 +39,7 @@ async function createOccupancy(input){
 async function readOccupancy(occupancyId){
     let occupancy;
     try{
-        occupancy = await Occupancy.findById(occupancyId);
+        occupancy = await Occupancy.findOne({occupancyId: occupancyId});
     }catch(error){
         logger.error("Occupancy.findById error : ", error);
         throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Occupancy Error" };
@@ -44,6 +47,8 @@ async function readOccupancy(occupancyId){
 
     if(!occupancy)
         throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid occupancyId" };
+
+    return occupancy;
 }
 
 async function deleteOccupancy(occupancyId){
@@ -57,8 +62,20 @@ async function deleteOccupancy(occupancyId){
     return {status: "SUCCESS"}
 }
 
+async function updateOccupancy(occupancy){
+    try{
+        occupancy = await occupancy.save();
+    }catch(error){
+        logger.error("occupancy.save error : ", error);
+        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save Occupancy Error" };
+    }
+
+    return occupancy;
+}
+
 module.exports = {
 	createOccupancy,
     readOccupancy,
-    deleteOccupancy
+    deleteOccupancy,
+    updateOccupancy
 }

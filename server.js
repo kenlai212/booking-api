@@ -1,13 +1,11 @@
 const express = require("express");
 const mongoose = require("mongoose");
-const config = require("config");
 const cors = require('cors');
 require("dotenv").config();
 
 const utility = require("./src/common/utility");
 const {logger} = utility;
 
-const bookingAPIUser = require("./src/common/bookingAPIUser")
 const bookingRoutes = require("./src/booking/booking.routes");
 const pricingRoutes = require("./src/pricing/pricing.routes");
 const slotRoutes = require("./src/slot/slot.routes");
@@ -21,6 +19,12 @@ const assetRoutes = require("./src/asset/asset.routes");
 const personRoutes = require("./src/person/person.routes");
 const customerRoutes = require("./src/customer/customer.routes");
 const invoiceRoutes = require("./src/invoice/invoice.routes");
+
+const occupancyWorker = require("./src/occupancy/occupancy.worker");
+const bookingWorker = require("./src/booking/booking.worker");
+const slotWorker = require("./src/slot/slot.worker");
+const customerWorker = require("./src/customer/customer.worker");
+const manifestWorker = require("./src/manifest/manifest.worker");
 
 const app = express();
 app.use(cors());
@@ -56,26 +60,27 @@ process.on("uncaughtException", (ex) => {
 	logger.error(ex.message, ex);
 });
 
-//boot starpping
 mongoose.connect(process.env.DB_CONNECTION_URL, { useUnifiedTopology: true, useNewUrlParser: true })
-	.then(async () => {
-		logger.info("Connected to " + config.get("bootstrap.mongoDBName") + "....");
-
-		await app.listen(process.env.PORT, function (err) {
-			if (err) {
-				logger.error("Error while starting Booking Services", err);
-				throw err;
-			}
-			logger.info("Booking Services started up. Listening to port " + process.env.PORT);
-		});
-	})
 	.then(() => {
-		//generate access token for booking api
-		logger.info("bookingAPIUser accessToken : " + bookingAPIUser.getAccessToken());
+		logger.info(`Connected to ${process.env.DB_NAME}`);
 	})
-	.catch(err => {
-		logger.error("Bootup Error", err);
-		throw err;
+	.catch(error => {
+		logger.error(`Mongoose connection Error: ${error}`);
 	});
 
-module.exports = app;
+app.listen(process.env.PORT, function (err) {
+	if (err) {
+		logger.error(`Error while starting Booking Services : ${err}`);
+		throw err;
+	}
+
+	logger.info(`Booking Services started up. Listening to port : ${process.env.PORT}`);
+});
+
+occupancyWorker.listen();
+bookingWorker.listen();
+slotWorker.listen();
+customerWorker.listen();
+manifestWorker.listen();
+
+//module.exports = app;

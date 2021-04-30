@@ -1,6 +1,14 @@
 "use strict";
 const utility = require("../common/utility");
-const {logger, customError} = utility;
+const {customError} = utility;
+
+const occupancyDomain = require("./occupancy.domain");
+
+async function validateOccupancyId(occupancyId){
+    let occupancy = await occupancyDomain.readOccupancy(occupancyId);
+
+    return occupancy;
+}
 
 function validateBookingType(bookingType){
     const validBookingTypes = [ "CUSTOMER_BOOKING", "OWNER_BOOKING" ];
@@ -15,6 +23,7 @@ function validateAssetId(assetId){
 }
 
 module.exports = {
+    validateOccupancyId,
     validateAssetId,
     validateBookingType
 }

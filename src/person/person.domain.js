@@ -101,10 +101,6 @@ async function deletePerson(personId){
 	}
 }
 
-async function updatePerson(input){
-
-}
-
 module.exports = {
     createPerson,
 	readPerson,

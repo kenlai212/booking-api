@@ -3,10 +3,12 @@ const mongoose = require("mongoose");
 
 const occupancySchema = new mongoose.Schema({
 	occupancyId: String,
-	bookingType: String,
 	startTime: Date,
 	endTime: Date,
-	assetId: String
+	assetId: String,
+	status: String,
+	referenceType: String,
+	referenceId: String
 });
 
 const Occupancy = mongoose.model("SlotOccupancy", occupancySchema);

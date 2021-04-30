@@ -1,31 +1,38 @@
 "use strict";
 const Joi = require("joi");
 
-const utility = require("../../common/utility");
-const {logger, customError} = utility;
+const utility = require("../common/utility");
+const {customError} = utility;
 
 const manifestDomain = require("./manifest.domain");
 const customerDomain = require("./customer.domain");
 
-async function newManifest(input, user){
+async function newManifest(input){
 	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required(),
-		guests: Joi
-			.array()
-			.items(Joi.string())
+		bookingId: Joi.string().required(),
+		guests: Joi.array().items(Joi.string())
 	});
 	utility.validateInput(schema, input);
 
-	input.guests.forEach(customerId => {
-		await customerDomain.readCustomer(customerId);
-	})
+	let createManifestInput = new Object();
+	createManifestInput.bookingId = input.bookingId;
 
-	return await manifestDomain.createManifest(input);
+	if(input.guests){
+		createManifestInput.guests = [];
+
+		input.guests.forEach(async customerId => {
+			try{
+				await customerDomain.readCustomer(customerId);
+			}catch(error){
+				utility.logger.info(error);
+			}
+		});
+	}
+
+	return await manifestDomain.createManifest(createManifestInput);
 }
 
-async function removeGuest(input, user) {
+async function removeGuest(input) {
 	const schema = Joi.object({
 		bookingId: Joi.string().min(1).required(),
 		customerId: Joi.string().min(1).required()

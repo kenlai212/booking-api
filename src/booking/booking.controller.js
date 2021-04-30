@@ -10,10 +10,13 @@ const bookingRead = require("./booking.read");
 const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 const BOOKING_USER_GROUP = "BOOKING_USER";
 
-const bookNow = asyncMiddleware(async (req) => {
+const newBooking = asyncMiddleware(async (req) => {
 	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP,BOOKING_USER_GROUP]);
 
-	return await bookingService.bookNow(req.body, req.user);
+	const input = req.body;
+	input.requestor = req.user;
+
+	return await bookingService.newBooking(input);
 });
 
 const searchBookings = asyncMiddleware(async (req) => {
@@ -48,7 +51,7 @@ const confirmBooking = asyncMiddleware(async (req) => {
 });
 
 module.exports = {
-	bookNow,
+	newBooking,
 	confirmBooking,
 	cancelBooking,
 	fulfillBooking,

@@ -6,49 +6,56 @@ const {logger, customError} = utility;
 
 const bookingDomain = require("./booking.domain");
 const bookingHelper = require("./booking.helper");
-const occupancyDomain = require("./occupancy.domain");
 
+const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
 const CANCELLED_STATUS = "CANCELLED";
 const FULFILLED_STATUS = "FULFILLED"
 
 const NEW_BOOKING_QUEUE_NAME = "NEW_BOOKING";
+const CANCEL_BOOKING_QUEUE_NAME = "CANCEL_BOOKING";
 
-async function bookNow(input, user) {
+async function newBooking(input) {
 	const schema = Joi.object({
-		occupancyId: Joi.string.min(1).required(),
+		occupancyId: Joi.string().required(),
 		bookingType: Joi.string().required(),
-		customerId: Joi.string.required(),
+		customerId: Joi.string().required(),
+		requestor: Joi.object().required()
 	});
 	utility.validateInput(schema, input);
 
 	bookingHelper.validateBookingType(input.bookingType);
 	
-	let occupancy = occupancyDomain.readOccupancy(input.occupancyId);
+	//TODO validate if this user can preform this booking type
 
-	//save booking to db
-	const createBookingInput = {
-		occupancyId : input.occupancyId,
-	    startTime: occupancy.startTime,
-		endTime: occupancy.startTime,
-	    bookingType:  input.bookingType,
-		createBy: user._id
-	}
+	let occupancy = await bookingHelper.validateOccupancyId(input.occupancyId);
+
+	if(occupancy.status != "AWAITING_CONFIRMATION")
+    throw { name: customError.BAD_REQUEST_ERROR, message: "Occupancy record not available" };
 	
-	let booking = await bookingDomain.createBooking(createBookingInput, user);
+	//save booking to db
+	let createBookingInput = new Object();
+	createBookingInput.occupancyId = input.occupancyId;
+	createBookingInput.startTime = occupancy.startTime;
+	createBookingInput.endTime = occupancy.endTime;
+	createBookingInput.bookingType = input.bookingType;
+	createBookingInput.createdBy = input.requestor.id;
+	createBookingInput.status = AWAITING_CONFIRMATION_STATUS;
+	
+	let booking = await bookingDomain.createBooking(createBookingInput);
 
 	//publish newBooking event
-	let eventMessage;
+	let eventMessage = new Object();
 	eventMessage.bookingId = booking._id;
 	eventMessage.occupancyId = booking.occupancyId;
 	eventMessage.startTime = booking.startTime;
 	eventMessage.endTime = booking.endTime;
 
-	if(input.customer)
+	if(input.customerId)
 	eventMessage.customerId = input.customerId;
 
-	await utility.publishEvent(eventMessage, NEW_BOOKING_QUEUE_NAME, user, async () => {
-		logger.error("rolling back new bookint");
+	await utility.publishEvent(eventMessage, NEW_BOOKING_QUEUE_NAME, async () => {
+		logger.error("rolling back new booking");
 		
 		await bookingDomain.deleteBooking(booking._id);
 	});
@@ -56,7 +63,7 @@ async function bookNow(input, user) {
 	return {
 		status: "SUCCESS",
 		message: `Published event to ${NEW_BOOKING_QUEUE_NAME} queue`,
-		eventMsg: input
+		eventMsg: eventMessage
 	};
 }
 
@@ -120,23 +127,22 @@ async function cancelBooking(input, user) {
 	booking = await bookingDomain.updateBooking(booking);
 
 	//publish cancelBooking event
-	const eventQueueName = "cancelBooking";
-	await utility.publishEvent(input, eventQueueName, user, async () => {
+	await utility.publishEvent(input, CANCEL_BOOKING_QUEUE_NAME, async () => {
 		logger.error("rolling back cancelBooking");
 		
-		input.status = oldStatus;
-		await bookingDomain.updateStatus(input);
+		booking.status = oldStatus;
+		await bookingDomain.updateBooking(booking);
 	});
 
 	return {
 		status: "SUCCESS",
-		message: `Published event to ${eventQueueName} queue`,
-		eventMsg: booking
+		message: `Published event to ${CANCEL_BOOKING_QUEUE_NAME} queue`,
+		eventMsg: {bookingId: booking._id, occupancyId: booking.occupancyId} 
 	};
 }
 
 module.exports = {
-	bookNow,
+	newBooking,
 	confirmBooking,
 	fulfillBooking,
 	cancelBooking

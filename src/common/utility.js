@@ -63,12 +63,7 @@ function userGroupAuthorization(userGroups, allowGroups){
     }
 }
 
-async function publishEvent(message, queueName, user, rollback){
-    if(!user){
-        rollback();
-        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Missing User"}
-    }
-    message.user = user;
+async function publishEvent(message, exchange, rollback){
     var msg = JSON.stringify(message);
 
     let connection;
@@ -89,16 +84,16 @@ async function publishEvent(message, queueName, user, rollback){
 	 	throw { name: customError.INTERNAL_SERVER_ERROR, message: "Create Channel problem" };
     }
     
-    await channel.assertQueue(queueName, {
-        durable: true
+    await channel.assertExchange(exchange, 'fanout', {
+        durable: false
     });
 
-    channel.sendToQueue(queueName, Buffer.from(msg));
+    channel.publish(exchange, '', Buffer.from(msg));
 
     channel.close();
 }
 
-async function subscribe(queueName, queueResponse){
+async function subscribe(exchange, exchangeResponse){
     let connection;
     try{
         connection = await amqp.connect(process.env.AMQP_URL);
@@ -116,15 +111,21 @@ async function subscribe(queueName, queueResponse){
 	 	throw { name: customError.INTERNAL_SERVER_ERROR, message: "Create Channel problem" };
     }
 
-    await channel.assertQueue(queueName, {
-        durable: true
+    await channel.assertExchange(exchange, 'fanout', {
+        durable: false
     });
 
-    channel.consume(queueName, function(msg){
-        queueResponse(msg);
+    let q = await channel.assertQueue('', {
+        exclusive: true
+    });
+
+    await channel.bindQueue(q.queue, exchange, '');
+
+    channel.consume(q.queue, function(msg){
+        exchangeResponse(msg);
     }, { noAck: true });
 
-    console.log(`Listening to ${queueName}`);
+    //console.log(`Listening to ${exchange}`);
 }
 
 const env = process.env.NODE_ENV || "development";

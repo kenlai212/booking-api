@@ -3,6 +3,7 @@ const Joi = require("joi");
 
 const utility = require("../common/utility");
 
+const personDomain = require("./person.domain");
 const personHelper = require("./person.helper");
 
 const NEW_PERSON_QUEUE_NAME = "NEW_PERSON";
@@ -17,7 +18,7 @@ const UPDATE_PERSON_GENDER_QUEUE_NAME = "UPDATE_PERSON_GENDER";
 const SEND_SMS_QUEUE_NAME = "SEND_SMS";
 const SEND_EMAIL_QUEUE_NAME = "SEND_EMAIL";
 
-async function newPerson(input, user){
+async function newPerson(input){
 	const schema = Joi.object({
 		userId: Joi.string().min(1).allow(null),
 		name: Joi.string().required(),
@@ -33,7 +34,7 @@ async function newPerson(input, user){
 	});
 	utility.validateInput(schema, input);
 	
-	let createPersonInput;
+	let createPersonInput = new Object();
 	createPersonInput.name = input.name;
 	
 	if(input.dob){
@@ -81,7 +82,7 @@ async function newPerson(input, user){
 
 	let person = await personDomain.createPerson(createPersonInput);
 
-	await utility.publishEvent(input, NEW_PERSON_QUEUE_NAME, user, async () => {
+	await utility.publishEvent(person, NEW_PERSON_QUEUE_NAME, async () => {
 		logger.error("rolling back new person");
 		
 		await personDomain.deletePerson(person._id);

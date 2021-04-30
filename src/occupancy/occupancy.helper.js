@@ -1,22 +1,17 @@
-async function checkAvailability(startTime, endTime) {
+"use strict";
+const moment = require("moment");
+
+const utility = require("../common/utility");
+const {logger, customError} = utility;
+
+//const CUSTOMER_BOOKING_TYPE = "CUSTOMER_BOOKING"
+
+async function checkAvailability(startTime, endTime, occupancies) {
 	//find all occupancies with in search start and end time
 	//expand search range to -1 day from startTime and +1 from endTime 
 	const searchTimeRangeStart = moment(startTime).subtract(1, 'days');
 	const searchTimeRangeEnd = moment(endTime).add(1, 'days');
 
-	let occupancies;
-	try {
-		occupancies = await Occupancy.find(
-			{
-				startTime: { $gte: searchTimeRangeStart },
-				endTime: { $lt: searchTimeRangeEnd },
-				assetId: input.assetId
-			})
-	} catch (err) {
-		logger.error("Occupancy.find Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
-	}
-	
  	//check if the time between startTime and endTime will
  	//overlap any entries in occupancies array.
  	//Returns ture or false
@@ -40,28 +35,34 @@ function validateOccupancyTime(startTime, endTime, bookingType){
 	if (startTime < moment().toDate() || endTime < moment().toDate())
 		throw{ name: customError.BAD_REQUEST_ERROR, message: "Occupancy cannot be in the past" };
 
-	if (bookingType === CUSTOMER_BOOKING_TYPE) {
-		//check minimum booking duration, maximum booking duration, earliest startTime
-		try {
-			//checkMimumDuration(startTime, endTime);
-			//checkMaximumDuration(startTime, endTime);
-			//checkEarliestStartTime(startTime, UTC_OFFSET);
-			//checkLatestEndTime(endTime, UTC_OFFSET);
-		} catch (err) {
-			throw { name: customError.BAD_REQUEST_ERROR, message: err };
-		}
-	}
+	// if (bookingType === CUSTOMER_BOOKING_TYPE) {
+	// 	//check minimum booking duration, maximum booking duration, earliest startTime
+	// 	try {
+	// 		checkMimumDuration(startTime, endTime);
+	// 		checkMaximumDuration(startTime, endTime);
+	// 		checkEarliestStartTime(startTime, UTC_OFFSET);
+	// 		checkLatestEndTime(endTime, UTC_OFFSET);
+	// 	} catch (err) {
+	// 		throw { name: customError.BAD_REQUEST_ERROR, message: err };
+	// 	}
+	// }
 }
 
 function validateAssetId(assetId){
-	if(assetId != "A001" || assetId != "MC_NXT20")
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid assetId" };
+	const validAssetIds = [ "A001", "MC_NXT20" ];
+
+	if(!validAssetIds.includes(assetId))
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid assetId" };
 }
 
-function validateBookingType(bookingType){
-	if(bookingType != "CUSTOMER_BOOKING" || bookingType != "OWNER_BOOKING" || bookingType != "MAINTAINANCE"){
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingType" };
-	}
+function validateReferenceType(bookingType){
+	const validReferenceTypes = [
+		"BOOKING",
+		"MAINTAINANCE"
+	]
+
+	if(!validReferenceTypes.includes(bookingType))
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid referenceType" };
 }
 
 function checkMimumDuration(startTime, endTime){
@@ -69,7 +70,6 @@ function checkMimumDuration(startTime, endTime){
     const minMs = config.get("booking.minimumBookingDuration");
 
     if (diffMs < minMs) {
-
         var minutes = Math.floor(minMs / 60000);
         var seconds = ((minMs % 60000) / 1000).toFixed(0);
 
@@ -84,7 +84,6 @@ function checkMaximumDuration(startTime, endTime){
     const maxMs = config.get("booking.maximumBookingDuration");
 
     if (diffMs > maxMs) {
-
         var minutes = Math.floor(maxMs / 60000);
         var seconds = ((maxMs % 60000) / 1000).toFixed(0);
 
@@ -130,5 +129,5 @@ module.exports = {
 	checkAvailability,
 	validateOccupancyTime,
 	validateAssetId,
-	validateBookingType
+	validateReferenceType
 }

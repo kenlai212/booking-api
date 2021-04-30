@@ -9,6 +9,9 @@ const personDomain = require("./person.domain");
 const customerHelper = require("./customer.helper");
 const externalPersonService = require("./externalPerson.service");
 
+const NEW_CUSTOMER_QUEUE_NAME = "NEW_CUSTOMER";
+const UPDATE_CUSTOMER_STATUS_QUEUE_NAME = "UPDATE_CUSTOMER_STATUS";
+
 async function newCustomer(input, user) {
 	const schema = Joi.object({
 		personId: Joi.string(),
@@ -40,7 +43,7 @@ async function newCustomer(input, user) {
 
 	if(!person){
 		//create new person
-		let externalNewPersonInput;
+		let externalNewPersonInput = new Object();
 		externalNewPersonInput.name = input.name;
 
 		if(input.phoneNumber){
@@ -67,7 +70,18 @@ async function newCustomer(input, user) {
 	
 	customer = await customerDomain.createCustomer(createCustomerInput);
 
-	return customer;
+	//publish NEW_CUSTOMER event
+	await utility.publishEvent(customer, NEW_CUSTOMER_QUEUE_NAME, async () => {
+		logger.error("rolling back new customer");
+		
+		await customerDomain.deleteCustomer(customer._id);
+	});
+
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${NEW_CUSTOMER_QUEUE_NAME} queue`, 
+		eventMsg: customer
+	};
 }
 
 async function updateStatus(input) {
@@ -81,9 +95,24 @@ async function updateStatus(input) {
 
 	let customer = await customerDomain.readCustomer(input.customerId);
 
-	customer.status = input.status;
+	const oldStatus = {...customer.status};
 
-	return await customerDomain.updateCustomer(customer);
+	customer.status = input.status;
+	customer = await customerDomain.updateCustomer(customer);
+
+	//publish UPDATE_CUSTOMER_STATUS event
+	await utility.publishEvent(customer, UPDATE_CUSTOMER_STATUS_QUEUE_NAME, async () => {
+		logger.error("rolling back update status");
+		
+		customer.status = oldStatus;
+		await customerDomain.updateCustomer(customer);
+	});
+
+	return {
+		status: "SUCCESS",
+		message: `Published event to ${UPDATE_CUSTOMER_STATUS_QUEUE_NAME} queue`, 
+		eventMsg: customer
+	};
 }
 
 async function updatePersonId(input){

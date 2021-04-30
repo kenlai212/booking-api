@@ -6,9 +6,12 @@ const authenticateAccessToken = require("../common/middleware/authenticateAccess
 const controller = require("./occupancy.controller");
 
 const router = express.Router();
-router.get("/occupancies", authenticateAccessToken, logIncommingRequest, controller.getOccupancies);
+
 router.post("/occupancy", authenticateAccessToken, logIncommingRequest, controller.occupyAsset);
-router.delete("/occupancy/:bookingId/:bookingType", authenticateAccessToken, logIncommingRequest, controller.releaseOccupancy);
+router.delete("/occupancy/:occupancyId", authenticateAccessToken, logIncommingRequest, controller.releaseOccupancy);
+router.put("/occupancy/confirm", authenticateAccessToken, logIncommingRequest, controller.confirmOccupancy);
+
+router.get("/occupancies", authenticateAccessToken, logIncommingRequest, controller.getOccupancies);
 
 module.exports = router;
 
