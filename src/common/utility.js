@@ -12,7 +12,7 @@ function validateDateIsoStr(isoStr, utcOffset){
 	if(!dateMoment.isValid)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "invalid isoStr" };
 
-	if(!utcOffset)
+	if(utcOffset == null)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "utcOffset is mandatory" };
 
 	if(utcOffset < -12 || utcOffset > 14)
@@ -89,6 +89,8 @@ async function publishEvent(message, exchange, rollback){
     });
 
     channel.publish(exchange, '', Buffer.from(msg));
+
+    logger.info(`Published event to ${exchange} queue`);
 
     channel.close();
 }

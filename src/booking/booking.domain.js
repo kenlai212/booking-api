@@ -8,10 +8,9 @@ const {Booking} = require("./booking.model");
 
 async function createBooking(input){
     const schema = Joi.object({
-        createdBy: Joi.string().required(),
+        requestorId: Joi.string().required(),
         occupancyId: Joi.string().required(),
-	    startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
+        customerId: Joi.string().required(),
 	    bookingType: Joi.string().required(),
         status: Joi.string().required()
 	});
@@ -20,10 +19,9 @@ async function createBooking(input){
     //set and save booking object
 	let booking = new Booking();
 	booking.occupancyId = input.occupancyId;
-	booking.startTime = input.startTime;
-	booking.endTime = input.endTime;
 	booking.creationTime = new Date();
-	booking.createdBy = input.createdBy,
+	booking.requestorId = input.requestorId;
+    booking.customerId = input.customerId;
 	booking.bookingType = input.bookingType;
 	booking.status = input.status;
 
@@ -72,9 +70,21 @@ async function deleteBooking(bookingId){
     }
 }
 
+async function deleteAllBookings(){
+    try {
+		await Booking.deleteMany();
+	} catch (err) {
+		logger.error("Booking.deleteMany() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Bookings Error" }
+	}
+
+	return {status: "SUCCESS"}
+}
+
 module.exports = {
     createBooking,
     readBooking,
     updateBooking,
-    deleteBooking
+    deleteBooking,
+    deleteAllBookings
 }

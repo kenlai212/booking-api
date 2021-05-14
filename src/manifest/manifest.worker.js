@@ -13,9 +13,11 @@ const DELETE_CUSTOMER_QUEUE_NAME = "DELETE_CUSTOMER";
 
 function listen(){
     logger.info(`${WORKER_NAME} listenting to ${NEW_BOOKING_QUEUE_NAME}`);
+    logger.info(`${WORKER_NAME} listenting to ${NEW_CUSTOMER_QUEUE_NAME}`);
+    logger.info(`${WORKER_NAME} listenting to ${DELETE_CUSTOMER_QUEUE_NAME}`);
 
     utility.subscribe(NEW_BOOKING_QUEUE_NAME, async function(msg){
-        logger.info(`${WORKER_NAME} heard ${NEW_BOOKING_QUEUE_NAME} event(${msg})`);
+        logger.info(`${WORKER_NAME} heard ${NEW_BOOKING_QUEUE_NAME} event(${msg.content})`);
 
         const msgJSON = JSON.parse(msg.content); 
 
@@ -24,17 +26,14 @@ function listen(){
             guests:[msgJSON.customerId]
         }
 
-        try{
-            await manifestService.newManifest(input, msgJSON.user);
-        }catch(error){
-            throw error;
-        }
+        manifestService.newManifest(input)
+            .catch(error => {
+                logger.error(error);
+            });
     });
 
-    logger.info(`${WORKER_NAME} listenting to ${NEW_CUSTOMER_QUEUE_NAME}`);
-
     utility.subscribe(NEW_CUSTOMER_QUEUE_NAME, async function(msg){
-        logger.info(`Heard ${NEW_CUSTOMER_QUEUE_NAME} event(${msg})`);
+        logger.info(`${WORKER_NAME} heard ${NEW_CUSTOMER_QUEUE_NAME} event(${msg.content})`);
 
         let jsonMsg = JSON.parse(msg.content);
 
@@ -48,18 +47,22 @@ function listen(){
 	        emailAddress: jsonMsg.emailAddress,
 	        profilePictureUrl: jsonMsg.profilePictureUrl
         }
-
-        await customerService.newsCustomer(createCustomerInput);
+        
+        customerService.newCustomer(createCustomerInput)
+            .catch(error => {
+                logger.error(error);
+            });
     });
 
-    logger.info(`${WORKER_NAME} listenting to ${DELETE_CUSTOMER_QUEUE_NAME}`);
-
     utility.subscribe(DELETE_CUSTOMER_QUEUE_NAME, async function(msg){
-        logger.info(`Heard ${DELETE_CUSTOMER_QUEUE_NAME} event(${msg})`);
+        logger.info(`${WORKER_NAME} heard ${DELETE_CUSTOMER_QUEUE_NAME} event(${msg.content})`);
 
         let jsonMsg = JSON.parse(msg.content);
 
-        await customerService.deleteCustomer(jsonMsg.customerId);
+        customerService.deleteCustomer({customerId : jsonMsg.customerId})
+            .catch(error => {
+                logger.error(error);
+            });
     });
 }
 

@@ -23,45 +23,50 @@ const activate = asyncMiddleware(async (req) => {
 });
 
 const updateLastLogin = asyncMiddleware(async (req) => {
-	return await userService.updateLastLogin(req.body, req.user);
+	return await userService.updateLastLogin(req.body);
 });
 
 const searchUsers = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
 
-	return await userRead.searchUsers(req.user);
+	return await userRead.searchUsers(req.params);
 });
 
 const assignGroup = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
 
-	return await adminService.assignGroup(req.body, req.user);
+	return await userService.assignGroup(req.body);
 });
 
 const unassignGroup = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
 
-	return await adminService.unassignGroup(req.params, req.user);
+	return await userService.unassignGroup(req.params);
 });
 
 const deleteUser = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
 
-	return await adminService.deleteUser(req.params, req.user);
+	return await userService.deleteUser(req.params);
 });
 
 const resendActivationEmail = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
 
-	return await adminService.resendActivationEmail(req.body, req.user);
+	return await userService.resendActivationEmail(req.body);
 });
 
 const searchGroups = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [USER_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
 
-	return await adminService.searchGroups(req.body, req.user);
+	return await userService.searchGroups(req.body);
 });
 
+const deleteAllUsers = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
+
+	return await userService.deleteAllUsers(req.body);
+});
 
 module.exports = {
 	findUser,
@@ -72,6 +77,7 @@ module.exports = {
 	assignGroup,
 	unassignGroup,
 	deleteUser,
+	deleteAllUsers,
 	resendActivationEmail,
 	searchGroups
 }

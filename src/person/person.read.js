@@ -1,54 +1,33 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const {logger, customError} = utility;
 
-const {Person} = require("./person.model");
+const personDomain = require("./person.domain");
 const personHelper = require("./person.helper");
 
 async function readPerson(input){
 	const schema = Joi.object({
-		personId: Joi
-			.string()
-			.min(1)
-			.required()
+		personId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
-	let person;
-	try {
-		person = await Person.findById(input.personId);
-	} catch (error) {
-		logger.error("Person.findById Error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Person Error" };
-	}
+	let person = await personDomain.readPerson(input.personId);
 
 	return personHelper.personToOutputObj(person);
 }
 
 async function readPersons(input){
 	const schema = Joi.object({
-		name: Joi
-            .string()
-            .min(1)
-			.allow(null)
+		name: Joi.string()
 	});
 	utility.validateInput(schema, input);
 
-	let searchCriteria;
-	if(input && input.name) {
-		searchCriteria = {
-			"name": input.name
-		}
-	}
+	let persons = [];
 
-	let persons;
-	try {
-		persons = await Person.find(searchCriteria);
-	} catch (error) {
-		logger.error("Person.find Error : ", error);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Person Error" };
-	}
+	if(input.name)
+	persons = await personDomain.readPersonsByName(input.name);
+	else
+	persons = await personDomain.readPersons();
 
 	var outputObjs = [];
 	persons.forEach((item) => {

@@ -7,6 +7,26 @@ const {logger, customError} = utility;
 const {Occupancy} = require("./occupancy.model");
 const occupancyHelper = require("./occupancy.helper");
 
+async function getOccupancy(input){
+	const schema = Joi.object({
+		occupancyId: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	let occupancy;
+	try{
+		occupancy = await Occupancy.findById(input.occupancyId);
+	}catch(error){
+		logger.error("Occupancy.findById Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Occupancy Error" };
+	}
+
+	if(occupancy)
+	return occupancyHelper.occupancyToOutputObj(occupancy);
+	else
+	return null;
+}
+
 async function getOccupancies(input) {
 	const schema = Joi.object({
 		startTime: Joi.date().iso().required(),
@@ -32,16 +52,14 @@ async function getOccupancies(input) {
 			assetId: input.assetId
 		})
 	} catch (err) {
-		logger.error("Internal Server Error", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+		logger.error("Occupancy.find Error", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Occupancy Error" };
 	}
 
-	//set outputObjs
-	var outputObjs = [];
-	occupancies.forEach((item) => {
-		outputObjs.push(occupancyToOutputObj(item));
-
-	});
+	let outputObjs = [];
+	occupancies.forEach(occupancy => {
+		outputObjs.push(occupancyHelper.occupancyToOutputObj(occupancy));
+	})
 
 	return {
 		"count": outputObjs.length,
@@ -50,5 +68,6 @@ async function getOccupancies(input) {
 }
 
 module.exports = {
+	getOccupancy,
 	getOccupancies
 }

@@ -58,7 +58,7 @@ async function removeGuest(input) {
 	return await manifestDomain.updateManifest(manifest);
 }
 
-async function addGuest(input, user) {
+async function addGuest(input) {
 	const schema = Joi.object({
 		bookingId: Joi
 			.string()
@@ -91,8 +91,7 @@ async function addGuest(input, user) {
 	//add guest to manifest
 	let guestItem = {
 		customerId: input.customerId,
-		creationTime: new Date(),
-		createdByParty: user.id,
+		creationTime: new Date()
 	}
 	manifest.guests.push(guestItem);
 

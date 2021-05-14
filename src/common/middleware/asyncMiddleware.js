@@ -10,7 +10,10 @@ module.exports = function (handler) {
 			res.status(200);
 
 		} catch (err) {
-			logger.info("Response Error : " + JSON.stringify(err));
+			if(err instanceof Error)
+			logger.error(err.stack);
+			else
+			logger.error(JSON.stringify(err));
 
 			switch (err.name) {
 				case customError.UNAUTHORIZE_ERROR:

@@ -11,43 +11,49 @@ const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 const BOOKING_USER_GROUP = "BOOKING_USER";
 
 const newBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP,BOOKING_USER_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP,BOOKING_USER_GROUP]);
 
 	const input = req.body;
-	input.requestor = req.user;
+	input.requestorId = req.requestor.id;
 
 	return await bookingService.newBooking(input);
 });
 
 const searchBookings = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
 	const queryObject = url.parse(req.url, true).query;
-	return await bookingRead.viewBookings(queryObject, req.user);
+	return await bookingRead.viewBookings(queryObject);
 });
 
 const cancelBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
-	return await bookingService.cancelBooking(req.body, req.user);
+	return await bookingService.cancelBooking(req.body);
 });
 
 const fulfillBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
-	return await bookingService.fulfillBooking(req.body, req.user);
+	return await bookingService.fulfillBooking(req.body);
 });
 
 const findBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP, BOOKING_USER_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP, BOOKING_USER_GROUP]);
 
-	return await bookingRead.findBookingById(req.params, req.user);
+	return await bookingRead.findBookingById(req.params);
 });
 
 const confirmBooking = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [BOOKING_ADMIN_GROUP]);
+	utility.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
-	return await bookingService.confirmBooking(req.body, req.user);
+	return await bookingService.confirmBooking(req.body);
+});
+
+const deleteAllBookings = asyncMiddleware(async(req) => {
+	utility.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
+
+	return await bookingService.deleteAllBookings(req.params)
 });
 
 module.exports = {
@@ -56,5 +62,6 @@ module.exports = {
 	cancelBooking,
 	fulfillBooking,
 	searchBookings,
-	findBooking
+	findBooking,
+	deleteAllBookings
 }

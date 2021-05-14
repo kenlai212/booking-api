@@ -11,6 +11,8 @@ const OCCUPANCY_CONFIRMED_QUEUE_NAME = "OCCUPANCY_CONFIRMED";
 
 function listen(){
     logger.info(`${WORKER_NAME} listenting to ${OCCUPY_ASSET_QUEUE_NAME}`);
+    logger.info(`${WORKER_NAME} listenting to ${RELEASE_OCCUPANCY_QUEUE_NAME}`);
+    logger.info(`${WORKER_NAME} listenting to ${OCCUPANCY_CONFIRMED_QUEUE_NAME}`);
 
     utility.subscribe(OCCUPY_ASSET_QUEUE_NAME, async function(msg){
         logger.info(`${WORKER_NAME} heard ${OCCUPY_ASSET_QUEUE_NAME} event(${msg.content})`);
@@ -27,24 +29,22 @@ function listen(){
             referenceType: newOccupancyMsg.referenceType
         }
 
-        await occupancyService.occupyAsset(input);
+        occupancyService.occupyAsset(input)
+            .catch(error => {
+                logger.error(error);
+            });
     });
-
-    logger.info(`${WORKER_NAME} listenting to ${RELEASE_OCCUPANCY_QUEUE_NAME}`);
 
     utility.subscribe(RELEASE_OCCUPANCY_QUEUE_NAME, async function(msg){
         logger.info(`${WORKER_NAME} heard ${RELEASE_OCCUPANCY_QUEUE_NAME} event(${msg.content})`);
 
         let releasedOccupancyMsg = JSON.parse(msg.content);
 
-        const input = {
-            occupancyId: releasedOccupancyMsg.occupancyId
-        }
-
-        await occupancyService.releaseOccupancy(input);
+        occupancyService.releaseOccupancy({occupancyId: releasedOccupancyMsg.occupancyId})
+            .catch(error => {
+                logger.error(error)
+            });
     });
-
-    logger.info(`${WORKER_NAME} listenting to ${OCCUPANCY_CONFIRMED_QUEUE_NAME}`);
 
     utility.subscribe(OCCUPANCY_CONFIRMED_QUEUE_NAME, async function(msg){
         logger.info(`${WORKER_NAME} heard ${OCCUPANCY_CONFIRMED_QUEUE_NAME} event(${msg.content})`);
@@ -56,7 +56,10 @@ function listen(){
             status: occupancyConfirmedMsg.status
         }
 
-        await occupancyService.confirmOccupancy(input);
+        occupancyService.confirmOccupancy(input)
+            .catch(error => {
+                logger.error(error);
+            });
     });
 }
 

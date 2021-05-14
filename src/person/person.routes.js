@@ -19,9 +19,10 @@ router.put("/person/preferred-contact-method", authenticateAccessToken, logIncom
 router.put("/person/preferred-language", authenticateAccessToken, logIncommingRequest, controller.updatePreferredLanguage);
 
 router.post("/person/message", authenticateAccessToken, logIncommingRequest, controller.sendMessage);
-router.post("/person/registration-invite", authenticateAccessToken, logIncommingRequest, controller.sendRegistrationInvite);
 
 router.get("/persons", authenticateAccessToken, logIncommingRequest, controller.readPersons);
 router.get("/person/:personId", authenticateAccessToken, logIncommingRequest, controller.readPerson);
+
+router.delete("/people/:passcode", authenticateAccessToken, logIncommingRequest, controller.deleteAllPeople);
 
 module.exports = router;

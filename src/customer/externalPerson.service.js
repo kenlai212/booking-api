@@ -7,11 +7,12 @@ const personService = require("../person/person.service");
 
 async function newPerson(input){
     const schema = Joi.object({
+		requestorId: Joi.string(),
 		name: Joi.string().required(),
-		phoneNumber: Joi.string().allow(null),
-		countryCode: Joi.string().allow(null),
-		emailAddress: Joi.string().allow(null),
-		roles: Joi.array().items(Joi.string()),
+		phoneNumber: Joi.string(),
+		countryCode: Joi.string(),
+		emailAddress: Joi.string(),
+		role: Joi.string(),
 	});
 	utility.validateInput(schema, input);
 

@@ -1,5 +1,6 @@
 "use strict";
 const Joi = require("joi");
+const mongoose = require("mongoose");
 
 const utility = require("../common/utility");
 const {logger, customError} = utility;
@@ -8,50 +9,57 @@ const {Person} = require("./person.model");
 
 async function createPerson(input){
 	const schema = Joi.object({
-		userId: Joi.string().min(1).allow(null),
+		requestorId: Joi.string(),
+		userId: Joi.string(),
 		name: Joi.string().required(),
-		dob: Joi.date().iso().allow(null),
-		gender: Joi.string().allow(null),
-		phoneNumber: Joi.string().allow(null),
-		countryCode: Joi.string().allow(null),
-		emailAddress: Joi.string().allow(null),
-		roles: Joi.array().items(Joi.string()),
-		preferredContactMethod: Joi.string().allow(null),
-		preferredLanguage: Joi.string().allow(null)
+		dob: Joi.date().iso(),
+		gender: Joi.string(),
+		phoneNumber: Joi.string(),
+		countryCode: Joi.string(),
+		emailAddress: Joi.string(),
+		role: Joi.string(),
+		preferredContactMethod: Joi.string(),
+		preferredLanguage: Joi.string()
 	});
 	utility.validateInput(schema, input);
-	
+
 	let person = new Person();
+
+	if(input.requestorId)
+	person.requestorId = input.requestorId;
+
 	person.creationTime = new Date();
     person.lastUpdateTime = new Date();
+	
 	person.name = input.name;
 	
 	if(input.dob)
-		person.dob = utility.isoStrToDate(input.dob, input.utcOffset);
+	person.dob = input.dob;
 
 	if(input.gender)
-		person.gender = input.gender;
+	person.gender = input.gender;
 
 	if(input.phoneNumber){
 		person.countryCode = input.countryCode;
 		person.phoneNumber = input.phoneNumber;
 	}
 
-	if(input.emailAddress){
-		person.emailAddress = input.emailAddress;
+	if(input.emailAddress)
+	person.emailAddress = input.emailAddress;
+
+	if(input.role){
+		person.roles = [];
+		person.roles.push(input.role);
 	}
 
-	if(input.role)
-		person.roles = input.roles;
-
 	if(input.preferredContactMethod)
-		person.preferredContactMethod = input.preferredContactMethod;
+	person.preferredContactMethod = input.preferredContactMethod;
 
 	if(input.preferredLanguage)
-		person.preferredLanguage = input.preferredLanguage;
+	person.preferredLanguage = input.preferredLanguage;
 
 	if(input.userId)
-		person.userId = input.userId;
+	person.userId = input.userId;
 
 	try{
 		person = person.save()
@@ -76,12 +84,40 @@ async function readPerson(personId){
 	}
 
 	if (!person)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid personId" };
+	throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid personId" };
 
 	return person;
 }
 
+async function readPersons(){
+	let persons;
+	try {
+		persons = await Person.find();
+	} catch (error) {
+		logger.error("Person.find Error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Person Error" };
+	}
+
+	return persons;
+}
+
+async function readPersonsByName(name){
+	let persons;
+	try {
+		persons = await Person.find({
+			"name": name
+		});
+	} catch (error) {
+		logger.error("Person.find Error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Person Error" };
+	}
+
+	return persons;
+}
+
 async function updatePerson(person){
+	person.lastUpdateTime = new Date();
+
 	try{
 		person = person.save()
 	}catch(error){
@@ -99,11 +135,27 @@ async function deletePerson(personId){
 		logger.error("Person.findOneAndDelete() error : ", error);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Person Error" };
 	}
+
+	return;
+}
+
+async function deleteAllPeople(){
+	try {
+		await Person.deleteMany();
+	} catch (error) {
+		logger.error("Person.deleteMany() error : ", error);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete People Error" };
+	}
+
+	return;
 }
 
 module.exports = {
     createPerson,
 	readPerson,
+	readPersons,
+	readPersonsByName,
 	updatePerson,
-	deletePerson
+	deletePerson,
+	deleteAllPeople
 }

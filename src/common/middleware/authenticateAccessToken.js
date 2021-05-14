@@ -12,14 +12,14 @@ module.exports = function (req, res, next) {
         return res.sendStatus(401);
     }
 
-    jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, targetUser) => {
+    jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, requestor) => {
         if (err) {
             logger.error("Error while verifying accessToken, running jwt.verify()", err);
             return res.sendStatus(403);
         } else {
-            targetUser.accessToken = accessToken;
+            requestor.accessToken = accessToken;
 
-            req.user = targetUser;
+            req.requestor = requestor;
 
             next();
         }

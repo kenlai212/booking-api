@@ -210,7 +210,7 @@ async function deleteUser(input) {
 	return {status: "SUCCESS"};
 }
 
-async function resendActivationEmail(input, user) {
+async function resendActivationEmail(input) {
 	const schema = Joi.object({
 		userId: Joi
 			.string()
@@ -253,6 +253,23 @@ async function resendActivationEmail(input, user) {
 	};
 }
 
+async function deleteAllUsers(input){
+	const schema = Joi.object({
+		passcode: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	if(process.env.NODE_ENV != "development")
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot perform this function" }
+
+	if(input.passcode != process.env.GOD_PASSCODE)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
+
+	await userDomain.deleteAllUsers();
+
+	return {status: "SUCCESS"}
+}
+
 module.exports = {
 	activate,
 	updateLastLogin,
@@ -262,5 +279,6 @@ module.exports = {
 	unassignGroup,
 	deleteUser,
 	resendActivationEmail,
-	searchGroups
+	searchGroups,
+	deleteAllUsers
 }

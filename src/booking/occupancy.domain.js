@@ -59,7 +59,7 @@ async function deleteOccupancy(occupancyId){
         throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Occupancy Error" };
     }
 
-    return {status: "SUCCESS"}
+    return
 }
 
 async function updateOccupancy(occupancy){
@@ -73,9 +73,21 @@ async function updateOccupancy(occupancy){
     return occupancy;
 }
 
+async function deleteAllOccupancies(){
+	try {
+		await Occupancy.deleteMany();
+	} catch (err) {
+		logger.error("Occupancy.deleteMany() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Occupancies Error" }
+	}
+
+    return;
+}
+
 module.exports = {
 	createOccupancy,
     readOccupancy,
     deleteOccupancy,
-    updateOccupancy
+    updateOccupancy,
+    deleteAllOccupancies
 }

@@ -29,12 +29,12 @@ async function socialLogin(input){
 			throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid Profider" };
 	}
 
-	let claim = claimDomain.readClaimByProviderProfile(socialProfile.provider, socialProfile.providerUserId);
+	let claim = await claimDomain.readClaimByProviderProfile(socialProfile.provider, socialProfile.providerUserId);
 	
 	//set output object
 	const output = {
 		userId: claim.userId,
-		partyId: claim.partyId,
+		personId: claim.personId,
 		status: claim.userStatus,
 		groups: claim.groups
 	}

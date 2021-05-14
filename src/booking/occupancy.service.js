@@ -44,8 +44,26 @@ async function confirmOccupancy(input){
 	return await occupancyDomain.updateOccupancy(occupancy);
 }
 
+async function deleteAllOccupancies(input){
+	const schema = Joi.object({
+		passcode: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	if(process.env.NODE_ENV != "development")
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot perform this function" }
+
+	if(input.passcode != process.env.GOD_PASSCODE)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
+
+	await occupancyDomain.deleteAllOccupancies();
+
+	return {status: "SUCCESS"}
+}
+
 module.exports = {
 	occupyAsset,
     releaseOccupancy,
-	confirmOccupancy
+	confirmOccupancy,
+	deleteAllOccupancies
 }

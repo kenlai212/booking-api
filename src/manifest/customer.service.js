@@ -2,7 +2,7 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const {customError} = utility;
+const {logger, customError} = utility;
 
 const customerDomain = require("./customer.domain");
 
@@ -19,7 +19,11 @@ async function newCustomer(input){
 	});
 	utility.validateInput(schema, input);
 
-    return await customerDomain.newCustomer(input);
+	let customer = await customerDomain.createCustomer(input);
+
+	logger.info(`Add new ManifestCustomer(${input.customerId})`);
+
+    return customer; 
 }
 
 async function deleteCustomer(input){
@@ -28,10 +32,34 @@ async function deleteCustomer(input){
 	});
 	utility.validateInput(schema, input);
 
-    return await customerDomain.deleteCustomer(input.customerId);
+	await customerDomain.deleteCustomer(input.customerId);
+
+	logger.info(`Deleted ManifestCustomer(${input.customerId})`);
+
+    return {status: "SUCCESS"}; 
+}
+
+async function deleteAllCustomers(input){
+	const schema = Joi.object({
+		passcode: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	if(process.env.NODE_ENV != "development")
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot perform this function" }
+
+	if(input.passcode != process.env.GOD_PASSCODE)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
+
+	await customerDomain.deleteAllCustomers();
+
+	logger.info("Delete all ManifestCustomers");
+
+	return {status: "SUCCESS"}
 }
 
 module.exports = {
 	newCustomer,
-    deleteCustomer
+    deleteCustomer,
+	deleteAllCustomers
 }

@@ -12,6 +12,10 @@ router.delete("/occupancy/:occupancyId", authenticateAccessToken, logIncommingRe
 router.put("/occupancy/confirm", authenticateAccessToken, logIncommingRequest, controller.confirmOccupancy);
 
 router.get("/occupancies", authenticateAccessToken, logIncommingRequest, controller.getOccupancies);
+router.get("/occupancy/:occupancyId", authenticateAccessToken, logIncommingRequest, controller.getOccupancy);
+router.get("/occupancy/availibility", authenticateAccessToken, logIncommingRequest, controller.getOccupancies)
+
+router.delete("/occupancies/:passcode", authenticateAccessToken, logIncommingRequest, controller.deleteAllOccupancies);
 
 module.exports = router;
 

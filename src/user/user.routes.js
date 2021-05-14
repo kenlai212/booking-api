@@ -6,6 +6,7 @@ const authenticateAccessToken = require("../common/middleware/authenticateAccess
 
 const userController = require("./user.controller");
 const registrationController = require("./registration.controller");
+const personController = require("./person.controller");
 
 const router = express.Router();
 router.post("/user/social", logIncommingRequest, registrationController.invitedSocialRegister);
@@ -22,5 +23,13 @@ router.get("/user/:id", authenticateAccessToken, logIncommingRequest, userContro
 router.get("/user/social", authenticateAccessToken, logIncommingRequest, userController.findSocialUser);
 router.put("/user/activate", logIncommingRequest, userController.activate);
 router.put("/user/last-login", logIncommingRequest, userController.updateLastLogin);
+
+router.post("/user/person/registration-invite", authenticateAccessToken, logIncommingRequest, registrationController.sendRegistrationInvite);
+
+router.post("/user/person", authenticateAccessToken, logIncommingRequest, personController.newPerson);
+router.delete("/user/person/:personId", authenticateAccessToken, logIncommingRequest, personController.deletePerson);
+router.delete("/user/people/:passcode", authenticateAccessToken, logIncommingRequest, personController.deleteAllPeople);
+
+router.delete("/users/:passcode", authenticateAccessToken, logIncommingRequest, userController.deleteAllUsers);
 
 module.exports = router;

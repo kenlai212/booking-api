@@ -3,10 +3,8 @@ const mongoose = require("mongoose");
 
 const bookingSchema = new mongoose.Schema({ 
 	creationTime: Date,
-	createdBy: String,
+	requestorId: String,
 	occupancyId: String,
-	startTime: Date,
-	endTime: Date,
 	bookingType: String,
 	status: String,
 	fulfilledHours: Number
@@ -22,10 +20,16 @@ const occupancySchema = new mongoose.Schema({
 	referenceId: String
 });
 
+const customerSchema = new mongoose.Schema({
+	customerId: String
+});
+
 const Booking = mongoose.model("Booking", bookingSchema);
 const Occupancy = mongoose.model("BookingOccupancy", occupancySchema);
+const Customer = mongoose.model("BookingCustomer", customerSchema);
 
 module.exports = {
 	Booking,
-	Occupancy
+	Occupancy,
+	Customer
 }

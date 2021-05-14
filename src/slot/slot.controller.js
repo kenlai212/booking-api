@@ -9,24 +9,24 @@ const slotService = require("./slot.service");
 const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 const BOOKING_USER_GROUP = "BOOKING_USER";
 
-const slots = asyncMiddleware(async (req, res) => {
-	utility.userGroupAuthorization(req.user.groups, [
+const slots = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.requestor.groups, [
 		BOOKING_ADMIN_GROUP,
 		BOOKING_USER_GROUP
 	]);
 
 	const queryObject = url.parse(req.url, true).query;
-	return await slotService.getSlots(queryObject, req.user);
+	return await slotService.getSlots(queryObject);
 });
 
-const endSlots = asyncMiddleware(async (req, res) => {
-	utility.userGroupAuthorization(req.user.groups, [
+const endSlots = asyncMiddleware(async (req) => {
+	utility.userGroupAuthorization(req.requestor.groups, [
 		BOOKING_ADMIN_GROUP,
 		BOOKING_USER_GROUP
 	]);
 
 	const queryObject = url.parse(req.url, true).query;
-	return await slotService.getEndSlots(queryObject, req.user);
+	return await slotService.getEndSlots(queryObject);
 });
 
 module.exports = {

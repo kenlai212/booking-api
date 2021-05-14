@@ -2,6 +2,7 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
+const {logger, customError} = utility;
 
 const personDomain = require("./person.domain");
 const personHelper = require("./person.helper");
@@ -15,31 +16,33 @@ const UPDATE_PERSON_EMAILADDRESS_QUEUE_NAME = "UPDATE_PERSON_EMAILADDRESS";
 const UPDATE_PERSON_NAME_QUEUE_NAME = "UPDATE_PERSON_NAME";
 const UPDATE_PERSON_DOB_QUEUE_NAME = "UPDATE_PERSON_DOB";
 const UPDATE_PERSON_GENDER_QUEUE_NAME = "UPDATE_PERSON_GENDER";
-const SEND_SMS_QUEUE_NAME = "SEND_SMS";
-const SEND_EMAIL_QUEUE_NAME = "SEND_EMAIL";
 
 async function newPerson(input){
 	const schema = Joi.object({
-		userId: Joi.string().min(1).allow(null),
+		requestorId: Joi.string(),
+		userId: Joi.string(),
 		name: Joi.string().required(),
-		dob: Joi.date().iso().allow(null),
-		utcOffset: Joi.number().min(-12).max(14).allow(null),
-		gender: Joi.string().allow(null),
-		phoneNumber: Joi.string().allow(null),
-		countryCode: Joi.string().allow(null),
-		emailAddress: Joi.string().allow(null),
-		roles: Joi.array().items(Joi.string()),
-		preferredContactMethod: Joi.string().allow(null),
-		preferredLanguage: Joi.string().allow(null)
+		dob: Joi.date().iso(),
+		gender: Joi.string(),
+		phoneNumber: Joi.string(),
+		countryCode: Joi.string(),
+		emailAddress: Joi.string(),
+		role: Joi.string(),
+		preferredContactMethod: Joi.string(),
+		preferredLanguage: Joi.string()
 	});
 	utility.validateInput(schema, input);
-	
+
 	let createPersonInput = new Object();
+
+	if(input.requestorId)
+	createPersonInput.requestorId = input.requestorId;
+
 	createPersonInput.name = input.name;
 	
 	if(input.dob){
-		personHelper.validateDob(input.dob, input.utcOffset);
-		createPersonInput.dob = utility.isoStrToDate(input.dob, input.utcOffset);
+		personHelper.validateDob(input.dob, 0);
+		createPersonInput.dob = utility.isoStrToDate(input.dob, 0);
 	}
 
 	if(input.gender){
@@ -58,13 +61,9 @@ async function newPerson(input){
 		createPersonInput.emailAddress = input.emailAddress;
 	}
 
-	if(input.roles){
-		createPersonInput.roles = [];
-
-		input.roles.foreach(role => {
-			personHelper.validateRole(role);
-			createPersonInput.roles.push(input.role);
-		});
+	if(input.role){
+		personHelper.validateRole(input.role);
+		createPersonInput.role = input.role;
 	}
 
 	if(input.preferredContactMethod){
@@ -78,41 +77,39 @@ async function newPerson(input){
 	}
 
 	if(input.userId)
-		createPersonInput.userId = input.userId;
+	createPersonInput.userId = input.userId;
 
 	let person = await personDomain.createPerson(createPersonInput);
 
-	await utility.publishEvent(person, NEW_PERSON_QUEUE_NAME, async () => {
+	//publish new person event
+	let newPersonMsg = personHelper.personToOutputObj(person);
+
+	await utility.publishEvent(newPersonMsg, NEW_PERSON_QUEUE_NAME, async () => {
 		logger.error("rolling back new person");
 		
 		await personDomain.deletePerson(person._id);
 	});
 
-	return {
-		status: "SUCCESS",
-		message: `Published event to ${NEW_PERSON_QUEUE_NAME} queue`, 
-		eventMsg: person
-	};
+	logger.info(`Added new Person(${person._id})`);
+
+	return newPersonMsg;
 }
 
 async function deletePerson(input){
 	const schema = Joi.object({
-		personId: Joi
-			.string()
-			.min(1)
-			.required()
+		personId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
+	await utility.publishEvent({personId: input.personId}, DELETE_PERSON_QUEUE_NAME, () => {
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Person Event Error" };
+	});
+
 	await personDomain.deletePerson(input.personId);
 
-	await utility.publishEvent({personId: input.personId}, DELETE_PERSON_QUEUE_NAME, user);
+	logger.error(`Deleted Person(${input.personId})`);
 
-	return { 
-		status: "SUCCESS",
-		message: `Published event to ${DELETE_PERSON_QUEUE_NAME} queue`,
-		eventMsg: {personId: input.personId}
-	}
+	return { status: "SUCCESS"}
 }
 
 async function updateRoles(input, user){
@@ -177,11 +174,7 @@ async function updateRoles(input, user){
 		person = await personDomain.updatePerson(person);
 	});
 
-	return {
-		status : "SUCCESS",
-		message: `Published event to ${UPDATE_PERSON_ROLES_QUEUE_NAME} queue`,
-		eventMsg: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updateProfilePicture(input, user){
@@ -214,11 +207,7 @@ async function updateProfilePicture(input, user){
 		person = await personDomain.updatePerson(person);
 	});
 
-	return {
-		status : "SUCCESS",
-		message: `Published event to ${UPDATE_PERSON_PROFILE_PICTURE_QUEUE_NAME} queue`,
-		eventMsg: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updateMobile(input, user){
@@ -239,30 +228,23 @@ async function updateMobile(input, user){
 
 	let person = await personDomain.readPerson(input.personId);
 
-	//hold the old mobile, in case we need to roll back
-	const oldMobile = {...person.mobile};
+	const oldCountryCode = {...person.countryCode};
+	const oldPhoneNumber = {...person.phoneNumber};
 
-	const mobile = {
-		countryCode: input.countryCode,
-		phoneNumber: input.phoneNumber
-	}
-
-	person.mobile = mobile;
+	person.countryCode = input.countryCode;
+	person.phoneNumber = input.phoneNumber;
 
 	person = await personDomain.updatePerson(person);
 
 	utility.publishEvent(input, UPDATE_PERSON_MOBILE_QUEUE_NAME, user, async () => {
 		logger.error("rolling back edit mobile");
 		
-		person.mobile = oldMobile;
+		person.countryCode = oldCountryCode;
+		person.phoneNumber = oldPhoneNumber;
 		person = await personDomain.updatePerson(person);
 	});
 
-	return {
-		status : "SUCCESS",
-		message: `Published event to ${UPDATE_PERSON_MOBILE_QUEUE_NAME} queue`,
-		eventMsg: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updateEmailAddress(input, user){
@@ -295,11 +277,7 @@ async function updateEmailAddress(input, user){
 		person = await personDomain.updatePerson(person);
 	});
 
-	return {
-		status : "SUCCESS",
-		message: `Published event to ${UPDATE_PERSON_EMAILADDRESS_QUEUE_NAME} queue`,
-		eventMsg: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updateName(input, user){
@@ -330,11 +308,7 @@ async function updateName(input, user){
 		person = await personDomain.updatePerson(person);
 	});
 
-	return {
-		status : "SUCCESS",
-		message: `Published event to ${UPDATE_PERSON_NAME_QUEUE_NAME} queue`,
-		eventMsg: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updateDob(input, user){
@@ -363,11 +337,7 @@ async function updateDob(input, user){
 		person = await personDomain.updatePerson(person);
 	});
 
-	return {
-		status : "SUCCESS",
-		message: `Published event to ${UPDATE_PERSON_DOB_QUEUE_NAME} queue`,
-		eventMsg: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updateGender(input, user){
@@ -395,11 +365,7 @@ async function updateGender(input, user){
 		person = await personDomain.updatePerson(person);
 	});
 
-	return {
-		status : "SUCCESS",
-		message: `Published event to ${UPDATE_PERSON_GENDER_QUEUE_NAME} queue`,
-		eventMsg: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updatePreferredLanguage(input){
@@ -422,11 +388,7 @@ async function updatePreferredLanguage(input){
 
 	person = await personDomain.updatePerson(person);
 
-	return {
-		status : "SUCCESS",
-		message: `Changed preferredLanguage to ${input.language}`,
-		party: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updatePreferredContactMethod(input){
@@ -449,11 +411,7 @@ async function updatePreferredContactMethod(input){
 
 	person = await personDomain.updatePerson(person);
 
-	return {
-		status : "SUCCESS",
-		message: `Changed preferredContactMethod to ${input.contactMethod}`,
-		person: person
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function updateUserId(input){
@@ -475,56 +433,7 @@ async function updateUserId(input){
 
 	person = await personDomain.updatePerson(person);
 	
-	return {
-		status : "SUCCESS",
-		message: `Updated userId(${person.userId})`,
-		person: person
-	};
-}
-
-async function sendRegistrationInvite(input, user){
-	const schema = Joi.object({
-		personId: Joi
-			.string()
-			.required()
-	});
-	utility.validateInput(schema, input);
-
-	let person = await personDomain.readPerson(input.personId);
-
-	const contactMethod = personHelper.getContactMethod(person);
-
-	let eventQueueName;
-	let eventMsg;
-	switch(contactMethod){
-		case "SMS":
-			eventQueueName = SEND_SMS_QUEUE_NAME;
-			eventMsg = {
-				subject: "Registration Invite",
-				message: "Please click on the following link to register",
-				number: `${person.countryCode}${person.phoneNumber}`
-			}
-		break;
-		case "EMAIL":
-			eventQueueName = SEND_EMAIL_QUEUE_NAME;
-			eventMsg = {
-				subject: "Registration Invite",
-				emailBody: "Please click on the following link to register",
-				recipient: person.emailAddress,
-				sender: "admin@hebewake.com"
-			}
-		break;
-		default:
-			throw { name: customError.INTERNAL_SERVER_ERROR, message: `Bad contact method: ${contactMethod}` };
-	}
-
-	await utility.publishEvent(eventMsg, eventQueueName, user);
-
-	return {
-		status : "SUCCESS",
-		message: `Published event to ${eventQueueName} queue`,
-		eventMsg: eventMsg
-	};
+	return personHelper.personToOutputObj(person);
 }
 
 async function sendMessage(input, user){
@@ -580,6 +489,25 @@ async function sendMessage(input, user){
 	};
 }
 
+async function deleteAllPeople(input){
+	const schema = Joi.object({
+		passcode: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	if(process.env.NODE_ENV != "development")
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot perform this function" }
+
+	if(input.passcode != process.env.GOD_PASSCODE)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
+
+	await personDomain.deleteAllPeople();
+
+	logger.info("Deleted all People");
+
+	return {status: "SUCCESS"}
+}
+
 module.exports = {
 	newPerson,
 	deletePerson,
@@ -594,5 +522,5 @@ module.exports = {
 	updatePreferredLanguage,
 	updateUserId,
 	sendMessage,
-	sendRegistrationInvite
+	deleteAllPeople
 }

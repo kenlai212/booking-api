@@ -51,17 +51,6 @@ async function readOccupancy(occupancyId){
     return occupancy;
 }
 
-async function deleteOccupancy(occupancyId){
-    try{
-        await Occupancy.findOneAndDelete({occupancyId: occupancyId});
-    }catch(error){
-        logger.error("Occupancy.findOneAndDelete error : ", error);
-        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Occupancy Error" };
-    }
-
-    return {status: "SUCCESS"}
-}
-
 async function updateOccupancy(occupancy){
     try{
         occupancy = await occupancy.save();
@@ -73,9 +62,32 @@ async function updateOccupancy(occupancy){
     return occupancy;
 }
 
+async function deleteOccupancy(occupancyId){
+    try{
+        await Occupancy.findOneAndDelete({occupancyId: occupancyId});
+    }catch(error){
+        logger.error("Occupancy.findOneAndDelete error : ", error);
+        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Occupancy Error" };
+    }
+
+    return;
+}
+
+async function deleteAllOccupancies(){
+    try{
+        await Occupancy.deleteMany();
+    }catch(error){
+        logger.error("Occupancy.deleteMany error : ", error);
+        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Occupancy Error" };
+    }
+
+    return;
+}
+
 module.exports = {
 	createOccupancy,
     readOccupancy,
     deleteOccupancy,
-    updateOccupancy
+    updateOccupancy,
+    deleteAllOccupancies
 }

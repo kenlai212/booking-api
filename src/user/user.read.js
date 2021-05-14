@@ -6,7 +6,7 @@ const utility = require("../common/utility");
 const {logger, customError} = utility;
 
 const {User} = require("./user.model");
-const userObjectMapper = require("./userObjectMapper.helper");
+const userHelper = require("./user.helper");
 
 async function findUser(input) {
 	const schema = Joi.object({
@@ -39,7 +39,7 @@ async function findUser(input) {
 	if (!user)
 		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "No user found" };
 
-	return userObjectMapper.toOutputObj(user);
+	return userHelper.toOutputObj(user);
 }
 
 async function findSocialUser(input) {
@@ -70,7 +70,7 @@ async function findSocialUser(input) {
 	if (!user)
 		throw { name: customError.RESOURCE_NOT_FOUND, message: "No user found" };
 
-	return userObjectMapper.toOutputObj(user);
+	return userHelper.toOutputObj(user);
 }
 
 async function searchUsers(user) {
@@ -85,7 +85,7 @@ async function searchUsers(user) {
 
 	let outputObjs = [];
 	users.forEach(user => {
-		outputObjs.push(userObjectMapper.toOutputObj(user));
+		outputObjs.push(userHelper.toOutputObj(user));
 	});
 
 	return {

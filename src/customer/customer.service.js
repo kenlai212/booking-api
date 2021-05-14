@@ -2,7 +2,7 @@
 const Joi = require("joi");
 
 const utility = require("../common/utility");
-const {customError} = utility;
+const {logger, customError} = utility;
 
 const customerDomain = require("./customer.domain");
 const personDomain = require("./person.domain");
@@ -10,15 +10,17 @@ const customerHelper = require("./customer.helper");
 const externalPersonService = require("./externalPerson.service");
 
 const NEW_CUSTOMER_QUEUE_NAME = "NEW_CUSTOMER";
+const DELETE_CUSTOMER_QUEUE_NAME = "DELETE_CUSTOMER";
 const UPDATE_CUSTOMER_STATUS_QUEUE_NAME = "UPDATE_CUSTOMER_STATUS";
 
-async function newCustomer(input, user) {
+async function newCustomer(input) {
 	const schema = Joi.object({
+		requestorId: Joi.string(),
 		personId: Joi.string(),
-		name: Joi.string().allow(null),
-		phoneNumber: Joi.string().allow(null),
-		countryCode: Joi.string().allow(null),
-		emailAddress: Joi.string().allow(null)
+		name: Joi.string(),
+		phoneNumber: Joi.string(),
+		countryCode: Joi.string(),
+		emailAddress: Joi.string()
 	});
 	utility.validateInput(schema, input);
 
@@ -44,7 +46,12 @@ async function newCustomer(input, user) {
 	if(!person){
 		//create new person
 		let externalNewPersonInput = new Object();
+
+		if(input.requestorId)
+		externalNewPersonInput.requestorId = input.requestorId;
+
 		externalNewPersonInput.name = input.name;
+		externalNewPersonInput.role = "CUSTOMER";
 
 		if(input.phoneNumber){
 			externalNewPersonInput.countryCode = input.countryCode;
@@ -64,24 +71,25 @@ async function newCustomer(input, user) {
 	throw { name: customError.BAD_REQUEST_ERROR, message: "Customer already exist" };
 
 	const createCustomerInput = {
-		personId : input.personId,
+		requestorId: input.requestorId,
+		personId : person.personId,
 		status : "ACTIVE"
 	}
-	
-	customer = await customerDomain.createCustomer(createCustomerInput);
+
+	let customer = await customerDomain.createCustomer(createCustomerInput);
 
 	//publish NEW_CUSTOMER event
-	await utility.publishEvent(customer, NEW_CUSTOMER_QUEUE_NAME, async () => {
+	const newCustomerMsg = await customerHelper.customerToOutputObj(customer);
+
+	await utility.publishEvent(newCustomerMsg, NEW_CUSTOMER_QUEUE_NAME, async () => {
 		logger.error("rolling back new customer");
 		
-		await customerDomain.deleteCustomer(customer._id);
+		await customerDomain.deleteCustomer(newCustomerMsg.customerId);
 	});
 
-	return {
-		status: "SUCCESS",
-		message: `Published event to ${NEW_CUSTOMER_QUEUE_NAME} queue`, 
-		eventMsg: customer
-	};
+	logger.info(`Added new Customer(${newCustomerMsg.customerId})`);
+
+	return newCustomerMsg;
 }
 
 async function updateStatus(input) {
@@ -91,7 +99,7 @@ async function updateStatus(input) {
 	});
 	utility.validateInput(schema, input);
 
-	customerHelper.validateInput(input.status);
+	customerHelper.validateStatus(input.status);
 
 	let customer = await customerDomain.readCustomer(input.customerId);
 
@@ -101,38 +109,63 @@ async function updateStatus(input) {
 	customer = await customerDomain.updateCustomer(customer);
 
 	//publish UPDATE_CUSTOMER_STATUS event
-	await utility.publishEvent(customer, UPDATE_CUSTOMER_STATUS_QUEUE_NAME, async () => {
+	const updateCustomerStatusMsg = {
+		customerId: customer._id,
+		status: customer.status
+	}
+
+	await utility.publishEvent(updateCustomerStatusMsg, UPDATE_CUSTOMER_STATUS_QUEUE_NAME, async () => {
 		logger.error("rolling back update status");
 		
 		customer.status = oldStatus;
 		await customerDomain.updateCustomer(customer);
 	});
 
-	return {
-		status: "SUCCESS",
-		message: `Published event to ${UPDATE_CUSTOMER_STATUS_QUEUE_NAME} queue`, 
-		eventMsg: customer
-	};
+	return customerHelper.customerToOutputObj(customer);
 }
 
-async function updatePersonId(input){
+async function deleteCustomer(input){
 	const schema = Joi.object({
-		customerId: Joi.string().required(),
-		personId: Joi.string().required()
+		customerId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
-	let customer = await customerDomain.readCustomer(input.customerId);
+	//publish DELETE_CUSTOMER event
+	const deleteCustomerMsg = {customerId : input.customerId};
 
-	let person = await personDomain.readPerson(input.personId);
+	await utility.publishEvent(deleteCustomerMsg, DELETE_CUSTOMER_QUEUE_NAME, async () => {
+		logger.error("Publish DELETE_CUSTOMER event failed.");
+	});
 
-	customer.personId = person.personId;
+	await customerDomain.deleteCustomer(input.customerId);
 
-	return await customerDomain.updateCustomer(customer);
+	logger.info(`Deleted Customer(${input.customerId})`);
+
+	return {status:"SUCCESS"}
+}
+
+async function deleteAllCustomers(input){
+	const schema = Joi.object({
+		passcode: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	if(process.env.NODE_ENV != "development")
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot perform this function" }
+
+	if(input.passcode != process.env.GOD_PASSCODE)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
+
+	await customerDomain.deleteAllCustomers();
+
+	logger.info("Deleted all Customers");
+
+	return {status: "SUCCESS"}
 }
 
 module.exports = {
 	newCustomer,
 	updateStatus,
-	updatePersonId
+	deleteCustomer,
+	deleteAllCustomers
 }

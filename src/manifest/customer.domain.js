@@ -62,7 +62,9 @@ async function readCustomer(customerId){
     }
 
     if(!customer)
-        throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid customerId" };
+    throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid customerId" };
+
+    return customer;
 }
 
 async function deleteCustomer(customerId){
@@ -73,11 +75,23 @@ async function deleteCustomer(customerId){
         throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Customer Error" };
     }
 
-    return {status: "SUCCESS"}
+    return;
+}
+
+async function deleteAllCustomers(){
+    try{
+        await Customer.deleteMany();
+    }catch(error){
+        logger.error("Customer.deleteMany error : ", error);
+        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Customer Error" };
+    }
+
+    return;
 }
 
 module.exports = {
 	createCustomer,
     readCustomer,
-    deleteCustomer
+    deleteCustomer,
+    deleteAllCustomers
 }

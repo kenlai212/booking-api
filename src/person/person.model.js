@@ -3,14 +3,13 @@ const mongoose = require("mongoose");
 
 const personSchema = new mongoose.Schema({
 	creationTime: Date,
+	requestorId: String,
 	lastUpdateTime: Date,
 	name: String,
 	dob: Date,
 	gender: String,
-	mobile: {
-		countryCode: String,
-		phoneNumber: String
-	},
+	countryCode: String,
+	phoneNumber: String,
 	emailAddresses: String,
 	profilePictureUrl: String,
 	roles: [String],

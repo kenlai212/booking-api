@@ -2,6 +2,9 @@
 const mongoose = require("mongoose");
 
 const customerSchema = new mongoose.Schema({
+	creationTime: Date,
+	lastUpdateTime: Date,
+	requestorId: String,
 	personId: String,
 	status: String
 });

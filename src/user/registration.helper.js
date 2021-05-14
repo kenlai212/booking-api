@@ -1,4 +1,4 @@
-
+"use strict";
 const {OAuth2Client} = require("google-auth-library");
 const axios = require("axios");
 
@@ -82,6 +82,5 @@ class SocialProfile{
 module.exports = {
 	validateProvider,
     getSocialProfileFromFacebook,
-    getSocialProfileFromGoogle,
-    SocialProfile
+    getSocialProfileFromGoogle
 }

@@ -13,8 +13,22 @@ const userSchema = new mongoose.Schema({
 	lastLoginTime: Date
 });
 
+const personSchema = new mongoose.Schema({
+	personId: String,
+	name: String,
+	dob: Date,
+	gender: String,
+	countryCode: String,
+	phoneNumber: String,
+	emailAddresses: String,
+	profilePictureUrl: String,
+	roles: [String],
+});
+
 const User = mongoose.model("User", userSchema);
+const Person = mongoose.model("UserPerson", personSchema);
 
 module.exports = {
-	User
+	User,
+	Person
 }

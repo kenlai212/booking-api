@@ -6,6 +6,7 @@ const {logger, customError} = utility;
 
 const bookingDomain = require("./booking.domain");
 const bookingHelper = require("./booking.helper");
+const externalOccupancyHelper = require("./externalOccupancy.helper");
 
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
@@ -17,29 +18,41 @@ const CANCEL_BOOKING_QUEUE_NAME = "CANCEL_BOOKING";
 
 async function newBooking(input) {
 	const schema = Joi.object({
-		occupancyId: Joi.string().required(),
+		startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
+		assetId: Joi.string().required(),
 		bookingType: Joi.string().required(),
 		customerId: Joi.string().required(),
-		requestor: Joi.object().required()
+		requestorId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
 	bookingHelper.validateBookingType(input.bookingType);
-	
-	//TODO validate if this user can preform this booking type
 
-	let occupancy = await bookingHelper.validateOccupancyId(input.occupancyId);
+	bookingHelper.validateAssetId(input.assetId);
 
-	if(occupancy.status != "AWAITING_CONFIRMATION")
-    throw { name: customError.BAD_REQUEST_ERROR, message: "Occupancy record not available" };
-	
+	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
+	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
+	bookingHelper.validateBookingTime(startTime, endTime);
+
+	//save occupancy
+	const newOccupancyInput = {
+		startTime: startTime,
+		endTime: endTime,
+		utcOffset: 0,
+		assetId: input.assetId,
+		referenceType: "BOOKING"
+	}
+
+	let occupancy = await externalOccupancyHelper.occupyAsset(newOccupancyInput);
+
 	//save booking to db
 	let createBookingInput = new Object();
-	createBookingInput.occupancyId = input.occupancyId;
-	createBookingInput.startTime = occupancy.startTime;
-	createBookingInput.endTime = occupancy.endTime;
+	createBookingInput.occupancyId = occupancy.occupancyId;
 	createBookingInput.bookingType = input.bookingType;
-	createBookingInput.createdBy = input.requestor.id;
+	createBookingInput.requestorId = input.requestorId;
+	createBookingInput.customerId = input.customerId;
 	createBookingInput.status = AWAITING_CONFIRMATION_STATUS;
 	
 	let booking = await bookingDomain.createBooking(createBookingInput);
@@ -60,14 +73,12 @@ async function newBooking(input) {
 		await bookingDomain.deleteBooking(booking._id);
 	});
 
-	return {
-		status: "SUCCESS",
-		message: `Published event to ${NEW_BOOKING_QUEUE_NAME} queue`,
-		eventMsg: eventMessage
-	};
+	logger.info(`Added new Booking(${booking._id})`);
+
+	return bookingHelper.bookingToOutputObj(booking);
 }
 
-async function confirmBooking(input, user){
+async function confirmBooking(input){
 	const schema = Joi.object({
 		bookingId: Joi.string().min(1).required()
 	});
@@ -79,12 +90,14 @@ async function confirmBooking(input, user){
 
 	booking = await bookingDomain.updateBooking(booking);
 
-	return booking;
+	logger.info(`Confirmed Booking(${booking._id})`);
+
+	return bookingHelper.bookingToOutputObj(booking);
 }
 
 async function fulfillBooking(input) {
 	const schema = Joi.object({
-		bookingId: Joi.string().min(1).required(),
+		bookingId: Joi.string().required(),
 		fulfilledHours: Joi.number().min(0.5).required()
 	});
 	utility.validateInput(schema, input);
@@ -103,10 +116,14 @@ async function fulfillBooking(input) {
 	booking.fulfilledHours = input.fulfilledHours;
 	booking.status = FULFILLED_STATUS;
 
-	return await bookingDomain.updateBooking(booking);
+	booking = await bookingDomain.updateBooking(booking);
+
+	logger.info(`Fulfilled Booking(${booking._id})`);
+
+	return bookingHelper.bookingToOutputObj(booking);
 }
 
-async function cancelBooking(input, user) {
+async function cancelBooking(input) {
 	const schema = Joi.object({
 		bookingId: Joi.string().min(1).required()
 	});
@@ -134,16 +151,32 @@ async function cancelBooking(input, user) {
 		await bookingDomain.updateBooking(booking);
 	});
 
-	return {
-		status: "SUCCESS",
-		message: `Published event to ${CANCEL_BOOKING_QUEUE_NAME} queue`,
-		eventMsg: {bookingId: booking._id, occupancyId: booking.occupancyId} 
-	};
+	logger.info(`Cancelled Booking(${booking._id})`);
+
+	return bookingHelper.bookingToOutputObj(booking);
+}
+
+async function deleteAllBookings(input){
+	const schema = Joi.object({
+		passcode: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	if(process.env.NODE_ENV != "development")
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot perform this function" }
+
+	if(input.passcode != process.env.GOD_PASSCODE)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
+
+	await bookingDomain.deleteAllBookings();
+
+	return {status: "SUCCESS"}
 }
 
 module.exports = {
 	newBooking,
 	confirmBooking,
 	fulfillBooking,
-	cancelBooking
+	cancelBooking,
+	deleteAllBookings
 }

@@ -1,11 +1,6 @@
 "use strict";
-const mongoose = require("mongoose");
-const moment = require("moment");
-
 const utility = require("../common/utility");
-const {logger, customError} = utility;
-
-const {Person} = require("./person.model");
+const {customError} = utility;
 
 function validateGender(gender){
 	const validGender = [
@@ -93,45 +88,42 @@ function validateRole(role){
 
 function personToOutputObj(person){
     let outputObj = new Object();
-	outputObj.id = person._id.toString();
+	outputObj.personId = person._id.toString();
+	outputObj.requestorId = person.requestorId;
 	outputObj.creationTime = person.creationTime;
 	outputObj.lastUpdateTime = person.lastUpdateTime;
 
-	if(person.userId){
-		outputObj.userId = person.userId;
-	}
+	if(person.userId)
+	outputObj.userId = person.userId;
 	
-	if(person.name){
-		outputObj.name = person.name;
-	}
+	if(person.name)
+	outputObj.name = person.name;
 	
-	if(person.dob){
-		outputObj.dob = peerson.dob;
-	}
+	if(person.dob)
+	outputObj.dob = person.dob;
 
-	if(person.gender){
-		outputObj.gender = peerson.gender;
-	}
+	if(person.gender)
+	outputObj.gender = person.gender;
 
-	if(person.emailAddress){
-		outputObj.emailAddress = peerson.emailAddress;
-	}
+	if(person.emailAddress)
+	outputObj.emailAddress = person.emailAddress;
 
 	if(person.phoneNumber){
 		outputObj.countryCode = person.countryCode;
 		outputObj.phoneNumber = person.phoneNumber;
 	}
 
-	if(person.roles && person.roles.length > 0)
-		outputObj.roles = person.roles;
+	if(person.profilePictureUrl)
+	outputObj.profilePictureUrl = person.profilePictureUrl;
 
-	if(person.preferredContactMethod){
-		outputObj.preferredContactMethod = person.preferredContactMethod;
-	}
+	if(person.roles && person.roles.length > 0)
+	outputObj.roles = person.roles;
+
+	if(person.preferredContactMethod)
+	outputObj.preferredContactMethod = person.preferredContactMethod;
 	
-	if(person.preferredLanguage){
-		outputObj.preferredLanguage = person.preferredLanguage;
-	}
+	if(person.preferredLanguage)
+	outputObj.preferredLanguage = person.preferredLanguage;
 	
     return outputObj;
 }

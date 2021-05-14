@@ -13,7 +13,7 @@ async function createUser(input){
 		status: Joi.string().required(),
 		provider: Joi.string(),
 		providerToken: Joi.string(),
-		partyId: Joi.string().required()
+		personId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
@@ -21,7 +21,7 @@ async function createUser(input){
 	user.registrationTime = input.registrationTime;
 	user.activationKey = input.activationKey;
 	user.status = iput.status;
-	user.partyId = input.partyId;
+	user.personId = input.personId;
 
 	if(input.provider)
 		user.provider = input.provider;
@@ -86,10 +86,10 @@ async function readUserBySocialProfile(provider, providerUserId){
 
 }
 
-async function readUserByPartyId(partyId){
+async function readUserByPersonId(partyId){
 	let user;
 	try {
-		user = await User.findOne({"partyId": partyId});
+		user = await User.findOne({"personId": personId});
 	} catch (err) {
 		logger.error("User.findOne Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find User Error" };
@@ -113,8 +113,17 @@ async function deleteUser(userId){
 	try {
 		await User.findByIdAndDelete(userId);
 	} catch (err) {
-		logger.error("user.save Error : ", err);
-		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Save User Error" };
+		logger.error("User.findByIdAndDeleteError : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete User Error" };
+	}
+}
+
+async function deleteAllUsers(){
+	try {
+		await User.deleteMany();
+	} catch (err) {
+		logger.error("User.deleteMany Error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Users Error" };
 	}
 }
 
@@ -123,7 +132,8 @@ module.exports = {
 	readUser,
     readUserByActivationKey,
     readUserBySocialProfile,
-	readUserByPartyId,
+	readUserByPersonId,
     updateUser,
-	deleteUser
+	deleteUser,
+	deleteAllUsers
 }

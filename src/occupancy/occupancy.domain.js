@@ -83,6 +83,8 @@ async function deleteOccupancy(occupancyId){
 		logger.error("Occupancy.findByIdAndDelete() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Occupancy Error" }
 	}
+
+	return
 }
 
 async function deleteAllOccupancies(){
@@ -92,6 +94,8 @@ async function deleteAllOccupancies(){
 		logger.error("Occupancy.deleteMany() error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Occupancies Error" }
 	}
+
+	return
 }
 
 module.exports = {

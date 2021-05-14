@@ -14,35 +14,9 @@ const OCCUPY_ASSET_QUEUE_NAME = "OCCUPY_ASSET";
 const RELEASE_OCCUPANCY_QUEUE_NAME = "RELEASE_OCCUPANCY";
 const OCCUPANCY_CONFIRMED_QUEUE_NAME = "OCCUPANCY_CONFIRMED";
 
-async function checkAvailability(input){
-	const schema = Joi.object({
-		startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
-		utcOffset: Joi.number().min(-12).max(14).required(),
-		assetId: Joi.string().required(),
-		bookingType: Joi.string().required()
-	});
-	utility.validateInput(schema, input);
-
-	occupancyHelper.validateAssetId(input.assetId);
-
-	occupancyHelper.validateBookingType(input.bookingType);
-
-	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
-	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
-
-	occupancyHelper.validateOccupancyTime(startTime, endTime);
-
-	const isAvailable = await occupancyHelper.checkAvailability(startTime, endTime);
-
-	return {isAvailable: isAvailable}
-}
-
 async function releaseOccupancy(input) {
 	const schema = Joi.object({
-		occupancyId: Joi
-			.string()
-			.required()
+		occupancyId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
@@ -54,11 +28,9 @@ async function releaseOccupancy(input) {
 	//delete from db
 	await occupancyDomain.deleteOccupancy(occupancy._id);
 
-	return {
-		status: "SUCCESS",
-		message: `Published event to ${RELEASE_OCCUPANCY_QUEUE_NAME} queue`,
-		eventMsg: input
-	};
+	logger.info(`Released Occupancy(${input.occupancyId})`);
+
+	return {status: "SUCCESS"}
 }
 
 async function occupyAsset(input) {
@@ -78,11 +50,9 @@ async function occupyAsset(input) {
 	const startTime = utility.isoStrToDate(input.startTime, input.utcOffset);
 	const endTime = utility.isoStrToDate(input.endTime, input.utcOffset);
 
-	occupancyHelper.validateOccupancyTime(startTime, endTime, input.bookingType);
+	occupancyHelper.validateOccupancyTime(startTime, endTime);
 
-	const occupancies = await occupancyDomain.readOccupancies(startTime, endTime, input.assetId);
-
-	const isAvailable = await occupancyHelper.checkAvailability(startTime, endTime, occupancies);
+	const isAvailable = await occupancyHelper.checkAvailability(startTime, endTime, input.assetId);
 
 	if (!isAvailable)
 	throw { name: customError.BAD_REQUEST_ERROR, message: "Timeslot not available" };
@@ -115,16 +85,15 @@ async function occupyAsset(input) {
 		await occupancyDomain.deleteOccupancy(occupancy._id);
 	});
 
-	return {
-		status: "SUCCESS",
-		message: `Published event to ${OCCUPY_ASSET_QUEUE_NAME} queue`,
-		eventMsg: eventMsg
-	};
+	logger.info(`Occupied Asset - Occupancy(${occupancy._id})`);
+	
+	return occupancyHelper.occupancyToOutputObj(occupancy);
 }
 
 async function confirmOccupancy(input){
 	const schema = Joi.object({
 		occupancyId: Joi.string().required(),
+		referenceType: Joi.string().required(),
 		referenceId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
@@ -133,6 +102,9 @@ async function confirmOccupancy(input){
 
 	if(occupancy.status === CONFIRMED_STATUS)
 	throw { name: customError.BAD_REQUEST_ERROR, message: "Occupancy already confirmed" };
+
+	if(input.referenceType != occupancy.referenceType)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid referencyType" };
 
 	const oldStatus = {...occupancy.status};
 
@@ -147,7 +119,7 @@ async function confirmOccupancy(input){
 		status: occupancy.status
 	}
 
-	await utility.publishEvent(eventMsg, OCCUPANCY_CONFIRMED_QUEUE_NAME, null, async () => {
+	await utility.publishEvent(eventMsg, OCCUPANCY_CONFIRMED_QUEUE_NAME, async () => {
 		logger.error("rolling back confirmOccupancy");
 		
 		occupancy.status = oldStatus;
@@ -155,11 +127,9 @@ async function confirmOccupancy(input){
 		await occupancyDomain.updateOccupancy(occupancy);
 	});
 
-	return {
-		status: "SUCCESS",
-		message: `Published event to ${OCCUPANCY_CONFIRMED_QUEUE_NAME} queue`,
-		eventMsg: eventMsg
-	};
+	logger.info(`Confirmed Occupancy(${occupancy._id})`);
+
+	return occupancyHelper.occupancyToOutputObj(occupancy);
 }
 
 async function deleteAllOccupancies(input){
@@ -168,16 +138,22 @@ async function deleteAllOccupancies(input){
 	});
 	utility.validateInput(schema, input);
 
-	if(input.passcode != process.env.GOD_PASSCODE)
-	throw { name: customError.INTERNAL_SERVER_ERROR, message: "You are not GOD" }
+	if(process.env.NODE_ENV != "development")
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot perform this function" }
 
-	return await occupancyDomain.deleteAllOccupancies();
+	if(input.passcode != process.env.GOD_PASSCODE)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
+
+	await occupancyDomain.deleteAllOccupancies();
+
+	logger.info("Deleted all occupancies");
+
+	return {status: "SUCCESS"}
 }
 
 module.exports = {
 	occupyAsset,
 	releaseOccupancy,
 	confirmOccupancy,
-	checkAvailability,
 	deleteAllOccupancies
 }

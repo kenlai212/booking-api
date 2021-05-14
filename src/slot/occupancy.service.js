@@ -6,7 +6,7 @@ const {logger, customError} = utility;
 
 const occupancyDomain = require("./occupancy.domain");
 
-async function occupyAsset(input){
+async function newOccupancy(input){
     const schema = Joi.object({
 		occupancyId: Joi.string().required(),
         startTime: Joi.date().iso().required(),
@@ -18,16 +18,24 @@ async function occupyAsset(input){
 	});
 	utility.validateInput(schema, input);
 
-    return await occupancyDomain.createOccupancy(input);
+	const occupancy = await occupancyDomain.createOccupancy(input);
+
+	logger.info(`Added new SlotOccupancy(${occupancy.occupancyId})`);
+
+    return occupancy; 
 }
 
-async function releaseOccupancy(input){
+async function deleteOccupancy(input){
     const schema = Joi.object({
 		occupancyId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 
-    return await occupancyDomain.deleteOccupancy(input.occupancyId);
+    await occupancyDomain.deleteOccupancy(input.occupancyId);
+
+	logger.info(`Released SlotOccupancy(${input.occupancyId})`);
+
+	return {status: "SUCCESS"}
 }
 
 async function confirmOccupancy(input){
@@ -41,11 +49,35 @@ async function confirmOccupancy(input){
 
 	occupancy.status = input.status;
 
-	return await occupancyDomain.updateOccupancy(occupancy);
+	occupancy = await occupancyDomain.updateOccupancy(occupancy);
+
+	logger.info(`Confirmed SlotOccupancy(${input.occupancyId})`);
+
+	return occupancy;
+}
+
+async function deleteAllOccupancies(input){
+	const schema = Joi.object({
+		passcode: Joi.string().required()
+	});
+	utility.validateInput(schema, input);
+
+	if(process.env.NODE_ENV != "development")
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot perform this function" }
+
+	if(input.passcode != process.env.GOD_PASSCODE)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
+
+	await occupancyDomain.deleteAllOccupancies();
+
+	logger.info("Deleted all SlotOccupancies");
+
+	return {status: "SUCCESS"}
 }
 
 module.exports = {
-	occupyAsset,
-    releaseOccupancy,
-	confirmOccupancy
+	newOccupancy,
+    deleteOccupancy,
+	confirmOccupancy,
+	deleteAllOccupancies
 }
