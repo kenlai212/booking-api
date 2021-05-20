@@ -6,6 +6,7 @@ const authenticateAccessToken = require("../common/middleware/authenticateAccess
 
 const bookingController = require("./booking.controller");
 const customerController = require("./customer.controller");
+const bookingHistoryController = require("./bookingHistory.controller");
 
 const router = express.Router();
 router.post("/booking", authenticateAccessToken, logIncommingRequest, bookingController.newBooking);
@@ -20,5 +21,9 @@ router.delete("/bookings/:passcode", authenticateAccessToken, logIncommingReques
 
 router.post("/booking/customer", authenticateAccessToken, logIncommingRequest, customerController.newCustomer);
 router.delete("/booking/customers/:passcode", authenticateAccessToken, logIncommingRequest, customerController.deleteAllCustomers);
+
+router.post("/booking/history", authenticateAccessToken, logIncommingRequest, bookingHistoryController.newBookingHistory);
+router.get("/booking/history/:bookingId", authenticateAccessToken, logIncommingRequest, bookingHistoryController.findBookingHistory);
+router.delete("/booking/histories/:passcode", authenticateAccessToken, logIncommingRequest, bookingHistoryController.deleteAllBookingHistories);
 
 module.exports = router;

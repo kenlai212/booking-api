@@ -1,13 +1,16 @@
 "use strict";
-const url = require("url");
-
 const asyncMiddleware = require("../common/middleware/asyncMiddleware");
 const authService = require("./authentication.service");
 
-const socialLogin = asyncMiddleware(async (req) => {
-	return await authService.socialLogin(req.body);
+const login = asyncMiddleware(async (req) => {
+	return await authService.login(req.body);
+});
+
+const register = asyncMiddleware(async (req) => {
+	return await authService.register(req.body);
 });
 
 module.exports = {
-	socialLogin
+	login,
+	register
 }

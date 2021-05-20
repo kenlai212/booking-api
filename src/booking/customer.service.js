@@ -12,7 +12,11 @@ async function newCustomer(input){
 	});
 	utility.validateInput(schema, input);
 
-    return await customerDomain.createCustomer(input);
+	const customer = await customerDomain.createCustomer(input);
+	
+	logger.info(`Added new BookingCustomer(customerId: ${customer.customerId})`);
+
+    return customer; 
 }
 
 async function deleteCustomer(input){

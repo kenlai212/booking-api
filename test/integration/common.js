@@ -5,6 +5,7 @@ function getAccessToken() {
 		id: "BOOKING_SYSTEM",
 		name: "Booking API System User",
 		groups: [
+			"AUTHENTICATION_ADMIN",
 			"BOOKING_ADMIN",
 			"PRICING_USER",
 			"OCCUPANCY_ADMIN",

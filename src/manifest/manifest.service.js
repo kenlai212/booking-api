@@ -53,20 +53,15 @@ async function removeGuest(input) {
 	}
 	
 	if (!guestFound)
-		throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Guest not found" };
+	throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Guest not found" };
 	
 	return await manifestDomain.updateManifest(manifest);
 }
 
 async function addGuest(input) {
 	const schema = Joi.object({
-		bookingId: Joi
-			.string()
-			.required(),
-		customerId: Joi
-			.string()
-			.min(1)
-			.required()
+		bookingId: Joi.string().required(),
+		customerId: Joi.string().required()
 	});
 	utility.validateInput(schema, input);
 

@@ -10,6 +10,15 @@ const bookingSchema = new mongoose.Schema({
 	fulfilledHours: Number
 });
 
+const bookingHistorySchema = new mongoose.Schema({
+	bookingId: String,
+	history:[{
+		event: String,
+		eventTime: Date,
+		requestorId: String
+	}]
+});
+
 const occupancySchema = new mongoose.Schema({
 	occupancyId: String,
 	startTime: Date,
@@ -25,11 +34,13 @@ const customerSchema = new mongoose.Schema({
 });
 
 const Booking = mongoose.model("Booking", bookingSchema);
+const BookingHistory = mongoose.model("BookingHistory", bookingHistorySchema);
 const Occupancy = mongoose.model("BookingOccupancy", occupancySchema);
 const Customer = mongoose.model("BookingCustomer", customerSchema);
 
 module.exports = {
 	Booking,
+	BookingHistory,
 	Occupancy,
 	Customer
 }
