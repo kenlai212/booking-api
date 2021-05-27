@@ -64,6 +64,7 @@ async function newCredentials(input){
 
 async function readCredentials(input){
     const schema = Joi.object({
+        userId: Joi.string(),
 		provider: Joi.string(),
         providerUserId: Joi.string(),
         loginId: Joi.string(),
@@ -72,7 +73,9 @@ async function readCredentials(input){
 	utility.validateInput(schema, input);
 
     let credentials;
-    if(input.providerUserId){
+    if(input.userId){
+        credentials = await credentialsDomain.readCredentials(input.userId);
+    }else if(input.providerUserId){
         credentials = await credentialsDomain.readCredentialsByProviderUserId(input.provider, input.providerUserId);
     }else if(input.loginId){
         credentials = await credentialsDomain.readCredentialsByLoginId(input.loginId, input.password);

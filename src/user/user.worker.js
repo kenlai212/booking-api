@@ -18,13 +18,7 @@ function listen(){
 
         const newPersonInput = {
             personId: newPersonMsg.personId,
-            name: newPersonMsg.name,
-            dob: newPersonMsg.dob,
-            gender: newPersonMsg.gernder,
-            phoneNumber: newPersonMsg.phoneNumber,
-            countryCode: newPersonMsg.countryCode,
-            emailAddress: newPersonMsg.emailAddress,
-            profilePictureUrl: newPersonMsg.profilePictureUrl
+            roles: newPersonMsg.roles
         };
 
         await personService.newPerson(newPersonInput);

@@ -1,5 +1,6 @@
 "use strict";
 const Joi = require("joi");
+const mongoose = require("mongoose");
 
 const utility = require("../common/utility");
 const {logger, customError} = utility;
@@ -9,7 +10,7 @@ const {User} = require("./user.model");
 async function createUser(input){
 	const schema = Joi.object({
 		registrationTime: Joi.date().iso().required(),
-		activationKey: Joi.string.require(),
+		activationKey: Joi.string().required(),
 		status: Joi.string().required(),
 		provider: Joi.string(),
 		providerToken: Joi.string(),
@@ -20,7 +21,7 @@ async function createUser(input){
 	let user = new User();
 	user.registrationTime = input.registrationTime;
 	user.activationKey = input.activationKey;
-	user.status = iput.status;
+	user.status = input.status;
 	user.personId = input.personId;
 
 	if(input.provider)
@@ -40,6 +41,9 @@ async function createUser(input){
 }
 
 async function readUser(userId){
+	if (mongoose.Types.ObjectId.isValid(userId) == false)
+	throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid id" };
+
     let user;
 	try {
 		user = await User.findById(userId);
@@ -49,7 +53,7 @@ async function readUser(userId){
 	}
 
 	if (!user)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userId" };
+	throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid userId" };
 
     return user;
 }
@@ -64,7 +68,7 @@ async function readUserByActivationKey(activationKey){
 	}
 
 	if (!user)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid activationKey" };
+	throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid activationKey" };
 
     return user;
 }
@@ -82,11 +86,14 @@ async function readUserBySocialProfile(provider, providerUserId){
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find User Error" };
 	}
 
+	if (!user)
+	throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid providerUserId" };
+
     return user;
 
 }
 
-async function readUserByPersonId(partyId){
+async function readUserByPersonId(personId){
 	let user;
 	try {
 		user = await User.findOne({"personId": personId});
@@ -95,7 +102,22 @@ async function readUserByPersonId(partyId){
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find User Error" };
 	}
 
+	if (!user)
+	throw { name: customError.RESOURCE_NOT_FOUND_ERROR, message: "Invalid personId" };
+
     return user;
+}
+
+async function readUsers(criteria){
+	let users;
+	try {
+		users = await User.find(criteria);
+	} catch (err) {
+		logger.error("User.find() error : ", err);
+		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Internal Server Error" };
+	}
+
+	return users;
 }
 
 async function updateUser(user){
@@ -116,6 +138,8 @@ async function deleteUser(userId){
 		logger.error("User.findByIdAndDeleteError : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete User Error" };
 	}
+
+	return;
 }
 
 async function deleteAllUsers(){
@@ -125,6 +149,8 @@ async function deleteAllUsers(){
 		logger.error("User.deleteMany Error : ", err);
 		throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete Users Error" };
 	}
+
+	return;
 }
 
 module.exports = {
@@ -133,6 +159,7 @@ module.exports = {
     readUserByActivationKey,
     readUserBySocialProfile,
 	readUserByPersonId,
+	readUsers,
     updateUser,
 	deleteUser,
 	deleteAllUsers

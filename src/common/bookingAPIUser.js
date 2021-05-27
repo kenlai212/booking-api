@@ -4,8 +4,7 @@ const utility = require("./utility");
 const {logger} = utility;
 
 const userObject = {
-	id: "BOOKING_SYSTEM",
-	name: "Booking API System User",
+	userId: "BOOKING_SYSTEM",
 	groups: [
 		"AUTHENTICATION_ADMIN",
 		"BOOKING_ADMIN",

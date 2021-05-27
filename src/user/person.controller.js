@@ -12,6 +12,12 @@ const newPerson = asyncMiddleware(async (req) => {
 	return await personService.newPerson(req.body);
 });
 
+const getPerson = asyncMiddleware(async (req) => {
+    utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
+
+	return await personService.getPerson(req.params);
+});
+
 const deletePerson = asyncMiddleware(async (req) => {
     utility.userGroupAuthorization(req.requestor.groups, [USER_ADMIN_GROUP]);
 
@@ -26,6 +32,7 @@ const deleteAllPeople = asyncMiddleware(async (req) => {
 
 module.exports = {
 	newPerson,
+	getPerson,
 	deletePerson,
 	deleteAllPeople
 }

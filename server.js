@@ -26,6 +26,7 @@ const slotWorker = require("./src/slot/slot.worker");
 const customerWorker = require("./src/customer/customer.worker");
 const manifestWorker = require("./src/manifest/manifest.worker");
 const userWorker = require("./src/user/user.worker");
+const authenticationWorker = require("./src/authentication/authentication.worker");
 
 const app = express();
 app.use(cors());
@@ -83,6 +84,7 @@ bookingWorker.listen();
 slotWorker.listen();
 customerWorker.listen();
 manifestWorker.listen();
-//userWorker.listen();
+userWorker.listen();
+authenticationWorker.listen();
 
 //module.exports = app;

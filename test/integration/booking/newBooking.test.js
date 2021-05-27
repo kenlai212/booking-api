@@ -60,7 +60,7 @@ describe('Test post booking api', () => {
         }catch(error){
             console.log(error);
         }
-console.log(getBookingHistoryResponse.data);
+
         expect(getBookingHistoryResponse.data.bookingId).toEqual(postBookingResponse.data.bookingId);
         expect(getBookingHistoryResponse.data.history.length).toEqual(1);
         expect(getBookingHistoryResponse.data.history[0].event).toEqual("New Booking");

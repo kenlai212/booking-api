@@ -8,18 +8,26 @@ module.exports = function (req, res, next) {
     const authHeader = req.headers["authorization"];
     const accessToken = authHeader && authHeader.split(" ")[1];
 
-    if (accessToken == null) {
+    if (!accessToken) {
         return res.sendStatus(401);
     }
 
-    jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, requestor) => {
+    jwt.verify(accessToken, process.env.ACCESS_TOKEN_SECRET, (err, claim) => {
         if (err) {
             logger.error("Error while verifying accessToken, running jwt.verify()", err);
             return res.sendStatus(403);
         } else {
-            requestor.accessToken = accessToken;
+            if(!claim.userId){
+                logger.error("Access token missing userId");
+                return res.sendStatus(403);
+            }
 
-            req.requestor = requestor;
+            if(!claim.groups){
+                logger.error("Access token missing groups");
+                return res.sendStatus(403);
+            }
+
+            req.requestor = claim;
 
             next();
         }

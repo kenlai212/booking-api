@@ -3,11 +3,17 @@ const {logger} = utility;
 
 const claimService = require("./claim.service");
 
+const WORKER_NAME = "AuthenticationWorker";
+
 const NEW_USER_QUEUE_NAME = "NEW_USER";
 const USER_STATUS_CHANGED_QUEUE_NAME = "USER_STATUS_CHANGED";
 const USER_GROUPS_CHANGED_QUEUE_NAME = "USER_GROUPS_CHANGED";
 
 function listen(){
+    logger.info(`${WORKER_NAME} listenting to ${NEW_USER_QUEUE_NAME}`);
+    logger.info(`${WORKER_NAME} listenting to ${USER_STATUS_CHANGED_QUEUE_NAME}`);
+    logger.info(`${WORKER_NAME} listenting to ${USER_GROUPS_CHANGED_QUEUE_NAME}`);
+
     utility.subscribe(NEW_USER_QUEUE_NAME, async function(msg){
         logger.info(`Heard ${NEW_USER_QUEUE_NAME} event(${msg})`);
 
@@ -17,10 +23,9 @@ function listen(){
         const input = {
             userId: user._id,
 		    personId: user.personId,
-            provider: user.provider,
-            providerUserId: user.providerUserId,
             userStatus: user.status,
-            groups: user.groups
+            groups: user.groups,
+            roles: user.roles
         }
         
         await claimService.newClaim(input);

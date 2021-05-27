@@ -3,7 +3,7 @@ const utility = require("../common/utility");
 const {customError} = utility;
 
 function validateUserStatus(userStatus){
-    const validUserStatuses = ["ACTIVE", "INACTIVE"]
+    const validUserStatuses = ["ACTIVE", "INACTIVE", "AWAITING_ACTIVATION"]
 
     if(!validUserStatuses.includes(userStatus))
     throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid userStatus" };

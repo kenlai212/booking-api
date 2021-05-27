@@ -438,17 +438,9 @@ async function updateUserId(input){
 
 async function sendMessage(input, user){
 	const schema = Joi.object({
-		personId: Joi
-			.string()
-			.required(),
-		body: Joi
-			.string()
-			.min(1)
-			.required(),
-		title: Joi
-			.string()
-			.min(1)
-			.required()
+		personId: Joi.string().required(),
+		body: Joi.string().min(1).required(),
+		title: Joi.string().min(1).required()
 	});
 	utility.validateInput(schema, input);
 

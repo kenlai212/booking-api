@@ -2,26 +2,17 @@
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
-	userType: String,
 	provider: String,
 	providerUserId: String,
 	personId: String,
 	status: String,
 	registrationTime: Date,
 	activationKey: String,
-	groups: [{ type: String }],
-	lastLoginTime: Date
+	groups: [{ type: String }]
 });
 
 const personSchema = new mongoose.Schema({
 	personId: String,
-	name: String,
-	dob: Date,
-	gender: String,
-	countryCode: String,
-	phoneNumber: String,
-	emailAddresses: String,
-	profilePictureUrl: String,
 	roles: [String],
 });
 

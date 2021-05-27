@@ -40,6 +40,18 @@ async function createCredentials(input){
     return credentials;
 }
 
+async function readCredentials(userId){
+    let credentials;
+    try{
+        credentials = await Credentials.findOne({userId: userId});
+    }catch(error){
+        logger.error("Credentials.findOne error : ", error);
+        throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find Credentials Error" };
+    }
+
+    return credentials;
+}
+
 async function readCredentialsByProviderUserId(provider, providerUserId){
     let credentials;
     try{
@@ -88,6 +100,7 @@ async function deleteAllCredentialses(){
 
 module.exports = {
 	createCredentials,
+    readCredentials,
     readCredentialsByProviderUserId,
     readCredentialsByLoginId,
     deleteCredentials,

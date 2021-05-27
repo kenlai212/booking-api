@@ -2,8 +2,9 @@ const jwt = require("jsonwebtoken");
 
 function getAccessToken() {
 	const userObject = {
-		id: "BOOKING_SYSTEM",
-		name: "Booking API System User",
+		userId: "TESTER1",
+		personId: "Tester 1",
+		userStatus: "ACTIVE",
 		groups: [
 			"AUTHENTICATION_ADMIN",
 			"BOOKING_ADMIN",

@@ -10,6 +10,7 @@ beforeEach(async () => {
 
 describe('Test register api', () => {
     it('post register', async () => {
+        //post register
         const data = {
             "loginId":"A",
             "password":"B",
@@ -27,6 +28,7 @@ describe('Test register api', () => {
 
         expect(registerResponse.data.status).toEqual("SUCCESS");
         
+        //get claim
         let getClaimResponse;
         try{
             getClaimResponse = await axios.get(`${DOMAIN_URL}/authentication/claim/${data.userId}`, REQUEST_CONFIG);
@@ -34,8 +36,20 @@ describe('Test register api', () => {
             console.log(error);
         }
 
-        expect(registerResponse.data.userId).toEqual("C");
-        expect(registerResponse.data.personId).toEqual("D");
-        expect(registerResponse.data.userStatus).toEqual("ACTIVE");
+        expect(getClaimResponse.data.userId).toEqual("C");
+        expect(getClaimResponse.data.personId).toEqual("D");
+        expect(getClaimResponse.data.userStatus).toEqual("ACTIVE");
+
+        //get credentials
+        let getCredentialsResponse
+        try{
+            getCredentialsResponse = await axios.get(`${DOMAIN_URL}/authentication/credentials?userId=${data.userId}`, REQUEST_CONFIG);
+        }catch(error){
+            console.log(error);         
+        }
+
+        expect(getCredentialsResponse.data.userId).toEqual("C");
+        expect(getCredentialsResponse.data.loginId).toEqual("A");
+        expect(getCredentialsResponse.data.password).toEqual("B");
     });
 });
