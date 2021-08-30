@@ -4,50 +4,50 @@ const Joi = require("joi");
 const lipslideCommon = require("lipslide-common");
 const {logger, customError} = lipslideCommon;
 
-const staffDao = require("./staff.dao");
-const {Staff} = require("./staff.model");
+const boatDao = require("./boat.dao");
+const {Boat} = require("./boat.model");
 
-async function newStaff(input){
+async function newBoat(input){
     const schema = Joi.object({
-		staffId: Joi.string().required()
+		boatId: Joi.string().required()
 	});
 	lipslideCommon.validateInput(schema, input);
 
-	let staff = new Staff();
-	staff.staffId = input.staffId;
+	let boat = new Boat();
+	boat.boatId = input.boatId;
 
-	staff = await staffDao.save(staff);
+	boat = await boatDao.save(boat);
 	
-	logger.info(`Added new Customer(customerId: ${staff.staffId})`);
+	logger.info(`Added new Customer(customerId: ${boat.boatId})`);
 
-    return staff; 
+    return boat; 
 }
 
-async function findStaff(input){
+async function findBoat(input){
 	const schema = Joi.object({
-		staffId: Joi.string().required()
+		boatId: Joi.string().required()
 	});
 	lipslideCommon.validateInput(schema, input);
 
-	const staff = await staffDao.find(input.staffId);
+	const boat = await boatDao.find(input.boatId);
 
-	return staff;
+	return boat;
 }
 
-async function deleteStaff(input){
+async function deleteBoat(input){
 	const schema = Joi.object({
-		staffId: Joi.string().required()
+		boatId: Joi.string().required()
 	});
 	lipslideCommon.validateInput(schema, input);
 
-    await staffDao.del(input.staffId);
+    await boatDao.del(input.boatId);
 
-	logger.info(`Deleted staff(${input.staffId})`);
+	logger.info(`Deleted boat(${input.boatId})`);
 
 	return {status: "SUCCESS"}
 }
 
-async function deleteAllStaffs(input){
+async function deleteAllBoats(input){
 	const schema = Joi.object({
 		passcode: Joi.string().required()
 	});
@@ -59,16 +59,16 @@ async function deleteAllStaffs(input){
 	if(input.passcode != process.env.GOD_PASSCODE)
 	throw { name: customError.BAD_REQUEST_ERROR, message: "You are not GOD" }
 
-	await staffDao.deleteAll();
+	await boatDao.deleteAll();
 
-	logger.info("Delete all staffs");
+	logger.info("Delete all Boats");
 
 	return {status: "SUCCESS"}
 }
 
 module.exports = {
-	newStaff,
-	findStaff,
-	deleteStaff,
-	deleteAllStaffs
+	newBoat,
+	findBoat,
+	deleteBoat,
+	deleteAllBoats
 }

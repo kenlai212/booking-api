@@ -1,50 +1,30 @@
 "use strict";
-const url = require("url");
+const lipslideCommon = require("lipslide-common");
 
-const asyncMiddleware = require("../common/middleware/asyncMiddleware");
-const utility = require("../common/utility");
+const staffService = require("./staff.service");
 
-const staffDomain = require("./staff.domain");
-const staffRead = require("./staff.read");
+const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 
-const STAFF_ADMIN_GROUP = "STAFF_ADMIN";
-const STAFF_USER_GROUP = "STAFF_USER";
+const newStaff = lipslideCommon.asyncMiddleware(async (req) => {
+	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
-const createStaff = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [STAFF_ADMIN_GROUP]);
-
-	return await staffDomain.createStaff(req.body, req.user);
+	return await staffService.newStaff(req.body);
 });
 
-const deleteStaff = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [STAFF_ADMIN_GROUP]);
+const findStaff = lipslideCommon.asyncMiddleware(async (req) => {
+	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
-	return await staffDomain.deleteStaff(req.params, req.user);
+	return await staffService.findStaff(req.params);
 });
 
-const updateStatus = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [STAFF_ADMIN_GROUP]);
+const deleteAllStaffs = lipslideCommon.asyncMiddleware(async (req) => {
+	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
-	return await staffDomain.updateStatus(req.body, req.user);
-});
-
-const findStaff = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [STAFF_ADMIN_GROUP, STAFF_USER_GROUP]);
-
-	return await staffRead.findStaff(req.params, req.user);
-});
-
-const searchStaffs = asyncMiddleware(async (req) => {
-	utility.userGroupAuthorization(req.user.groups, [STAFF_ADMIN_GROUP, STAFF_USER_GROUP]);
-
-	const queryObject = url.parse(req.url, true).query;
-	return await staffRead.searchStaffs(queryObject, req.user);
+	return await staffService.deleteAllStaffs(req.params);
 });
 
 module.exports = {
-	createStaff,
-	searchStaffs,
+	newStaff,
 	findStaff,
-	deleteStaff,
-	updateStatus
+    deleteAllStaffs
 }
