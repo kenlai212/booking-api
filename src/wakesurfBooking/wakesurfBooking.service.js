@@ -28,8 +28,6 @@ async function newBooking(input) {
 	});
 	lipslideCommon.validateInput(schema, input);
 
-	bookingHelper.validateBookingType(input.bookingType);
-
 	bookingHelper.validateBoatId(input.boatId);
 
 	bookingHelper.validateCustomerId(input.hostCustomerId);
@@ -39,6 +37,7 @@ async function newBooking(input) {
 
 	const startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
 	const endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
+	
 	bookingHelper.validateBookingTime(startTime, endTime);
 
 	//save occupancy
@@ -54,7 +53,6 @@ async function newBooking(input) {
 
 	let wakesurfBooking = new WakesurfBooking();
 	wakesurfBooking.occupancyId = occupancy.occupancyId;
-	wakesurfBooking.bookingType = input.bookingType;
 	wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
 	wakesurfBooking.hostCustomerId = input.hostCustomerId;
 
@@ -64,11 +62,9 @@ async function newBooking(input) {
 	wakesurfBooking = await wakesurfBookingDao.save(wakesurfBooking);
 
 	//publish newBooking event
-	let eventMessage = new Object();
-	eventMessage.bookingId = wakesurfBooking._id;
-	eventMessage.occupancyId = wakesurfBooking.occupancyId;
+	let output = bookingHelper.bookingToOutputObj(wakesurfBooking);
 
-	await lipslideCommon.publishEvent(eventMessage, NEW_WAKESURFBOOKING_QUEUE_NAME, async () => {
+	await lipslideCommon.publishEvent(output, NEW_WAKESURFBOOKING_QUEUE_NAME, async () => {
 		logger.error("rolling back new booking");
 		
 		await wakesurfBookingDao.del(wakesurfBooking._id);
@@ -76,7 +72,7 @@ async function newBooking(input) {
 
 	logger.info(`Added new Booking(${wakesurfBooking._id})`);
 
-	return bookingHelper.bookingToOutputObj(wakesurfBooking);
+	return output;
 }
 
 async function confirmBooking(input){
@@ -121,7 +117,7 @@ async function fulfillBooking(input) {
 
 	logger.info(`Fulfilled Booking(${wakesurfBooking._id})`);
 
-	return bookingHelper.bookingToOutputObj(wakesurfBooking);
+	return bookingHelper.modelToOutput(wakesurfBooking);
 }
 
 async function cancelBooking(input) {
@@ -154,7 +150,7 @@ async function cancelBooking(input) {
 
 	logger.info(`Cancelled Booking(${wakesurfBooking._id})`);
 
-	return bookingHelper.bookingToOutputObj(wakesurfBooking);
+	return bookingHelper.modelToOutput(wakesurfBooking);
 }
 
 async function searchBookings(input) {
@@ -176,7 +172,7 @@ async function searchBookings(input) {
 	
 	var outputObjs = [];
 	for (const booking of wakesurfBookings) {
-		const outputObj = await bookingHelper.bookingToOutputObj(booking);
+		const outputObj = await bookingHelper.modelToOutput(booking);
 		outputObjs.push(outputObj);
 	}
 	
@@ -194,7 +190,7 @@ async function findBooking(input) {
 
 	let wakesurfBooking = await wakesurfBookingDao.find(input.bookingId);
 	
-	return bookingHelper.bookingToOutputObj(wakesurfBooking);
+	return bookingHelper.modelToOutput(wakesurfBooking);
 }
 
 async function deleteAllBookings(input){

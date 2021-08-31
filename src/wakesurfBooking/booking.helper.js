@@ -1,4 +1,6 @@
 "use strict";
+const axios = require("axios");
+require("dotenv").config();
 const moment = require("moment");
 
 const lipslideCommon = require("lipslide-common");
@@ -7,6 +9,7 @@ const {customError} = lipslideCommon;
 const customerService = require("../customer/customer.service");
 const staffService = require("../staff/staff.service");
 const boatService = require("../boat/boat.service");
+const Joi = require("joi");
 
 async function validateCustomerId(customerId){
     await customerService.findCustomer({customerId: customerId});
@@ -14,13 +17,6 @@ async function validateCustomerId(customerId){
 
 async function validateStaffId(staffId){
     await staffService.findStaff({staffId: staffId});
-}
-
-function validateBookingType(bookingType){
-    const validBookingTypes = [ "CUSTOMER_BOOKING", "OWNER_BOOKING" ];
-
-    if(!validBookingTypes.includes(bookingType))
-    throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid bookingType" };
 }
 
 async function validateBoatId(assetId){
@@ -112,6 +108,7 @@ async function occupyAsset(input){
 		startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
+        assetType: Joi.string().required(),
 		assetId: Joi.string().required(),
 		referenceType: Joi.string().required()
 	});
@@ -120,17 +117,44 @@ async function occupyAsset(input){
 	input.startTime = input.startTime.toISOString();
 	input.endTime = input.endTime.toISOString();
 
-    return await occupancyService.occupyAsset(input);
+    let postOccupancyResult;
+
+    try{
+        const token = getAccessToken();
+        postOccupancyResult = await axios.post(`${process.env.OCCUPANCY_API_URL_PREFIX}/occupancy`, input, {headers:{'Authorization': `token ${token}`}});
+    }catch(error){
+        logger.error("Failed to call postOccupancy API");
+        logger.error(error);
+        throw { name: customError.INTERNAL_SERVER_ERROR, message: "POST OCCUPANCY API Error" };
+    }
+    return postOccupancyResult.data;
 }
 
-function bookingToOutputObj(booking) {
+function getAccessToken() {
+	const userObject = {
+		userId: "BOOKING_SYSTEM_1",
+		personId: "Booking Api System Account",
+		userStatus: "ACTIVE",
+		groups: ["OCCUPANCY_ADMIN"]
+	}
+
+	try {
+		return jwt.sign(userObject, process.env.ACCESS_TOKEN_SECRET);
+	} catch (err) {
+		logger.error("Error while signing access token for API System User", err);
+        logger.error(err);
+		throw err;
+	}
+}
+
+function modelToOutput(booking) {
 	var outputObj = new Object();
 	outputObj.bookingId = booking._id;
-	outputObj.bookingType = booking.bookingType;
 	outputObj.creationTime = booking.creationTime;
-	outputObj.requestorId = booking.requestorId;
+    outputObj.lastUpdateTime = booking.lastUpdateTime;
 	outputObj.occupancyId = booking.occupancyId;
-	outputObj.customerId = booking.customerId;
+	outputObj.hostCustomerId = booking.hostCustomerId;
+    outputObj.captainStaffId = booking.captainStaffId;
 	outputObj.status = booking.status;
 
 	return outputObj;
@@ -140,8 +164,7 @@ module.exports = {
     validateCustomerId,
     validateStaffId,
     validateBoatId,
-    validateBookingType,
     validateBookingTime,
-    bookingToOutputObj,
+    modelToOutput,
     occupyAsset
 }

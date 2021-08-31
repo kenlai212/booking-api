@@ -6,7 +6,7 @@ require("dotenv").config();
 const lipslideCommon = require("lipslide-common");
 const {logger} = lipslideCommon;
 
-const bookingController = require("./src/wakeSurfBooking/wakesurfBooking.controller");
+const wakesurfBookingController = require("./src/wakeSurfBooking/wakesurfBooking.controller");
 const customerController = require("./src/customer/customer.controller");
 const staffController = require("./src/staff/staff.controller");
 const boatController = require("./src/boat/boat.controller");
@@ -22,13 +22,13 @@ mongoose.connect(process.env.BOOKING_DB_CONNECTION_URL, { useUnifiedTopology: tr
 	});
 
 const router = express.Router();
-router.post(`${process.env.API_URL_PREFIX}/booking`, lipslideCommon.authenticateAccessToken, bookingController.newBooking);
-router.put(`${process.env.API_URL_PREFIX}/booking/status/confirm`, lipslideCommon.authenticateAccessToken, bookingController.confirmBooking);
-router.put(`${process.env.API_URL_PREFIX}/booking/status/cancel`, lipslideCommon.authenticateAccessToken, bookingController.cancelBooking);
-router.put(`${process.env.API_URL_PREFIX}/booking/status/fulfill`, lipslideCommon.authenticateAccessToken, bookingController.fulfillBooking);
-router.get(`${process.env.API_URL_PREFIX}/bookings`, lipslideCommon.authenticateAccessToken, bookingController.searchBookings);
-router.get(`${process.env.API_URL_PREFIX}/booking/:bookingId`, lipslideCommon.authenticateAccessToken, bookingController.findBooking);
-router.delete(`${process.env.API_URL_PREFIX}/bookings/:passcode`, lipslideCommon.authenticateAccessToken, bookingController.deleteAllBookings);
+router.post(`${process.env.API_URL_PREFIX}/booking`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.newBooking);
+router.put(`${process.env.API_URL_PREFIX}/booking/status/confirm`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.confirmBooking);
+router.put(`${process.env.API_URL_PREFIX}/booking/status/cancel`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.cancelBooking);
+router.put(`${process.env.API_URL_PREFIX}/booking/status/fulfill`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.fulfillBooking);
+router.get(`${process.env.API_URL_PREFIX}/bookings`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.searchBookings);
+router.get(`${process.env.API_URL_PREFIX}/booking/:bookingId`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.findBooking);
+router.delete(`${process.env.API_URL_PREFIX}/bookings/:passcode`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.deleteAllBookings);
 
 router.post(`${process.env.API_URL_PREFIX}/booking/customer`, lipslideCommon.authenticateAccessToken, customerController.newCustomer);
 router.get(`${process.env.API_URL_PREFIX}/booking/customer/:customerId`, lipslideCommon.authenticateAccessToken, customerController.findCustomer);
@@ -38,9 +38,9 @@ router.post(`${process.env.API_URL_PREFIX}/booking/staff`, lipslideCommon.authen
 router.get(`${process.env.API_URL_PREFIX}/booking/staff/:staffId`, lipslideCommon.authenticateAccessToken, staffController.findStaff);
 router.delete(`${process.env.API_URL_PREFIX}/booking/staffs/:passcode`, lipslideCommon.authenticateAccessToken, staffController.deleteAllStaffs);
 
-router.post(`${process.env.API_URL_PREFIX}/booking/staff`, lipslideCommon.authenticateAccessToken, boatController.newBoat);
-router.get(`${process.env.API_URL_PREFIX}/booking/staff/:staffId`, lipslideCommon.authenticateAccessToken, boatController.findBoat);
-router.delete(`${process.env.API_URL_PREFIX}/booking/staffs/:passcode`, lipslideCommon.authenticateAccessToken, boatController.deleteAllBoats);
+router.post(`${process.env.API_URL_PREFIX}/booking/boat`, lipslideCommon.authenticateAccessToken, boatController.newBoat);
+router.get(`${process.env.API_URL_PREFIX}/booking/boat/:boatId`, lipslideCommon.authenticateAccessToken, boatController.findBoat);
+router.delete(`${process.env.API_URL_PREFIX}/booking/boats/:passcode`, lipslideCommon.authenticateAccessToken, boatController.deleteAllBoats);
 
 module.exports = router;
 

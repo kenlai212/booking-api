@@ -25,7 +25,7 @@ async function find(boatId){
     }
 
     if(!boat)
-        throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid customerId" };
+        throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid boatId" };
 
     return boat;
 }

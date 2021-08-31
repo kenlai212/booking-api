@@ -8,13 +8,10 @@ const wakesurfBookingService = require("./wakesurfBooking.service");
 const BOOKING_ADMIN_GROUP = "BOOKING_ADMIN";
 const BOOKING_USER_GROUP = "BOOKING_USER";
 
-const newWakesurfBooking = lipslideCommon.asyncMiddleware(async (req) => {
+const newBooking = lipslideCommon.asyncMiddleware(async (req) => {
 	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP,BOOKING_USER_GROUP]);
 
-	const input = req.body;
-	input.requestorId = req.requestor.id;
-
-	return await wakesurfBookingService.newBooking(input);
+	return await wakesurfBookingService.newBooking(req.body);
 });
 
 const searchBookings = lipslideCommon.asyncMiddleware(async (req) => {
@@ -55,7 +52,7 @@ const deleteAllBookings = lipslideCommon.asyncMiddleware(async(req) => {
 });
 
 module.exports = {
-	newBooking: newWakesurfBooking,
+	newBooking,
 	confirmBooking,
 	cancelBooking,
 	fulfillBooking,
