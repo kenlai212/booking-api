@@ -1,8 +1,8 @@
 const moment = require("moment");
 
-const bookingDurationHelper = require("../../../src/booking/bookingDuration.helper");
+const bookingHelper = require("../../../src/wakesurfBooking/booking.helper");
 
-describe('Test bookingDuration.helper', () => {
+describe('Test booking.helper', () => {
     describe("testing checkMinimumDuration", () => {
         it("Only 30mins, less then minimum, expect throw error",() => {
             const startTime = moment("2020-02-02T08:00:00Z").toDate();
@@ -10,7 +10,7 @@ describe('Test bookingDuration.helper', () => {
 
             expect.assertions(1);
 
-            expect(() => { bookingDurationHelper.checkMimumDuration(startTime, endTime) }).toThrow("Booking cannot be less then 119 mins 59 secs");
+            expect(() => { bookingHelper.checkMimumDuration(startTime, endTime) }).toThrow("Booking cannot be less then 119 mins 59 secs");
         });
 
         it("120 mins, passed minimum requirement", () => {
@@ -18,7 +18,7 @@ describe('Test bookingDuration.helper', () => {
             const endTime = moment("2020-02-02T10:30:00Z").toDate();
 
             expect.assertions(1);
-            expect(bookingDurationHelper.checkMimumDuration(startTime, endTime)).toEqual(true);
+            expect(bookingHelper.checkMimumDuration(startTime, endTime)).toEqual(true);
         });
     });
 
@@ -29,7 +29,7 @@ describe('Test bookingDuration.helper', () => {
 
             expect.assertions(1);
 
-            expect(() => { bookingDurationHelper.checkMaximumDuration(startTime, endTime) }).toThrow("Booking cannot be more then 479 mins 59 secs");
+            expect(() => { bookingHelper.checkMaximumDuration(startTime, endTime) }).toThrow("Booking cannot be more then 479 mins 59 secs");
         });
 
         it("7hrs, passed maximum requirement", () => {
@@ -37,7 +37,7 @@ describe('Test bookingDuration.helper', () => {
             const endTime = moment("2020-02-02T15:00:00Z").toDate();
 
             expect.assertions(1);
-            expect(bookingDurationHelper.checkMaximumDuration(startTime, endTime)).toEqual(true);
+            expect(bookingHelper.checkMaximumDuration(startTime, endTime)).toEqual(true);
         });
     });
 
@@ -47,7 +47,7 @@ describe('Test bookingDuration.helper', () => {
 
             expect.assertions(1);
 
-            expect(() => { bookingDurationHelper.checkEarliestStartTime(startTime, 8) }).toThrow("Booking cannot be earlier then 08:00");
+            expect(() => { bookingHelper.checkEarliestStartTime(startTime, 8) }).toThrow("Booking cannot be earlier then 08:00");
         })
 
         it("after 8am, pass", () => {
@@ -55,7 +55,7 @@ describe('Test bookingDuration.helper', () => {
 
             expect.assertions(1);
 
-            expect(bookingDurationHelper.checkEarliestStartTime(startTime, 8)).toEqual(true);
+            expect(bookingHelper.checkEarliestStartTime(startTime, 8)).toEqual(true);
         })
     });
 
@@ -65,7 +65,7 @@ describe('Test bookingDuration.helper', () => {
 
             expect.assertions(1);
 
-            expect(() => { bookingDurationHelper.checkLatestEndTime(endTime, 8) }).toThrow("Booking cannot be later then 16:30");
+            expect(() => { bookingHelper.checkLatestEndTime(endTime, 8) }).toThrow("Booking cannot be later then 16:30");
         })
 
         it("earlier 4:30pm, pass", () => {
@@ -73,7 +73,7 @@ describe('Test bookingDuration.helper', () => {
 
             expect.assertions(1);
 
-            expect(bookingDurationHelper.checkLatestEndTime(endTime, 8)).toEqual(true);
+            expect(bookingHelper.checkLatestEndTime(endTime, 8)).toEqual(true);
         })
     });
 
@@ -84,7 +84,7 @@ describe('Test bookingDuration.helper', () => {
 
             expect.assertions(1);
 
-            expect(() => { bookingDurationHelper.checkFulfilledTime(startTime, endTime, 2.5) }).toThrow("fulfilledHours cannot be greater then total duration hours");
+            expect(() => { bookingHelper.checkFulfilledTime(startTime, endTime, 2.5) }).toThrow("fulfilledHours cannot be greater then total duration hours");
         })
 
         it("fulfilled 1.5, pass", () => {
@@ -93,7 +93,7 @@ describe('Test bookingDuration.helper', () => {
 
             expect.assertions(1);
 
-            expect(bookingDurationHelper.checkLatestEndTime(startTime, endTime, 1.5)).toEqual(true);
+            expect(bookingHelper.checkLatestEndTime(startTime, endTime, 1.5)).toEqual(true);
         })
     })
 });

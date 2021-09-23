@@ -1,10 +1,15 @@
 "use strict";
+const {v4: uuidv4} = require("uuid");
+
 const lipslideCommon = require("lipslide-common");
 const {logger, customError} = lipslideCommon;
 
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 
 async function save(wakesurfBooking){
+	if(!wakesurfBooking._id)
+	wakesurfBooking._id = uuidv4();
+
     if(!wakesurfBooking.creationTime)
     wakesurfBooking.creationTime = new Date();
 

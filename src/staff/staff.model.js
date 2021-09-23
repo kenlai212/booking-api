@@ -2,7 +2,7 @@
 const mongoose = require("mongoose");
 
 const staffSchema = new mongoose.Schema({
-	staffId: String
+	_id: String
 });
 
 const Staff = mongoose.model("Staff", staffSchema);

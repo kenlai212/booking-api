@@ -7,9 +7,9 @@ const lipslideCommon = require("lipslide-common");
 const {logger} = lipslideCommon;
 
 const wakesurfBookingController = require("./src/wakeSurfBooking/wakesurfBooking.controller");
-const customerController = require("./src/customer/customer.controller");
 const staffController = require("./src/staff/staff.controller");
-const boatController = require("./src/boat/boat.controller");
+const personController = require("./src/person/person.controller");
+const occupancyController = require("./src/occupancy/occupancy.controller");
 
 const worker = require("./worker");
 
@@ -30,17 +30,20 @@ router.get(`${process.env.API_URL_PREFIX}/bookings`, lipslideCommon.authenticate
 router.get(`${process.env.API_URL_PREFIX}/booking/:bookingId`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.findBooking);
 router.delete(`${process.env.API_URL_PREFIX}/bookings/:passcode`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.deleteAllBookings);
 
-router.post(`${process.env.API_URL_PREFIX}/booking/customer`, lipslideCommon.authenticateAccessToken, customerController.newCustomer);
-router.get(`${process.env.API_URL_PREFIX}/booking/customer/:customerId`, lipslideCommon.authenticateAccessToken, customerController.findCustomer);
-router.delete(`${process.env.API_URL_PREFIX}/booking/customers/:passcode`, lipslideCommon.authenticateAccessToken, customerController.deleteAllCustomers);
-
 router.post(`${process.env.API_URL_PREFIX}/booking/staff`, lipslideCommon.authenticateAccessToken, staffController.newStaff);
 router.get(`${process.env.API_URL_PREFIX}/booking/staff/:staffId`, lipslideCommon.authenticateAccessToken, staffController.findStaff);
+router.delete(`${process.env.API_URL_PREFIX}/booking/staff/:staffId`, lipslideCommon.authenticateAccessToken, staffController.deleteStaff);
 router.delete(`${process.env.API_URL_PREFIX}/booking/staffs/:passcode`, lipslideCommon.authenticateAccessToken, staffController.deleteAllStaffs);
 
-router.post(`${process.env.API_URL_PREFIX}/booking/boat`, lipslideCommon.authenticateAccessToken, boatController.newBoat);
-router.get(`${process.env.API_URL_PREFIX}/booking/boat/:boatId`, lipslideCommon.authenticateAccessToken, boatController.findBoat);
-router.delete(`${process.env.API_URL_PREFIX}/booking/boats/:passcode`, lipslideCommon.authenticateAccessToken, boatController.deleteAllBoats);
+router.post(`${process.env.API_URL_PREFIX}/booking/person`, lipslideCommon.authenticateAccessToken, personController.newPerson);
+router.get(`${process.env.API_URL_PREFIX}/booking/person/:personId`, lipslideCommon.authenticateAccessToken, personController.findPerson);
+router.delete(`${process.env.API_URL_PREFIX}/booking/person/:personId`, lipslideCommon.authenticateAccessToken, personController.deletePerson);
+router.delete(`${process.env.API_URL_PREFIX}/booking/persons/:passcode`, lipslideCommon.authenticateAccessToken, personController.deleteAllPersons);
+
+router.post(`${process.env.API_URL_PREFIX}/booking/occupancy`, lipslideCommon.authenticateAccessToken, occupancyController.newOccupancy);
+router.get(`${process.env.API_URL_PREFIX}/booking/occupancy/:occupancyId`, lipslideCommon.authenticateAccessToken, occupancyController.findOccupancy);
+router.delete(`${process.env.API_URL_PREFIX}/booking/occupancy/:occupancyId`, lipslideCommon.authenticateAccessToken, occupancyController.deleteOccupancy);
+router.delete(`${process.env.API_URL_PREFIX}/booking/occupancies/:passcode`, lipslideCommon.authenticateAccessToken, occupancyController.deleteAllOccupancies);
 
 module.exports = router;
 

@@ -7,7 +7,7 @@ const {logger, customError} = lipslideCommon;
 const wakesurfBookingDao = require("./wakesurfBooking.dao");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 
-const bookingHelper = require("./booking.helper");
+const helper = require("./wakesurfBooking.helper");
 
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
@@ -15,60 +15,63 @@ const CANCELLED_STATUS = "CANCELLED";
 const FULFILLED_STATUS = "FULFILLED"
 
 const NEW_WAKESURFBOOKING_QUEUE_NAME = "NEW_WAKESURFBOOKING";
-const CANCEL_BOOKING_QUEUE_NAME = "CANCEL_BOOKING";
+const CANCEL_WAKESURFBOOKING_QUEUE_NAME = "CANCEL_WAKESURFBOOKING";
+const FAILED_BOOKING_QUEUE_NAME = "FAILED_BOOKING";
 
 async function newBooking(input) {
 	const schema = Joi.object({
-		startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
-		utcOffset: Joi.number().min(-12).max(14).required(),
-		boatId: Joi.string().required(),
-		hostCustomerId: Joi.string().required(),
+		occupancyId: Joi.string().required(),
+		hostPersonId: Joi.string().required(),
 		captainStaffId: Joi.string()
 	});
 	lipslideCommon.validateInput(schema, input);
 
-	bookingHelper.validateBoatId(input.boatId);
+	const occupancy = await helper.validateOccupancyId(input.occupancyId);
 
-	bookingHelper.validateCustomerId(input.hostCustomerId);
-	
-	if(input.captainStaffId)
-	bookingHelper.validateStaffId(input.captainStaffId);
-
-	const startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
-	const endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
-	
-	bookingHelper.validateBookingTime(startTime, endTime);
-
-	//save occupancy
-	const newOccupancyInput = {
-		startTime: startTime,
-		endTime: endTime,
-		utcOffset: 0,
-		assetType: "BOAT",
-		assetId: input.boatId,
-		referenceType: "BOOKING"
+	//if failed validatePersonId, publish FAILED_BOOKING so occupancyApi can release the occupancy
+	try{
+		await helper.validatePersonId(input.hostPersonId);
+	}catch(error){
+		await lipslideCommon.publish({occupancyId: input.occupancyId}, FAILED_BOOKING_QUEUE_NAME);
+		throw error;
 	}
-	let occupancy = await bookingHelper.occupyAsset(newOccupancyInput);
+	
+	//if failed validateStaffId, publish FAILED_BOOKING so occupancyApi can release the occupancy
+	if(input.captainStaffId){
+		try{
+			await helper.validateStaffId(input.captainStaffId);
+		}catch(error){
+			await lipslideCommon.publish({occupancyId: input.occupancyId}, FAILED_BOOKING_QUEUE_NAME);
+			throw error;
+		}
+	}	
+
+	helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
 
 	let wakesurfBooking = new WakesurfBooking();
-	wakesurfBooking.occupancyId = occupancy.occupancyId;
+	wakesurfBooking.occupancyId = occupancy._id;
 	wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
-	wakesurfBooking.hostCustomerId = input.hostCustomerId;
-
+	wakesurfBooking.hostPersonId = input.hostPersonId;
 	if(input.captainStaffId)
 	wakesurfBooking.captainStaffId = input.captainStaffId;
+	
+	//if failed save wakesurfBooking record, publish FAILED_BOOKING so occupancyApi can release the occupancy
+	try{
+		wakesurfBooking = await wakesurfBookingDao.save(wakesurfBooking);
+	}catch(error){
+		await lipslideCommon.publish({occupancyId: input.occupancyId}, FAILED_BOOKING_QUEUE_NAME);
+		throw error;
+	}
+	
+	const output = helper.modelToOutput(wakesurfBooking);
 
-	wakesurfBooking = await wakesurfBookingDao.save(wakesurfBooking);
-
-	//publish newBooking event
-	let output = bookingHelper.bookingToOutputObj(wakesurfBooking);
-
-	await lipslideCommon.publishEvent(output, NEW_WAKESURFBOOKING_QUEUE_NAME, async () => {
-		logger.error("rolling back new booking");
+	try{
+		await lipslideCommon.publish(output, NEW_WAKESURFBOOKING_QUEUE_NAME);
+	}catch(error){
+		logger.error("rolling back new wakesurfBooking");
 		
 		await wakesurfBookingDao.del(wakesurfBooking._id);
-	});
+	}
 
 	logger.info(`Added new Booking(${wakesurfBooking._id})`);
 
@@ -89,13 +92,12 @@ async function confirmBooking(input){
 
 	logger.info(`Confirmed Booking(${wakesurfBooking._id})`);
 
-	return bookingHelper.bookingToOutputObj(wakesurfBooking);
+	return await helper.modelToOutput(wakesurfBooking);
 }
 
 async function fulfillBooking(input) {
 	const schema = Joi.object({
-		bookingId: Joi.string().required(),
-		fulfilledHours: Joi.number().min(0.5).required()
+		bookingId: Joi.string().required()
 	});
 	lipslideCommon.validateInput(schema, input);
 
@@ -104,20 +106,16 @@ async function fulfillBooking(input) {
 	if (wakesurfBooking.status === FULFILLED_STATUS)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already fulfilled" };
 
-	if (input.fulfilledHours > wakesurfBooking.durationByHours)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Fulfilled Hours cannot be longer then booking duration" };
-
 	if (wakesurfBooking.status === CANCELLED_STATUS)
 		throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot fulfilled a cancelled booking" };
 
-	wakesurfBooking.fulfilledHours = input.fulfilledHours;
 	wakesurfBooking.status = FULFILLED_STATUS;
 
 	wakesurfBooking = await wakesurfBookingDao.save(wakesurfBooking);
 
 	logger.info(`Fulfilled Booking(${wakesurfBooking._id})`);
 
-	return bookingHelper.modelToOutput(wakesurfBooking);
+	return await helper.modelToOutput(wakesurfBooking);
 }
 
 async function cancelBooking(input) {
@@ -141,7 +139,7 @@ async function cancelBooking(input) {
 	wakesurfBooking = await wakesurfBookingDao.save(wakesurfBooking);
 
 	//publish cancelBooking event
-	await lipslideCommon.publishEvent(input, CANCEL_BOOKING_QUEUE_NAME, async () => {
+	await lipslideCommon.publishEvent({bookingId: wakesurfBooking._id}, CANCEL_WAKESURFBOOKING_QUEUE_NAME, async () => {
 		logger.error("rolling back cancelBooking");
 		
 		wakesurfBooking.status = oldStatus;
@@ -150,36 +148,7 @@ async function cancelBooking(input) {
 
 	logger.info(`Cancelled Booking(${wakesurfBooking._id})`);
 
-	return bookingHelper.modelToOutput(wakesurfBooking);
-}
-
-async function searchBookings(input) {
-	const schema = Joi.object({
-		startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
-		utcOffset: Joi.number().min(-12).max(14).required(),
-	});
-	lipslideCommon.validateInput(schema, input);
-
-	const startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
-	const endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
-
-	if (startTime > endTime) {
-		throw { name: customError.BAD_REQUEST_ERROR, message: "startTime cannot be later then endTime" };
-	}
-	
-	const wakesurfBookings = await wakesurfBookingDao.search(startTime, endTime);
-	
-	var outputObjs = [];
-	for (const booking of wakesurfBookings) {
-		const outputObj = await bookingHelper.modelToOutput(booking);
-		outputObjs.push(outputObj);
-	}
-	
-	return {
-		"count": outputObjs.length,
-		"bookings": outputObjs
-	};
+	return await helper.modelToOutput(wakesurfBooking);
 }
 
 async function findBooking(input) {
@@ -190,7 +159,7 @@ async function findBooking(input) {
 
 	let wakesurfBooking = await wakesurfBookingDao.find(input.bookingId);
 	
-	return bookingHelper.modelToOutput(wakesurfBooking);
+	return await helper.modelToOutput(wakesurfBooking);
 }
 
 async function deleteAllBookings(input){
@@ -215,7 +184,6 @@ module.exports = {
 	confirmBooking,
 	fulfillBooking,
 	cancelBooking,
-	searchBookings,
 	findBooking,
 	deleteAllBookings
 }

@@ -2,13 +2,13 @@
 const mongoose = require("mongoose");
 
 const wakesurfBookingSchema = new mongoose.Schema({
+	_id: String,
 	creationTime: Date,
 	lastUpdateTime: Date,
 	occupancyId: String,
 	status: String,
-	hostCustomerId: String,
-	captainStaffId: String,
-	fulfilledHours: Number
+	hostPersonId: String,
+	captainStaffId: String
 });
 
 const WakesurfBooking = mongoose.model("WakesurfBooking", wakesurfBookingSchema);

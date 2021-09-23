@@ -1,6 +1,4 @@
 "use strict";
-const url = require("url");
-
 const lipslideCommon = require("lipslide-common");
 
 const wakesurfBookingService = require("./wakesurfBooking.service");
@@ -12,13 +10,6 @@ const newBooking = lipslideCommon.asyncMiddleware(async (req) => {
 	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP,BOOKING_USER_GROUP]);
 
 	return await wakesurfBookingService.newBooking(req.body);
-});
-
-const searchBookings = lipslideCommon.asyncMiddleware(async (req) => {
-	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
-
-	const queryObject = url.parse(req.url, true).query;
-	return await wakesurfBookingService.searchBookings(queryObject);
 });
 
 const cancelBooking = lipslideCommon.asyncMiddleware(async (req) => {
@@ -56,7 +47,6 @@ module.exports = {
 	confirmBooking,
 	cancelBooking,
 	fulfillBooking,
-	searchBookings,
 	findBooking,
 	deleteAllBookings
 }

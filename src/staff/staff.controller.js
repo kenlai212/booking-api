@@ -17,6 +17,12 @@ const findStaff = lipslideCommon.asyncMiddleware(async (req) => {
 	return await staffService.findStaff(req.params);
 });
 
+const deleteStaff = lipslideCommon.asyncMiddleware(async (req) => {
+	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
+
+	return await staffService.deleteStaff(req.params);
+});
+
 const deleteAllStaffs = lipslideCommon.asyncMiddleware(async (req) => {
 	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
@@ -26,5 +32,6 @@ const deleteAllStaffs = lipslideCommon.asyncMiddleware(async (req) => {
 module.exports = {
 	newStaff,
 	findStaff,
+	deleteStaff,
     deleteAllStaffs
 }

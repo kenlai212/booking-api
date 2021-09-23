@@ -19,19 +19,21 @@ app.get('/index.html', function (req, res) {
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {
 	console.log("WE GOT AN UNHANDLED REJECTION!!!!!!!");
-	logger.error(ex.message, ex);
+	console.error(ex);
+	logger.error(ex);
 });
 
 process.on("uncaughtException", (ex) => {
 	console.log("WE GOT AN UNCAUGHT EXCEPTION!!!!!!!");
-	logger.error(ex.message, ex);
+	console.error(ex);
+	logger.error(ex);
 });
 
 app.listen(process.env.PORT, function (err) {
 	if (err) {
-		logger.error(`Error while starting Booking Services : ${err}`);
+		logger.error(`Error while starting Booking API : ${err}`);
 		throw err;
 	}
 
-	logger.info(`Booking Services started up. Listening to port : ${process.env.PORT}`);
+	logger.info(`Booking API started up. Listening to port : ${process.env.PORT}`);
 });

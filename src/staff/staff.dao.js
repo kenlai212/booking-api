@@ -18,21 +18,18 @@ async function save(staff){
 async function find(staffId){
     let staff;
     try{
-        staff = await Staff.findOne({staffId: staffId});
+        staff = await Staff.findById(staffId);
     }catch(error){
         logger.error("staff.findOne error : ", error);
         throw { name: customError.INTERNAL_SERVER_ERROR, message: "Find staff Error" };
     }
-
-    if(!staff)
-        throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid staffId" };
 
     return staff;
 }
 
 async function del(staffId){
     try{
-        await Staff.findOneAndDelete({staffId: staffId});
+        await Staff.findByIdAndDelete(staffId);
     }catch(error){
         logger.error("staff.findOneAndDelete error : ", error);
         throw { name: customError.INTERNAL_SERVER_ERROR, message: "Delete staff Error" };

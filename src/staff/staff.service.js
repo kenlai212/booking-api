@@ -13,8 +13,14 @@ async function newStaff(input){
 	});
 	lipslideCommon.validateInput(schema, input);
 
+	const existingStaff = await staffDao.find(input.staffId);
+	if(existingStaff){
+		logger.error(`Staff(${input.staffId}) already exist`);
+		throw { name: customError.BAD_REQUEST_ERROR, message: `Staff(${input.staffId}) already exist` }
+	}
+
 	let staff = new Staff();
-	staff.staffId = input.staffId;
+	staff._id = input.staffId;
 
 	staff = await staffDao.save(staff);
 	
@@ -30,6 +36,9 @@ async function findStaff(input){
 	lipslideCommon.validateInput(schema, input);
 
 	const staff = await staffDao.find(input.staffId);
+
+	if(!staff)
+    throw { name: customError.BAD_REQUEST_ERROR, message: "Invalid staffId" };
 
 	return staff;
 }
