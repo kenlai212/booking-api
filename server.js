@@ -6,29 +6,25 @@ const {logger} = lipslideCommon;
 
 const routes = require("./routes");
 
-const app = express();
-
-//set up routes
-app.use(express.json());
-app.use("/", routes);
-
-app.get('/index.html', function (req, res) {
-	res.send("Booking API Running.....");
- })
-
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {
-	console.log("WE GOT AN UNHANDLED REJECTION!!!!!!!");
-	console.error(ex);
+	logger.error("WE GOT AN UNHANDLED REJECTION!!!!!!!");
+	logger.error(ex);
 	logger.error(ex);
 });
 
 process.on("uncaughtException", (ex) => {
-	console.log("WE GOT AN UNCAUGHT EXCEPTION!!!!!!!");
-	console.error(ex);
+	logger.error("WE GOT AN UNCAUGHT EXCEPTION!!!!!!!");
+	logger.error(ex);
 	logger.error(ex);
 });
 
+//init mongo connection
+lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+
+const app = express();
+app.use(express.json());
+app.use("/", routes);
 app.listen(process.env.PORT, function (err) {
 	if (err) {
 		logger.error(`Error while starting Booking API : ${err}`);

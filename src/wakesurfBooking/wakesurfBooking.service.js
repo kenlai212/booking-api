@@ -4,7 +4,6 @@ const Joi = require("joi");
 const lipslideCommon = require("lipslide-common");
 const {logger, customError} = lipslideCommon;
 
-const wakesurfBookingDao = require("./wakesurfBooking.dao");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 
 const helper = require("./wakesurfBooking.helper");
@@ -18,35 +17,28 @@ const NEW_WAKESURFBOOKING_QUEUE_NAME = "NEW_WAKESURFBOOKING";
 const CANCEL_WAKESURFBOOKING_QUEUE_NAME = "CANCEL_WAKESURFBOOKING";
 const FAILED_BOOKING_QUEUE_NAME = "FAILED_BOOKING";
 
+function validateInput(schema, input){
+	const result = schema.validate(input);
+	
+	if (result.error) {
+		throw new BadRequestError(lipslideCommon.translateJoiValidationError(result.error))
+	}
+}
+
 async function newBooking(input) {
-	const schema = Joi.object({
+	personHelper.validateInput(Joi.object({
 		occupancyId: Joi.string().required(),
 		hostPersonId: Joi.string().required(),
 		captainStaffId: Joi.string()
-	});
-	lipslideCommon.validateInput(schema, input);
-
-	const occupancy = await helper.validateOccupancyId(input.occupancyId);
-
-	//if failed validatePersonId, publish FAILED_BOOKING so occupancyApi can release the occupancy
-	try{
-		await helper.validatePersonId(input.hostPersonId);
-	}catch(error){
-		await lipslideCommon.publish({occupancyId: input.occupancyId}, FAILED_BOOKING_QUEUE_NAME);
-		throw error;
-	}
-	
-	//if failed validateStaffId, publish FAILED_BOOKING so occupancyApi can release the occupancy
-	if(input.captainStaffId){
-		try{
-			await helper.validateStaffId(input.captainStaffId);
-		}catch(error){
-			await lipslideCommon.publish({occupancyId: input.occupancyId}, FAILED_BOOKING_QUEUE_NAME);
-			throw error;
-		}
-	}	
+	}), input);
 
 	helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
+
+	if(mongoose.connection.readyState != 1)
+    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+	
+	const session = await WakesurfBooking.startSession();
+	session.startTransaction();
 
 	let wakesurfBooking = new WakesurfBooking();
 	wakesurfBooking.occupancyId = occupancy._id;
@@ -57,23 +49,22 @@ async function newBooking(input) {
 	
 	//if failed save wakesurfBooking record, publish FAILED_BOOKING so occupancyApi can release the occupancy
 	try{
-		wakesurfBooking = await wakesurfBookingDao.save(wakesurfBooking);
+		wakesurfBooking = await wakesurfBooking.save();
 	}catch(error){
-		await lipslideCommon.publish({occupancyId: input.occupancyId}, FAILED_BOOKING_QUEUE_NAME);
-		throw error;
+		throw new InternalServerError(error, 'DB Error');
 	}
 	
 	const output = helper.modelToOutput(wakesurfBooking);
 
 	try{
-		await lipslideCommon.publish(output, NEW_WAKESURFBOOKING_QUEUE_NAME);
+		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.NEW_BOOKING_TOPIC, [{"value": messageStr}]);
 	}catch(error){
-		logger.error("rolling back new wakesurfBooking");
-		
-		await wakesurfBookingDao.del(wakesurfBooking._id);
+		await session.abortTransaction();
+		throw new InternalServerError(error, `Event Source not available`);
 	}
 
-	logger.info(`Added new Booking(${wakesurfBooking._id})`);
+	await session.commitTransaction();
+	await session.endSession();
 
 	return output;
 }
