@@ -30,6 +30,12 @@ const findBooking = lipslideCommon.asyncMiddleware(async (req) => {
 	return await wakesurfBookingService.findBooking(req.params);
 });
 
+const searchBookings = lipslideCommon.asyncMiddleware(async (req) => {
+	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP, BOOKING_USER_GROUP]);
+
+	return await wakesurfBookingService.searchBookings(req.params);
+});
+
 const confirmBooking = lipslideCommon.asyncMiddleware(async (req) => {
 	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
@@ -48,5 +54,6 @@ module.exports = {
 	cancelBooking,
 	fulfillBooking,
 	findBooking,
+	searchBookings,
 	deleteAllBookings
 }

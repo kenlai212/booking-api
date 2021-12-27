@@ -4,19 +4,26 @@ require("dotenv").config();
 const lipslideCommon = require("lipslide-common");
 const {logger} = lipslideCommon;
 
-const routes = require("./routes");
+const routes = require("./src/routes");
 
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {
 	logger.error("WE GOT AN UNHANDLED REJECTION!!!!!!!");
-	logger.error(ex);
 	logger.error(ex);
 });
 
 process.on("uncaughtException", (ex) => {
 	logger.error("WE GOT AN UNCAUGHT EXCEPTION!!!!!!!");
 	logger.error(ex);
-	logger.error(ex);
+});
+
+//init kafka topics
+const topics = [
+	{topic: process.env.NEW_BOOKING_TOPIC}
+]
+lipslideCommon.createKafkaTopics(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), topics)
+.catch(error => {
+	logger.error(`Error while creating kafka topics : ${error}`);
 });
 
 //init mongo connection

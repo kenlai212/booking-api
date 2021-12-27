@@ -1,41 +1,70 @@
 "use strict";
+const jwt = require("jsonwebtoken");
 const axios = require("axios");
+const mongoose = require("mongoose");
 require("dotenv").config();
 const moment = require("moment");
 
 const lipslideCommon = require("lipslide-common");
-const {customError} = lipslideCommon;
+const {BadRequestError, InternalServerError} = lipslideCommon;
 
-const personService = require("../person/person.service");
-const staffService = require("../staff/staff.service");
-const occupancyService = require("../occupancy/occupancy.service");
+const RESERVED_STATUS = "RESERVED";
+
+function validateInput(schema, input){
+	const result = schema.validate(input);
+	
+	if (result.error) {
+		throw new BadRequestError(lipslideCommon.translateJoiValidationError(result.error))
+	}
+}
 
 async function validateOccupancyId(occupancyId){
-    const occupancy = await occupancyService.findOccupancy({occupancyId: occupancyId});
+    let occupancy; 
+    
+    try{
+        const url = `${process.env.OCCUPANCY_DOMAIN_URL}/occupancy/${occupancyId}`;
+        const response = await axios.get(url, {headers:{'Authorization': `token ${getAccessToken()}`}});
+        occupancy = response.data;
+    }catch(error){
+        throw new InternalServerError(error, "Occupancy API not available");
+    }
 
-    if(occupancy.status != "AWAIT_CONFIRMATION")
-    throw{ name: customError.BAD_REQUEST_ERROR, message: "Occupancy not available"};
+    if(occupancy.status != RESERVED_STATUS)
+    throw new BadRequestError("Occupancy not available");
 
     if(occupancy.referenceId)
-    throw{ name: customError.BAD_REQUEST_ERROR, message: "Occupancy not available"};
+    throw new BadRequestError("Occupancy not available")
 
     return occupancy;
 }
 
-async function validatePersonId(personId){
-    await personService.findPerson({personId: personId});
-}
+async function getWakesurfBooking(bookingId){
+	if(mongoose.connection.readyState != 1)
+    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
 
-async function validateStaffId(staffId){
-    await staffService.findStaff({staffId: staffId});
+	let wakesurfBooking;
+	
+	try{
+		wakesurfBooking = await WakesurfBooking.findById(bookingId);
+	}catch(error){
+		throw new DBError(error);
+	}
+	
+	if(!wakesurfBooking)
+	throw new ResourceNotFoundError("WaksurfBooking", input);
+
+	return wakesurfBooking;
 }
 
 function validateBookingTime(startTime, endTime, hostPersonId){
     if (startTime > endTime)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "endTime cannot be earlier then startTime" };
+    throw new BadRequestError("endTime cannot be earlier then startTime");
+
+    if (startTime == endTime)
+    throw new BadRequestError("endTime cannot be same as startTime");
 
 	if (startTime < moment().toDate() || endTime < moment().toDate())
-		throw{ name: customError.BAD_REQUEST_ERROR, message: "Booking time cannot be in the past" };
+    throw new BadRequestError("Booking time cannot be in the past");
 
 	//TODO check hostPersonId for special rules
     //TODO checkMinimumDuration(startTime, endTime);
@@ -104,7 +133,35 @@ function calculateTotalDuration(startTime, endTime){
 	return Math.round((durationByMinutes / 60) * 2) / 2;
 }
 
-async function modelToOutput(wakesurfBooking) {
+function getAccessToken() {
+	const userObject = {
+		userId: "TESTER1",
+		personId: "Tester 1",
+		userStatus: "ACTIVE",
+		groups: [
+			"AUTHENTICATION_ADMIN",
+			"BOOKING_ADMIN",
+			"PRICING_USER",
+			"OCCUPANCY_ADMIN",
+			"NOTIFICATION_USER",
+			"USER_ADMIN",
+			"ASSET_ADMIN",
+			"STAFF_ADMIN",
+			"PERSON_ADMIN",
+			"CUSTOMER_ADMIN",
+			"INVOICE_ADMIN"]
+	}
+
+	try {
+		return jwt.sign(userObject, "azize-lights");
+	} catch (err) {
+		console.error(err);
+		console.error("Error while signing access token for Booking API System User", err);
+		throw err;
+	}
+}
+
+function modelToOutput(wakesurfBooking) {
 	var outputObj = new Object();
 	outputObj.bookingId = wakesurfBooking._id;
 	outputObj.creationTime = wakesurfBooking.creationTime;
@@ -118,9 +175,10 @@ async function modelToOutput(wakesurfBooking) {
 }
 
 module.exports = {
+    validateInput,
+    getWakesurfBooking,
     validateOccupancyId,
-    validatePersonId,
-    validateStaffId,
     validateBookingTime,
-    modelToOutput
+    modelToOutput,
+    getAccessToken
 }
