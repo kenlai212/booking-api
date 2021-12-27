@@ -6,7 +6,9 @@ require("dotenv").config();
 const moment = require("moment");
 
 const lipslideCommon = require("lipslide-common");
-const {BadRequestError, InternalServerError} = lipslideCommon;
+const {BadRequestError, InternalServerError, DBError} = lipslideCommon;
+
+const {WakesurfBooking} = require("./wakesurfBooking.model");
 
 const RESERVED_STATUS = "RESERVED";
 

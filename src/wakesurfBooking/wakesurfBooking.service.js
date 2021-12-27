@@ -5,7 +5,7 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 
 const lipslideCommon = require("lipslide-common");
-const {logger, DBError, ResourceNotFoundError, UnauthorizedError, InternalServerError} = lipslideCommon;
+const {logger, DBError, ResourceNotFoundError, UnauthorizedError, InternalServerError, BadRequestError} = lipslideCommon;
 
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 const helper = require("./wakesurfBooking.helper");
@@ -135,10 +135,10 @@ async function cancelBooking(input) {
 	let wakesurfBooking = await helper.getWakesurfBooking(input.bookingId);
 	
 	if (wakesurfBooking.status === CANCELLED_STATUS)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already cancelled" };
+	throw new BadRequestError("Booking already cancelled");
 
 	if (wakesurfBooking.status === FULFILLED_STATUS)
-		throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot cancel an already fulfilled booking" };
+	throw new BadRequestError("Cannot cancel an already fulfilled booking");
 
 	wakesurfBooking.status = CANCELLED_STATUS;
 	wakesurfBooking.lastUpdateTime = new Date();
