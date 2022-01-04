@@ -85,19 +85,40 @@ async function confirmBooking(input){
 	}), input);
 
 	let wakesurfBooking = await helper.getWakesurfBooking(input.bookingId);
-	
+
 	wakesurfBooking.status = CONFIRMED_BOOKING_STATUS;
 	wakesurfBooking.lastUpdateTime = new Date();
+
+	if(mongoose.connection.readyState != 1)
+    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+
+	const session = await WakesurfBooking.startSession();
+	session.startTransaction();
 
 	try{
 		wakesurfBooking = await wakesurfBooking.save();
 	}catch(error){
+		await session.abortTransaction();
 		throw new DBError(error);
 	}
+	
+	const output = helper.modelToOutput(wakesurfBooking);
+	const messageStr = JSON.stringify(output);
+	
+	try{
+		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.CONFIRM_BOOKING_TOPIC, [{"value": messageStr}]);
+	}catch(error){
+		await session.abortTransaction();
+		throw new InternalServerError(error, `Event Source not available`);
+	}
 
-	logger.info(`Confirmed Booking(${wakesurfBooking._id})`);
+	await session.commitTransaction();
+	await session.endSession();
 
-	return helper.modelToOutput(wakesurfBooking);
+	logger.info(`Succssfully Confirmed Booking(${wakesurfBooking._id})`);
+	logger.info(`Sucessfully published ${messageStr} to ${process.env.CONFIRM_BOOKING_TOPIC}`);
+
+	return output;
 }
 
 async function fulfillBooking(input) {
@@ -116,15 +137,35 @@ async function fulfillBooking(input) {
 	wakesurfBooking.status = FULFILLED_STATUS;
 	wakesurfBooking.lastUpdateTime = new Date();
 
+	if(mongoose.connection.readyState != 1)
+    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+
+	const session = await WakesurfBooking.startSession();
+	session.startTransaction();
+
 	try{
 		wakesurfBooking = await wakesurfBooking.save();
 	}catch(error){
 		throw new DBError(error);
 	}
 
-	logger.info(`Fulfilled Booking(${wakesurfBooking._id})`);
+	const output = helper.modelToOutput(wakesurfBooking);
+	const messageStr = JSON.stringify(output);
+	
+	try{
+		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.FULFILL_BOOKING_TOPIC, [{"value": messageStr}]);
+	}catch(error){
+		await session.abortTransaction();
+		throw new InternalServerError(error, `Event Source not available`);
+	}
 
-	return helper.modelToOutput(wakesurfBooking);
+	await session.commitTransaction();
+	await session.endSession();
+
+	logger.info(`Succssfully Fulfilled Booking(${wakesurfBooking._id})`);
+	logger.info(`Sucessfully published ${messageStr} to ${process.env.FULFILL_BOOKING_TOPIC}`);
+
+	return output;
 }
 
 async function cancelBooking(input) {
@@ -143,15 +184,42 @@ async function cancelBooking(input) {
 	wakesurfBooking.status = CANCELLED_STATUS;
 	wakesurfBooking.lastUpdateTime = new Date();
 
+	if(mongoose.connection.readyState != 1)
+    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+
+	const session = await WakesurfBooking.startSession();
+	session.startTransaction();
+
 	try{
 		wakesurfBooking = await wakesurfBooking.save();
 	}catch(error){
 		throw new DBError(error);
 	}
+	const output = helper.modelToOutput(wakesurfBooking);
 
-	logger.info(`Cancelled Booking(${wakesurfBooking._id})`);
+	//call release occupancy api
+    try{
+        await axios.delete(`${process.env.OCCUPANCY_DOMAIN_URL}/occupancy/${output.occupancyId}`, {headers:{'Authorization': `token ${helper.getAccessToken()}`}});
+    }catch(error){
+		await session.abortTransaction();
+        throw new InternalServerError(error, "Occupancy API not available");
+    }
+	
+	const messageStr = JSON.stringify(output);
+	try{
+		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.CANCEL_BOOKING_TOPIC, [{"value": messageStr}]);
+	}catch(error){
+		await session.abortTransaction();
+		throw new InternalServerError(error, `Event Source not available`);
+	}
 
-	return helper.modelToOutput(wakesurfBooking);
+	await session.commitTransaction();
+	await session.endSession();
+
+	logger.info(`Succssfully Cancelled Booking(${wakesurfBooking._id})`);
+	logger.info(`Sucessfully published ${messageStr} to ${process.env.CANCEL_BOOKING_TOPIC}`);
+
+	return output;
 }
 
 async function findBooking(input) {
