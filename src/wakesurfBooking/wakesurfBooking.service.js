@@ -6,7 +6,7 @@ const mongoose = require("mongoose");
 
 const lipslideCommon = require("lipslide-common");
 const {logger, DBError, ResourceNotFoundError, UnauthorizedError, InternalServerError, BadRequestError} = lipslideCommon;
-
+const utility = require("../utility");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 const helper = require("./wakesurfBooking.helper");
 
@@ -18,16 +18,23 @@ const FULFILLED_STATUS = "FULFILLED"
 async function newBooking(input) {
 	helper.validateInput(Joi.object({
 		occupancyId: Joi.string().required(),
-		hostPersonId: Joi.string().required(),
+		host:Joi.object({
+			personId: Joi.string(),
+			name: Joi.string(),
+			countryCode: Joi.string(),
+			phoneNumber: Joi.string()
+		})
+		.xor("personId", "name")
+		.with("name",["phoneNumber", "countryCode"]).required(),
 		captainStaffId: Joi.string()
 	}), input);
 
 	const occupancy = await helper.validateOccupancyId(input.occupancyId);
 
-	helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
+	//helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
 
 	if(mongoose.connection.readyState != 1)
-    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
 	
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
@@ -36,9 +43,19 @@ async function newBooking(input) {
 	wakesurfBooking._id = uuidv4();
 	wakesurfBooking.creationTime = new Date();
 	wakesurfBooking.lastUpdateTime = new Date();
-	wakesurfBooking.occupancyId = occupancy.occupancyId;
+	wakesurfBooking.occupancyId = input.occupancyId;
 	wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
-	wakesurfBooking.hostPersonId = input.hostPersonId;
+	if(input.host.personId){
+		wakesurfBooking.host = {
+			personId: input.host.personId
+		}
+	}else{
+		wakesurfBooking.host = {
+			name: input.host.name,
+			countryCode: input.host.countryCode,
+			phoneNumber: input.host.phoneNumber
+		}
+	}
 	if(input.captainStaffId)
 	wakesurfBooking.captainStaffId = input.captainStaffId;
 	
@@ -65,6 +82,7 @@ async function newBooking(input) {
         throw new InternalServerError(error, "Occupancy API not available");
     }
 
+	//publish NEW_BOOKING event
 	const messageStr = JSON.stringify(output);
 	try{
 		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.NEW_BOOKING_TOPIC, [{"value": messageStr}]);
@@ -90,7 +108,7 @@ async function confirmBooking(input){
 	wakesurfBooking.lastUpdateTime = new Date();
 
 	if(mongoose.connection.readyState != 1)
-    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
 
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
@@ -138,7 +156,7 @@ async function fulfillBooking(input) {
 	wakesurfBooking.lastUpdateTime = new Date();
 
 	if(mongoose.connection.readyState != 1)
-    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
 
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
@@ -185,7 +203,7 @@ async function cancelBooking(input) {
 	wakesurfBooking.lastUpdateTime = new Date();
 
 	if(mongoose.connection.readyState != 1)
-    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
 
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();

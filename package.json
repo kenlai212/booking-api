@@ -17,10 +17,10 @@
     "express": "^4.17.1",
     "joi": "^17.2.0",
     "jsonwebtoken": "^8.5.1",
-    "lipslide-common": "^1.1.8",
+    "lipslide-common": "^1.1.9",
     "moment": "^2.27.0",
     "mongodb": "^3.5.9",
-    "mongoose": "^6.0.0",
+    "mongoose": "^6.2.2",
     "nodemon": "^2.0.14",
     "uuid": "^7.0.0"
   },

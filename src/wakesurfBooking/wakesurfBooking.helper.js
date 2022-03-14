@@ -6,7 +6,7 @@ require("dotenv").config();
 const moment = require("moment");
 
 const lipslideCommon = require("lipslide-common");
-const {BadRequestError, InternalServerError, DBError} = lipslideCommon;
+const {BadRequestError, InternalServerError, ResourceNotFoundError, DBError} = lipslideCommon;
 
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 
@@ -28,6 +28,9 @@ async function validateOccupancyId(occupancyId){
         const response = await axios.get(url, {headers:{'Authorization': `token ${getAccessToken()}`}});
         occupancy = response.data;
     }catch(error){
+        if(error.response.status == 400)
+        throw new lipslideCommon.ResourceNotFoundError("Occupancy", occupancyId);
+        else
         throw new InternalServerError(error, "Occupancy API not available");
     }
 

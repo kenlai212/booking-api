@@ -5,6 +5,7 @@ const lipslideCommon = require("lipslide-common");
 const {logger} = lipslideCommon;
 
 const routes = require("./src/routes");
+const utility = require("./src/utility");
 
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {
@@ -27,7 +28,7 @@ lipslideCommon.createKafkaTopics(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_
 });
 
 //init mongo connection
-lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
 
 const app = express();
 app.use(express.json());
