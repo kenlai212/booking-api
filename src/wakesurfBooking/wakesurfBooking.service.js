@@ -26,10 +26,12 @@ async function newBooking(input) {
 		})
 		.xor("personId", "name")
 		.with("name",["phoneNumber", "countryCode"]).required(),
-		captainStaffId: Joi.string()
+		captain: Joi.object({
+			staffId: Joi.string().required()
+		})
 	}), input);
 
-	const occupancy = await helper.validateOccupancyId(input.occupancyId);
+	await helper.validateOccupancyId(input.occupancyId);
 
 	//helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
 
@@ -56,8 +58,11 @@ async function newBooking(input) {
 			phoneNumber: input.host.phoneNumber
 		}
 	}
-	if(input.captainStaffId)
-	wakesurfBooking.captainStaffId = input.captainStaffId;
+	if(input.captain){
+		wakesurfBooking.captain = {
+			staffId: input.captain.staffId
+		}
+	}
 	
 	//if failed save wakesurfBooking record, publish FAILED_BOOKING so occupancyApi can release the occupancy
 	try{

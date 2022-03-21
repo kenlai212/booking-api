@@ -13,7 +13,9 @@ const wakesurfBookingSchema = new mongoose.Schema({
 		countryCode: String,
 		phoneNumber: String
 	},
-	captainStaffId: String
+	captain: {
+		staffId: String
+	}
 });
 
 const WakesurfBooking = mongoose.model("WakesurfBooking", wakesurfBookingSchema);

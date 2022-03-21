@@ -172,8 +172,18 @@ function modelToOutput(wakesurfBooking) {
 	outputObj.creationTime = wakesurfBooking.creationTime;
     outputObj.lastUpdateTime = wakesurfBooking.lastUpdateTime;
     outputObj.occupancyId = wakesurfBooking.occupancyId;
-	outputObj.hostPersonId = wakesurfBooking.hostPersonId;
-    outputObj.captainStaffId = wakesurfBooking.captainStaffId;
+    outputObj.host = {
+        personId: wakesurfBooking.host.personId,
+        name: wakesurfBooking.host.name,
+        countryCode: wakesurfBooking.host.countryCode,
+        phoneNumber: wakesurfBooking.host.phoneNumber
+    }
+
+    if(wakesurfBooking.captain && wakesurfBooking.captain.staffId){
+        outputObj.captain = {
+            staffId: wakesurfBooking.captain.staffId
+        }
+    }
 	outputObj.status = wakesurfBooking.status;
 
 	return outputObj;
