@@ -1,0 +1,36 @@
+{
+    "environment":"development",
+    "server": {
+      "port": 1239
+    },
+    "logging":{
+      "filePath":"C:/Users/85293/engine/lipslide/development/dev_tools/logs/booking/"
+    },
+    "api":{
+      "prefix":"/booking-api",
+      "occupancyApi":"http://localhost:1237/occupancy-api"
+    },
+    "db":{
+      "mongoDb":{
+        "url":"mongodb://localhost:27017/booking",
+        "ssl":false,
+        "sslCert":null
+      }
+    },
+    "authorization":{
+      "jwt":{
+        "passPhrase":"azize-lights"
+      }
+    },
+    "eventStreaming": true,
+    "kafka":{
+      "clientId": "booking-api",
+      "brokers": "localhost:9092",
+      "topics":{
+        "newBooking": "NEW_BOOKING",
+        "confirmBooking": "CONFIRM_BOOKING",
+        "fulfillBooking": "FULFILL_BOOKING",
+        "cancelBooking": "CANCEL_BOOKING"
+      }
+    }
+  }

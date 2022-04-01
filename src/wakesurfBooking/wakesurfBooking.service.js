@@ -1,4 +1,5 @@
 "use strict";
+const config = require('config');
 const Joi = require("joi");
 const { v4: uuidv4 } = require('uuid');
 const axios = require("axios");
@@ -36,7 +37,7 @@ async function newBooking(input) {
 	//helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
 
 	if(mongoose.connection.readyState != 1)
-    utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    utility.initMongoDb();
 	
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
@@ -81,7 +82,7 @@ async function newBooking(input) {
         referenceId: output.bookingId
     }
     try{
-        await axios.put(`${process.env.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, request, {headers:{'Authorization': `token ${helper.getAccessToken()}`}});
+        await axios.put(`${config.get("api.occupancyApi")}/occupancy/confirm`, request, {headers:{'Authorization': `token ${helper.getAccessToken()}`}});
     }catch(error){
 		await session.abortTransaction();
         throw new InternalServerError(error, "Occupancy API not available");
@@ -90,7 +91,7 @@ async function newBooking(input) {
 	//publish NEW_BOOKING event
 	const messageStr = JSON.stringify(output);
 	try{
-		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.NEW_BOOKING_TOPIC, [{"value": messageStr}]);
+		await lipslideCommon.publishToKafkaTopic(config.get("kafka.clientId"), config.get("kafka.brokers").split(","), config.get("kafka.topics.newBooking"), [{"value": messageStr}]);
 	}catch(error){
 		await session.abortTransaction();
 		throw new InternalServerError(error, `Event Source not available`);
@@ -113,7 +114,7 @@ async function confirmBooking(input){
 	wakesurfBooking.lastUpdateTime = new Date();
 
 	if(mongoose.connection.readyState != 1)
-    utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    utility.initMongoDb();
 
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
@@ -129,7 +130,7 @@ async function confirmBooking(input){
 	const messageStr = JSON.stringify(output);
 	
 	try{
-		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.CONFIRM_BOOKING_TOPIC, [{"value": messageStr}]);
+		await lipslideCommon.publishToKafkaTopic(config.get("kafka.clientId"), config.get("kafka.brokers").split(","), config.get("kafka.topics.confirmBooking"), [{"value": messageStr}]);
 	}catch(error){
 		await session.abortTransaction();
 		throw new InternalServerError(error, `Event Source not available`);
@@ -137,9 +138,6 @@ async function confirmBooking(input){
 
 	await session.commitTransaction();
 	await session.endSession();
-
-	logger.info(`Succssfully Confirmed Booking(${wakesurfBooking._id})`);
-	logger.info(`Sucessfully published ${messageStr} to ${process.env.CONFIRM_BOOKING_TOPIC}`);
 
 	return output;
 }
@@ -161,7 +159,7 @@ async function fulfillBooking(input) {
 	wakesurfBooking.lastUpdateTime = new Date();
 
 	if(mongoose.connection.readyState != 1)
-    utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    utility.initMongoDb();
 
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
@@ -176,7 +174,7 @@ async function fulfillBooking(input) {
 	const messageStr = JSON.stringify(output);
 	
 	try{
-		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.FULFILL_BOOKING_TOPIC, [{"value": messageStr}]);
+		await lipslideCommon.publishToKafkaTopic(config.get("kafka.clientId"), config.get("kafka.brokers").split(","), config.get("kafka.topics.confirmBooking"), [{"value": messageStr}]);
 	}catch(error){
 		await session.abortTransaction();
 		throw new InternalServerError(error, `Event Source not available`);
@@ -184,9 +182,6 @@ async function fulfillBooking(input) {
 
 	await session.commitTransaction();
 	await session.endSession();
-
-	logger.info(`Succssfully Fulfilled Booking(${wakesurfBooking._id})`);
-	logger.info(`Sucessfully published ${messageStr} to ${process.env.FULFILL_BOOKING_TOPIC}`);
 
 	return output;
 }
@@ -208,7 +203,7 @@ async function cancelBooking(input) {
 	wakesurfBooking.lastUpdateTime = new Date();
 
 	if(mongoose.connection.readyState != 1)
-    utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    utility.initMongoDb();
 
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
@@ -222,7 +217,7 @@ async function cancelBooking(input) {
 
 	//call release occupancy api
     try{
-        await axios.delete(`${process.env.OCCUPANCY_DOMAIN_URL}/occupancy/${output.occupancyId}`, {headers:{'Authorization': `token ${helper.getAccessToken()}`}});
+        await axios.delete(`${config.get("api.occupancyApi")}/occupancy/${output.occupancyId}`, {headers:{'Authorization': `token ${helper.getAccessToken()}`}});
     }catch(error){
 		await session.abortTransaction();
         throw new InternalServerError(error, "Occupancy API not available");
@@ -230,7 +225,7 @@ async function cancelBooking(input) {
 	
 	const messageStr = JSON.stringify(output);
 	try{
-		await lipslideCommon.publishToKafkaTopic(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), process.env.CANCEL_BOOKING_TOPIC, [{"value": messageStr}]);
+		await lipslideCommon.publishToKafkaTopic(config.get("kafka.clientId"), config.get("kafka.brokers").split(","), config.get("kafka.topics.cancelBooking"), [{"value": messageStr}]);
 	}catch(error){
 		await session.abortTransaction();
 		throw new InternalServerError(error, `Event Source not available`);
@@ -238,9 +233,6 @@ async function cancelBooking(input) {
 
 	await session.commitTransaction();
 	await session.endSession();
-
-	logger.info(`Succssfully Cancelled Booking(${wakesurfBooking._id})`);
-	logger.info(`Sucessfully published ${messageStr} to ${process.env.CANCEL_BOOKING_TOPIC}`);
 
 	return output;
 }
@@ -272,28 +264,11 @@ async function searchBookings(input){
 	}
 }
 
-async function deleteAllBookings(input){
-	helper.validateInput(Joi.object({
-		passcode: Joi.string().required()
-	}), input);
-
-	if(process.env.NODE_ENV != "development")
-	throw new UnauthorizedError("Cannot perform this function in this environment");
-
-	if(input.passcode != process.env.GOD_PASSCODE)
-	throw new UnauthorizedError("You are not GOD");
-
-	await WakesurfBooking.deleteMany();
-
-	return {status: "SUCCESS"}
-}
-
 module.exports = {
 	newBooking,
 	confirmBooking,
 	fulfillBooking,
 	cancelBooking,
 	findBooking,
-	searchBookings,
-	deleteAllBookings
+	searchBookings
 }

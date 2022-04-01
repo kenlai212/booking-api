@@ -1,4 +1,5 @@
 "use strict";
+const config = require('config');
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
 const mongoose = require("mongoose");
@@ -24,12 +25,12 @@ async function validateOccupancyId(occupancyId){
     let occupancy; 
     
     try{
-        const url = `${process.env.OCCUPANCY_DOMAIN_URL}/occupancy/${occupancyId}`;
+        const url = `${config.get("api.occupancyApi")}/occupancy/${occupancyId}`;
         const response = await axios.get(url, {headers:{'Authorization': `token ${getAccessToken()}`}});
         occupancy = response.data;
     }catch(error){
         if(error.response.status == 400)
-        throw new lipslideCommon.ResourceNotFoundError("Occupancy", occupancyId);
+        throw new ResourceNotFoundError("Occupancy", occupancyId);
         else
         throw new InternalServerError(error, "Occupancy API not available");
     }
@@ -45,7 +46,7 @@ async function validateOccupancyId(occupancyId){
 
 async function getWakesurfBooking(bookingId){
 	if(mongoose.connection.readyState != 1)
-    lipslideCommon.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+    lipslideCommon.initMongoDb();
 
 	let wakesurfBooking;
 	

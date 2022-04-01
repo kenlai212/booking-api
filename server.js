@@ -1,5 +1,5 @@
 const express = require("express");
-require("dotenv").config();
+const config = require('config');
 
 const lipslideCommon = require("lipslide-common");
 const {logger} = lipslideCommon;
@@ -20,24 +20,32 @@ process.on("uncaughtException", (ex) => {
 
 //init kafka topics
 const topics = [
-	{topic: process.env.NEW_BOOKING_TOPIC}
+	{topic: config.get("kafka.topics.newBooking")},
+	{topic: config.get("kafka.topics.confirmBooking")},
+	{topic: config.get("kafka.topics.fulfillBooking")},
+	{topic: config.get("kafka.topics.cancelBooking")}
 ]
-lipslideCommon.createKafkaTopics(process.env.KAFKA_CLIENT_ID, process.env.KAFKA_BROKERS.split(" "), topics)
+lipslideCommon.createKafkaTopics(config.get("kafka.clientId"), config.get("kafka.brokers").split(","), topics)
 .catch(error => {
 	logger.error(`Error while creating kafka topics : ${error}`);
 });
 
 //init mongo connection
-utility.initMongoDb(process.env.BOOKING_DB_CONNECTION_URL);
+try{
+	utility.initMongoDb();
+}catch(error){
+	console.error(error);
+	logger.error(`Error while connecting to MongoDB`);
+};
 
 const app = express();
 app.use(express.json());
 app.use("/", routes);
-app.listen(process.env.PORT, function (err) {
+app.listen(config.get("server.port"), function (err) {
 	if (err) {
 		logger.error(`Error while starting Booking API : ${err}`);
 		throw err;
 	}
 
-	logger.info(`Booking API started up. Listening to port : ${process.env.PORT}`);
+	logger.info(`Booking API started up. Listening to port : ${config.get("server.port")}`);
 });
