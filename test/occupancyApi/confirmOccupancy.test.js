@@ -3,13 +3,12 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 
 const common = require("../../common");
-const occupancyTestCommon = require("./occupancyTestCommon");
 
 const REQUEST_CONFIG = {headers:{'Authorization': `token ${common.getAccessToken()}`}}
 
 beforeAll(async() => {
     try{
-       mongoose.connect(occupancyTestCommon.MONGO_DB_URL, { useUnifiedTopology: true, useNewUrlParser: true });
+       mongoose.connect(common.OCCUPANCY_MONGO_DB_URL, { useUnifiedTopology: true, useNewUrlParser: true });
     }catch(error){
         console.error(`Mongoose Connection Error: ${error}`, "Mongoose Connection Error");	
     }
@@ -19,7 +18,7 @@ beforeEach(async() => {
     try{
         await mongoose.connection.dropCollection('occupancies');
     }catch(error){
-        console.error(error);
+        //console.error(error);
     }
 });
 
@@ -32,7 +31,7 @@ describe('Test confrim occupancy', () => {
         const putOccupancyRequest = {}
         
         try{
-            await axios.put(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
+            await axios.put(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -46,7 +45,7 @@ describe('Test confrim occupancy', () => {
         }
 
         try{
-            await axios.put(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
+            await axios.put(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -61,7 +60,7 @@ describe('Test confrim occupancy', () => {
         }
 
         try{
-            await axios.put(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
+            await axios.put(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -77,7 +76,7 @@ describe('Test confrim occupancy', () => {
         }
 
         try{
-            await axios.put(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
+            await axios.put(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(404);
@@ -87,14 +86,14 @@ describe('Test confrim occupancy', () => {
 
     it("invalid referenceType, 200", async () => {
         const postOccupancy1Request = {
-            startTime: occupancyTestCommon.getTomorrowEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowNineAMDate(),
+            startTime: common.getTomorrowEightAMDate(),
+            endTime: common.getTomorrowNineAMDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
             referenceType:"WAKESURF_BOOKING"
         }
-        const postOccupancy1Response = await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancy1Request, REQUEST_CONFIG);
+        const postOccupancy1Response = await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancy1Request, REQUEST_CONFIG);
 
         try{
             const putOccupancyRequest = {
@@ -102,7 +101,7 @@ describe('Test confrim occupancy', () => {
                 referenceType: "INVALID_REFERENCE_TYPE",
                 referenceId: "R123"
             }
-            await axios.put(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
+            await axios.put(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -112,20 +111,20 @@ describe('Test confrim occupancy', () => {
 
     it("success, 200", async () => {
         const postOccupancy1Request = {
-            startTime: occupancyTestCommon.getTomorrowEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowNineAMDate(),
+            startTime: common.getTomorrowEightAMDate(),
+            endTime: common.getTomorrowNineAMDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
             referenceType:"WAKESURF_BOOKING"
         }
-        const postOccupancy1Response = await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancy1Request, REQUEST_CONFIG);
+        const postOccupancy1Response = await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancy1Request, REQUEST_CONFIG);
         const putOccupancyRequest = {
             occupancyId: postOccupancy1Response.data.occupancyId,
             referenceType: "WAKESURF_BOOKING",
             referenceId: "R123"
         }
-        const putOccupancyResponse = await axios.put(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
+        const putOccupancyResponse = await axios.put(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/confirm`, putOccupancyRequest,REQUEST_CONFIG);
 
         expect.assertions(3);
         expect(putOccupancyResponse.status).toEqual(200);

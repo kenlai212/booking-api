@@ -2,10 +2,12 @@
 const moment = require("moment");
 const jwt = require("jsonwebtoken");
 
-//const DOMAIN = "ec2-16-162-118-236.ap-east-1.compute.amazonaws.com";
 const DOMAIN = "localhost";
-const OCCUPANCY_DOMAIN_URL = `http://${DOMAIN}:1237/api`;
-const BOOKING_DOMAIN_URL = `http://${DOMAIN}:1238/api`;
+const OCCUPANCY_DOMAIN_URL = `http://${DOMAIN}:1237/occupancy-api`;
+const BOOKING_DOMAIN_URL = `http://${DOMAIN}:1239/booking-api`;
+
+const OCCUPANCY_MONGO_DB_URL = "mongodb://localhost:27017/occupancy";
+const BOOKING_MONGO_DB_URL = "mongodb://localhost:27017/booking";
 
 function getAccessToken() {
 	const userObject = {
@@ -54,6 +56,16 @@ function getTomorrowNineAMDate(){
     return tomorrowNineAm;
 }
 
+function getTomorrowTenAMDate(){
+    const tomorrowTenAm = moment().utcOffset(8).add(1,"days").set({hour:10,minute:0,second:0,millisecond:0}).toDate();
+    return tomorrowTenAm;
+}
+
+function getTomorrowElevenAMDate(){
+    const tomorrowElevenAm = moment().utcOffset(8).add(1,"days").set({hour:11,minute:0,second:0,millisecond:0}).toDate();
+    return tomorrowElevenAm;
+}
+
 function getYesterdayEightAMDate(){
     const yesterdayEightAm = moment().utcOffset(8).add(-1,"days").set({hour:8,minute:0,second:0,millisecond:0}).toDate();
     return yesterdayEightAm;
@@ -68,9 +80,13 @@ module.exports = {
     getAccessToken,
     OCCUPANCY_DOMAIN_URL,
 	BOOKING_DOMAIN_URL,
+	OCCUPANCY_MONGO_DB_URL,
+	BOOKING_MONGO_DB_URL,
 	sleep,
 	getTomorrowEightAMDate,
     getTomorrowNineAMDate,
+	getTomorrowTenAMDate,
+    getTomorrowElevenAMDate,
     getYesterdayEightAMDate,
     getTomorrowSevenAmDate
 }

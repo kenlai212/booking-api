@@ -3,13 +3,12 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 
 const common = require("../../common");
-const occupancyTestCommon = require("./occupancyTestCommon");
 
 const REQUEST_CONFIG = {headers:{'Authorization': `token ${common.getAccessToken()}`}}
 
 beforeAll(async() => {
     try{
-       mongoose.connect(occupancyTestCommon.MONGO_DB_URL, { useUnifiedTopology: true, useNewUrlParser: true });
+       mongoose.connect(common.OCCUPANCY_MONGO_DB_URL, { useUnifiedTopology: true, useNewUrlParser: true });
     }catch(error){
         console.error(`Mongoose Connection Error: ${error}`, "Mongoose Connection Error");	
     }
@@ -19,7 +18,7 @@ beforeEach(async() => {
     try{
         await mongoose.connection.dropCollection('occupancies');
     }catch(error){
-        console.error(error);
+        //console.error(error);
     }
 });
 
@@ -31,7 +30,7 @@ describe('Test post occupancy', () => {
     it("missing startTime, 400 error!", async () => {
         const postOccupancyRequest = {}
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -45,7 +44,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -60,7 +59,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -76,7 +75,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -93,7 +92,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -110,7 +109,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -128,7 +127,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -147,7 +146,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -157,8 +156,8 @@ describe('Test post occupancy', () => {
 
     it("startTime same as endTime, 400 error!", async () => {
         const postOccupancyRequest = {
-            startTime: occupancyTestCommon.getTomorrowEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowEightAMDate(),
+            startTime: common.getTomorrowEightAMDate(),
+            endTime: common.getTomorrowEightAMDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
@@ -166,7 +165,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -176,8 +175,8 @@ describe('Test post occupancy', () => {
 
     it("startTime in the past, 400 error!", async () => {
         const postOccupancyRequest = {
-            startTime: occupancyTestCommon.getYesterdayEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowNineAMDate(),
+            startTime: common.getYesterdayEightAMDate(),
+            endTime: common.getTomorrowNineAMDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
@@ -185,7 +184,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -195,8 +194,8 @@ describe('Test post occupancy', () => {
 
     it("endTime befor startTime, 400 error!", async () => {
         const postOccupancyRequest = {
-            startTime: occupancyTestCommon.getTomorrowEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowSevenAmDate(),
+            startTime: common.getTomorrowEightAMDate(),
+            endTime: common.getTomorrowSevenAmDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
@@ -204,7 +203,7 @@ describe('Test post occupancy', () => {
         }
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);
@@ -214,22 +213,22 @@ describe('Test post occupancy', () => {
 
     it("success, returns 200!", async () => {
         const postOccupancyRequest = {
-            startTime: occupancyTestCommon.getTomorrowEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowNineAMDate(),
+            startTime: common.getTomorrowEightAMDate(),
+            endTime: common.getTomorrowNineAMDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
             referenceType:"WAKESURF_BOOKING"
         }
 
-        const response = await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+        const response = await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         expect.assertions(10);
         expect(response.status).toEqual(200);
         expect(response.data.occupancyId).not.toBeNull();
         expect(response.data.creationTime).not.toBeNull();
         expect(response.data.lastUpdateTime).not.toBeNull();
-        expect(response.data.startTime).toEqual(occupancyTestCommon.getTomorrowEightAMDate().toISOString());
-        expect(response.data.endTime).toEqual(occupancyTestCommon.getTomorrowNineAMDate().toISOString());
+        expect(response.data.startTime).toEqual(common.getTomorrowEightAMDate().toISOString());
+        expect(response.data.endTime).toEqual(common.getTomorrowNineAMDate().toISOString());
         expect(response.data.assetType).toEqual("BOAT");
         expect(response.data.assetId).toEqual("A123");
         expect(response.data.referenceType).toEqual("WAKESURF_BOOKING");
@@ -286,18 +285,18 @@ describe('Test post occupancy', () => {
 
     it("two occupancies overlap, 400 error!", async () => {
         const postOccupancyRequest = {
-            startTime: occupancyTestCommon.getTomorrowEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowNineAMDate(),
+            startTime: common.getTomorrowEightAMDate(),
+            endTime: common.getTomorrowNineAMDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
             referenceType:"WAKESURF_BOOKING"
         }
 
-        await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+        await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
 
         try{
-            await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+            await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(2);
             expect(error.response.status).toEqual(400);

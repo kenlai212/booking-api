@@ -5,29 +5,27 @@ const mongoose = require("mongoose");
 const common = require("../../common");
 
 const REQUEST_CONFIG = {headers:{'Authorization': `token ${common.getAccessToken()}`}}
-const occupancyDBConnStr = "mongodb://localhost:27017/occupancy";
-const bookingDBConnStr = "mongodb://localhost:27017/booking";
 
 let occupancyId;
 
 beforeAll(async() => {
     
     try{
-       mongoose.connect(occupancyDBConnStr, { useUnifiedTopology: true, useNewUrlParser: true });
+       mongoose.connect(common.OCCUPANCY_MONGO_DB_URL, { useUnifiedTopology: true, useNewUrlParser: true });
        await mongoose.connection.dropCollection('occupancies');
-       mongoose.connection.close();
+       await mongoose.connection.close();
     }catch(error){
-        console.error(`Mongoose Connection Error: ${error}`);
-        throw error;
+        //console.error(`Mongoose Connection Error: ${error}`);
+        //throw error;
     }
-    
+
     try{
-        mongoose.connect(bookingDBConnStr, { useUnifiedTopology: true, useNewUrlParser: true });
+        mongoose.connect(common.BOOKING_MONGO_DB_URL, { useUnifiedTopology: true, useNewUrlParser: true });
         await mongoose.connection.dropCollection('wakesurfbookings');
-        mongoose.connection.close();
+        await mongoose.connection.close();
      }catch(error){
-         console.error(`Mongoose Connection Error: ${error}`);
-         throw error;	
+         //console.error(`Mongoose Connection Error: ${error}`);
+         //throw error;	
      }
      
     const postOccupancyRequest = {
@@ -41,6 +39,7 @@ beforeAll(async() => {
 
     const response = await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
     occupancyId = response.data.occupancyId;
+    
 });
 
 beforeEach(async() => {});
@@ -132,8 +131,8 @@ describe('Test post booking', () => {
                 countryCode:"852"
             }
         }
+        const postBookingResponse = await axios.post(`${common.BOOKING_DOMAIN_URL}/booking`, postBookingRequest, REQUEST_CONFIG);   
 
-        const postBookingResponse = await axios.post(`${common.BOOKING_DOMAIN_URL}/booking`, postBookingRequest, REQUEST_CONFIG);
         expect.assertions(9);
         expect(postBookingResponse.status).toEqual(200);
         expect(postBookingResponse.data.bookingId).not.toBeNull();

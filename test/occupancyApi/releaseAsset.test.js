@@ -3,13 +3,12 @@ const axios = require("axios");
 const mongoose = require("mongoose");
 
 const common = require("../../common");
-const occupancyTestCommon = require("./occupancyTestCommon");
 
 const REQUEST_CONFIG = {headers:{'Authorization': `token ${common.getAccessToken()}`}}
 
 beforeAll(async() => {
     try{
-       mongoose.connect(occupancyTestCommon.MONGO_DB_URL, { useUnifiedTopology: true, useNewUrlParser: true });
+       mongoose.connect(common.OCCUPANCY_MONGO_DB_URL, { useUnifiedTopology: true, useNewUrlParser: true });
     }catch(error){
         console.error(`Mongoose Connection Error: ${error}`, "Mongoose Connection Error");	
     }
@@ -19,7 +18,7 @@ beforeEach(async() => {
     try{
         await mongoose.connection.dropCollection('occupancies');
     }catch(error){
-        console.error(error);
+        //console.error(error);
     }
 });
 
@@ -30,7 +29,7 @@ afterAll(() => {
 describe('Test delete occupancy', () => {
     it("missing occupancyId, 404 error!", async () => {
         try{
-            await axios.delete(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, REQUEST_CONFIG);
+            await axios.delete(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(1);
             expect(error.response.status).toEqual(404);
@@ -39,18 +38,18 @@ describe('Test delete occupancy', () => {
 
     it("invalid occupacyId, 404 error!", async () => {
         const postOccupancyRequest = {
-            startTime: occupancyTestCommon.getTomorrowEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowNineAMDate(),
+            startTime: common.getTomorrowEightAMDate(),
+            endTime: common.getTomorrowNineAMDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
             referenceType:"WAKESURF_BOOKING"
         }
 
-        await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
+        await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancyRequest, REQUEST_CONFIG);
 
         try{
-            await axios.delete(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/NON_EXIST`, REQUEST_CONFIG);
+            await axios.delete(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/NON_EXIST`, REQUEST_CONFIG);
         }catch(error){
             expect.assertions(1);
             expect(error.response.status).toEqual(404);
@@ -59,20 +58,20 @@ describe('Test delete occupancy', () => {
 
     it("valid occupacyId, 200!", async () => {
         const postOccupancy1Request = {
-            startTime: occupancyTestCommon.getTomorrowEightAMDate(),
-            endTime: occupancyTestCommon.getTomorrowNineAMDate(),
+            startTime: common.getTomorrowEightAMDate(),
+            endTime: common.getTomorrowNineAMDate(),
             utcOffset:0,
             assetType:"BOAT",
             assetId:"A123",
             referenceType:"WAKESURF_BOOKING"
         }
-        const postOccupancy1Response = await axios.post(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancy1Request, REQUEST_CONFIG);
-        const getOccupancy1Response = await axios.get(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/${postOccupancy1Response.data.occupancyId}`, REQUEST_CONFIG);
-        const deleteOccupancy1Response = await axios.delete(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/${postOccupancy1Response.data.occupancyId}`, REQUEST_CONFIG);
+        const postOccupancy1Response = await axios.post(`${common.OCCUPANCY_DOMAIN_URL}/occupancy`, postOccupancy1Request, REQUEST_CONFIG);
+        const getOccupancy1Response = await axios.get(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/${postOccupancy1Response.data.occupancyId}`, REQUEST_CONFIG);
+        const deleteOccupancy1Response = await axios.delete(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/${postOccupancy1Response.data.occupancyId}`, REQUEST_CONFIG);
         
         let getOccupancyError;
         try{
-            await axios.get(`${occupancyTestCommon.OCCUPANCY_DOMAIN_URL}/occupancy/${postOccupancy1Response.data.occupancyId}`, REQUEST_CONFIG);
+            await axios.get(`${common.OCCUPANCY_DOMAIN_URL}/occupancy/${postOccupancy1Response.data.occupancyId}`, REQUEST_CONFIG);
         }catch(err){
             getOccupancyError = err;
         } 
