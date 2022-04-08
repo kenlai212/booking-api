@@ -1,51 +1,61 @@
 "use strict";
+const Joi = require("joi");
+const { v4: uuidv4 } = require('uuid');
 const config = require('config');
 const jwt = require("jsonwebtoken");
 const axios = require("axios");
-const mongoose = require("mongoose");
-require("dotenv").config();
 const moment = require("moment");
+const mongoose = require("mongoose");
 
 const lipslideCommon = require("lipslide-common");
-const {BadRequestError, InternalServerError, ResourceNotFoundError, DBError} = lipslideCommon;
+const {BadRequestError, InternalServerError, ResourceNotFoundError} = lipslideCommon;
 
+const utility = require("../utility");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 
 const RESERVED_STATUS = "RESERVED";
+const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 
-function validateInput(schema, input){
-	const result = schema.validate(input);
-	
-	if (result.error) {
-		throw new BadRequestError(lipslideCommon.translateJoiValidationError(result.error))
-	}
+function validateNewBookingInput(input){
+    utility.validateInput(Joi.object({
+        startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
+		assetId: Joi.string().required(),
+		host:Joi.object({
+			personId: Joi.string(),
+			name: Joi.string(),
+			countryCode: Joi.string(),
+			phoneNumber: Joi.string()
+		})
+		.xor("personId", "name")
+        .required(),
+		captain: Joi.object({
+			staffId: Joi.string().required()
+		}),
+        postDate: Joi.boolean()
+	}), input);
 }
 
-async function validateOccupancyId(occupancyId){
-    let occupancy; 
-    
-    try{
-        const url = `${config.get("api.occupancyApi")}/occupancy/${occupancyId}`;
-        const response = await axios.get(url, {headers:{'Authorization': `token ${getAccessToken()}`}});
-        occupancy = response.data;
-    }catch(error){
-        if(error.response.status == 400)
-        throw new ResourceNotFoundError("Occupancy", occupancyId);
-        else
-        throw new InternalServerError(error, "Occupancy API not available");
+function validateCaptainStaffId(staffId){
+    const VALID_STAFF_ID = [
+        "KO_CHUN",
+        "SUNG",
+        "GERMAN",
+        "PAK",
+        "KHAN",
+        "KEN"
+    ]
+
+    if(VALID_STAFF_ID.includes(staffId)){
+        return true;
+    }else{
+        throw new BadRequestError(`Invalid staffId ${staffId}`);
     }
-
-    if(occupancy.status != RESERVED_STATUS)
-    throw new BadRequestError("Occupancy not available");
-
-    if(occupancy.referenceId)
-    throw new BadRequestError("Occupancy not available")
-
-    return occupancy;
 }
 
 async function getWakesurfBooking(bookingId){
-	if(mongoose.connection.readyState != 1)
+    if(mongoose.connection.readyState != 1)
     lipslideCommon.initMongoDb();
 
 	let wakesurfBooking;
@@ -57,9 +67,55 @@ async function getWakesurfBooking(bookingId){
 	}
 	
 	if(!wakesurfBooking)
-	throw new ResourceNotFoundError("WaksurfBooking", input);
+	throw new ResourceNotFoundError("WakesurfBooking", input);
 
-	return wakesurfBooking;
+    return wakesurfBooking;
+}
+
+function initWakesurfBooking(input, occupancyId){
+    let wakesurfBooking = new WakesurfBooking();
+	wakesurfBooking._id = uuidv4();
+	wakesurfBooking.creationTime = new Date();
+	wakesurfBooking.lastUpdateTime = new Date();
+	wakesurfBooking.occupancyId = occupancyId;
+	wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
+	if(input.host.personId){
+		wakesurfBooking.host = {
+			personId: input.host.personId
+		}
+	}else{
+		wakesurfBooking.host = {
+			name: input.host.name,
+			countryCode: input.host.countryCode,
+			phoneNumber: input.host.phoneNumber
+		}
+	}
+	if(input.captain){
+		wakesurfBooking.captain = {
+			staffId: input.captain.staffId
+		}
+	}
+
+    return wakesurfBooking;
+}
+
+function validateConfirmBookingInput(input){
+    utility.validateInput(Joi.object({
+		bookingId: Joi.string().required()
+	}), input);
+
+}
+
+function validateFulfillBookingInput(input){
+    utility.validateInput(Joi.object({
+		bookingId: Joi.string().required()
+	}), input);
+}
+
+function validateCancelBookingInput(input){
+    utility.validateInput(Joi.object({
+		bookingId: Joi.string().required()
+	}), input);
 }
 
 function validateBookingTime(startTime, endTime, hostPersonId){
@@ -77,6 +133,13 @@ function validateBookingTime(startTime, endTime, hostPersonId){
     //TODO checkMaximumDurattion(startTime, endTime);
     //TODO checkEarliestStartTime(startTime, utcOffset);
     //TODO checkLatestEndTime(endTime, utcOffset);
+}
+
+function validateFindBookingInput(input){
+    utility.validateInput(Joi.object({
+		bookingId: Joi.string().required()
+	}), input);
+
 }
 
 function checkMinimumDuration(startTime, endTime){
@@ -191,9 +254,14 @@ function modelToOutput(wakesurfBooking) {
 }
 
 module.exports = {
-    validateInput,
+    initWakesurfBooking,
+    validateNewBookingInput,
+    validateCaptainStaffId,
     getWakesurfBooking,
-    validateOccupancyId,
+    validateConfirmBookingInput,
+    validateFulfillBookingInput,
+    validateCancelBookingInput,
+    validateFindBookingInput,
     validateBookingTime,
     modelToOutput,
     getAccessToken
