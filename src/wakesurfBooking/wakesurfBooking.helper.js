@@ -99,7 +99,7 @@ function initWakesurfBooking(input, occupancyId){
 			staffId: input.captain.staffId
 		}
 	}
-console.log(wakesurfBooking);
+
     return wakesurfBooking;
 }
 
