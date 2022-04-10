@@ -3,12 +3,11 @@ const Joi = require("joi");
 const { v4: uuidv4 } = require('uuid');
 const config = require('config');
 const jwt = require("jsonwebtoken");
-const axios = require("axios");
 const moment = require("moment");
 const mongoose = require("mongoose");
 
 const lipslideCommon = require("lipslide-common");
-const {BadRequestError, InternalServerError, ResourceNotFoundError} = lipslideCommon;
+const {BadRequestError, ResourceNotFoundError} = lipslideCommon;
 
 const utility = require("../utility");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
@@ -78,6 +77,10 @@ function initWakesurfBooking(input, occupancyId){
 	wakesurfBooking.creationTime = new Date();
 	wakesurfBooking.lastUpdateTime = new Date();
 	wakesurfBooking.occupancyId = occupancyId;
+
+    wakesurfBooking.startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
+    wakesurfBooking.endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
+
 	wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
 	if(input.host.personId){
 		wakesurfBooking.host = {
@@ -236,6 +239,9 @@ function modelToOutput(wakesurfBooking) {
 	outputObj.creationTime = wakesurfBooking.creationTime;
     outputObj.lastUpdateTime = wakesurfBooking.lastUpdateTime;
     outputObj.occupancyId = wakesurfBooking.occupancyId;
+    outputObj.startTime = wakesurfBooking.startTime;
+    outputObj.endTime = wakesurfBooking.endTime;
+
     outputObj.host = {
         personId: wakesurfBooking.host.personId,
         name: wakesurfBooking.host.name,

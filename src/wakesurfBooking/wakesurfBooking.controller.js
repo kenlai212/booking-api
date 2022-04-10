@@ -45,7 +45,7 @@ const confirmBooking = lipslideCommon.asyncMiddleware(async (req) => {
 const deleteAllBookings = lipslideCommon.asyncMiddleware(async(req) => {
 	lipslideCommon.userGroupAuthorization(req.requestor.groups, [BOOKING_ADMIN_GROUP]);
 
-	return await wakesurfBookingService.deleteAllBookings(req.params)
+	return await wakesurfBookingService.deleteAllBookings(req.params);
 });
 
 module.exports = {
