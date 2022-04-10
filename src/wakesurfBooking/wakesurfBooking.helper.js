@@ -11,6 +11,7 @@ const {BadRequestError, ResourceNotFoundError} = lipslideCommon;
 
 const utility = require("../utility");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
+const { utc } = require("moment");
 
 const RESERVED_STATUS = "RESERVED";
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
@@ -78,8 +79,8 @@ function initWakesurfBooking(input, occupancyId){
 	wakesurfBooking.lastUpdateTime = new Date();
 	wakesurfBooking.occupancyId = occupancyId;
 
-    wakesurfBooking.startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
-    wakesurfBooking.endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
+    wakesurfBooking.startTime = input.startTime;
+    wakesurfBooking.endTime = input.endTime;
 
 	wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
 	if(input.host.personId){
@@ -98,7 +99,7 @@ function initWakesurfBooking(input, occupancyId){
 			staffId: input.captain.staffId
 		}
 	}
-
+console.log(wakesurfBooking);
     return wakesurfBooking;
 }
 
@@ -236,8 +237,9 @@ function getAccessToken() {
 function modelToOutput(wakesurfBooking) {
 	var outputObj = new Object();
 	outputObj.bookingId = wakesurfBooking._id;
-	outputObj.creationTime = wakesurfBooking.creationTime;
-    outputObj.lastUpdateTime = wakesurfBooking.lastUpdateTime;
+
+	outputObj.creationTime = moment(wakesurfBooking.creationTime).utcOffset(8,true).toDate();
+    outputObj.lastUpdateTime = moment(wakesurfBooking.lastUpdateTime).utcOffset(8,true).toDate();
     outputObj.occupancyId = wakesurfBooking.occupancyId;
     outputObj.startTime = wakesurfBooking.startTime;
     outputObj.endTime = wakesurfBooking.endTime;

@@ -43,6 +43,8 @@ async function newBooking(input) {
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
 
+	input.startTime = postOccupancyResponse.data.startTime;
+	input.endTime = postOccupancyResponse.data.endTime;
 	let wakesurfBooking = helper.initWakesurfBooking(input, postOccupancyResponse.data.occupancyId);
 	
 	//if failed save wakesurfBooking record, publish FAILED_BOOKING so occupancyApi can release the occupancy
