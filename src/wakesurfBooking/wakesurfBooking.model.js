@@ -17,6 +17,13 @@ const wakesurfBookingSchema = new mongoose.Schema({
 	},
 	captain: {
 		staffId: String
+	},
+	asset:{
+		assetId: String
+	},
+	quote:{
+		price: Number,
+		currency: String
 	}
 });
 

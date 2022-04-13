@@ -7,13 +7,11 @@ const moment = require("moment");
 const mongoose = require("mongoose");
 
 const lipslideCommon = require("lipslide-common");
-const {BadRequestError, ResourceNotFoundError} = lipslideCommon;
+const {BadRequestError, ResourceNotFoundError, InternalServerError} = lipslideCommon;
 
 const utility = require("../utility");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
-const { utc } = require("moment");
 
-const RESERVED_STATUS = "RESERVED";
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 
 function validateNewBookingInput(input){
@@ -22,6 +20,10 @@ function validateNewBookingInput(input){
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
 		assetId: Joi.string().required(),
+        quote: Joi.object({
+            price: Joi.number().required(),
+            currency:Joi.string().valid("HKD","RMB").required()
+        }),
 		host:Joi.object({
 			personId: Joi.string(),
 			name: Joi.string(),
@@ -78,11 +80,23 @@ function initWakesurfBooking(input, occupancyId){
 	wakesurfBooking.creationTime = new Date();
 	wakesurfBooking.lastUpdateTime = new Date();
 	wakesurfBooking.occupancyId = occupancyId;
-
     wakesurfBooking.startTime = input.startTime;
     wakesurfBooking.endTime = input.endTime;
+    wakesurfBooking.asset = {
+        assetId: input.assetId
+    }
 
 	wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
+
+    //set quote
+    if(input.quote){
+        wakesurfBooking.quote = {
+            price: input.quote.price,
+            currency: input.quote.currency
+        }
+    }
+
+    //set host
 	if(input.host.personId){
 		wakesurfBooking.host = {
 			personId: input.host.personId
@@ -94,6 +108,8 @@ function initWakesurfBooking(input, occupancyId){
 			phoneNumber: input.host.phoneNumber
 		}
 	}
+
+    //set captain
 	if(input.captain){
 		wakesurfBooking.captain = {
 			staffId: input.captain.staffId
@@ -228,9 +244,9 @@ function getAccessToken() {
 	try {
 		return jwt.sign(userObject, "azize-lights");
 	} catch (err) {
-		console.error(err);
-		console.error("Error while signing access token for Booking API System User", err);
-		throw err;
+		logger.error(err);
+		logger.error("Error while signing access token for Booking API System User", err);
+		throw InternalServerError("JWT sign error");
 	}
 }
 
@@ -243,6 +259,16 @@ function modelToOutput(wakesurfBooking) {
     outputObj.occupancyId = wakesurfBooking.occupancyId;
     outputObj.startTime = wakesurfBooking.startTime;
     outputObj.endTime = wakesurfBooking.endTime;
+    outputObj.asset = {
+        assetId: wakesurfBooking.asset.assetId
+    }
+
+    if(wakesurfBooking.quote && wakesurfBooking.quote.price){
+        outputObj.quote = {
+            price: wakesurfBooking.quote.price,
+            currency: wakesurfBooking.quote.currency
+        }
+    }
 
     outputObj.host = {
         personId: wakesurfBooking.host.personId,
