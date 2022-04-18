@@ -19,6 +19,9 @@ async function newBooking(input) {
 	if(input.captain)
 	helper.validateCaptainStaffId(input.captain.staffId);
 
+	if(input.crew)
+	helper.validateCrewStaffIds(input.crew)
+	
 	//helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
 
 	if(mongoose.connection.readyState != 1)
@@ -102,6 +105,13 @@ async function fulfillBooking(input) {
 	if (wakesurfBooking.status === CANCELLED_STATUS)
 	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot fulfilled a cancelled booking" };
 
+	const startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
+	const endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
+	wakesurfBooking.fulfillment = {
+		startTime: startTime,
+		endTime: endTime
+	}
+
 	wakesurfBooking.status = FULFILLED_STATUS;
 	wakesurfBooking.lastUpdateTime = new Date();
 
@@ -122,7 +132,7 @@ async function fulfillBooking(input) {
 	const messageStr = JSON.stringify(output);
 	
 	try{
-		await lipslideCommon.publishToKafkaTopic(config.get("kafka.clientId"), config.get("kafka.brokers").split(","), config.get("kafka.topics.confirmBooking"), [{"value": messageStr}]);
+		await lipslideCommon.publishToKafkaTopic(config.get("kafka.clientId"), config.get("kafka.brokers").split(","), config.get("kafka.topics.fulfillBooking"), [{"value": messageStr}]);
 	}catch(error){
 		await session.abortTransaction();
 		throw new InternalServerError(error, `Event Source not available`);

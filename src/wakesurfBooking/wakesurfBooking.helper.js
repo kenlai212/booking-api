@@ -7,19 +7,30 @@ const moment = require("moment");
 const mongoose = require("mongoose");
 
 const lipslideCommon = require("lipslide-common");
-const {BadRequestError, ResourceNotFoundError, InternalServerError} = lipslideCommon;
+const {BadRequestError, ResourceNotFoundError, InternalServerError, DBError} = lipslideCommon;
 
 const utility = require("../utility");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 
+const VALID_STAFF_ID = [
+    "KO_CHUN",
+    "SUNG",
+    "GERMAN",
+    "PAK",
+    "KHAN",
+    "KEN",
+    "FAI",
+    "HAY"
+]
+
 function validateNewBookingInput(input){
     utility.validateInput(Joi.object({
         startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
 		utcOffset: Joi.number().min(-12).max(14).required(),
-		assetId: Joi.string().required(),
+		assetId: Joi.string().required().valid("A24","NXT20"),
         quote: Joi.object({
             price: Joi.number().required(),
             currency:Joi.string().valid("HKD","RMB").required()
@@ -35,25 +46,28 @@ function validateNewBookingInput(input){
 		captain: Joi.object({
 			staffId: Joi.string().required()
 		}),
+        crew: Joi.array().min(1).items(
+            Joi.object({
+                staffId: Joi.string().required()
+            })
+        ),
         postDate: Joi.boolean()
 	}), input);
 }
 
 function validateCaptainStaffId(staffId){
-    const VALID_STAFF_ID = [
-        "KO_CHUN",
-        "SUNG",
-        "GERMAN",
-        "PAK",
-        "KHAN",
-        "KEN"
-    ]
+    if(!VALID_STAFF_ID.includes(staffId))
+    throw new BadRequestError(`Invalid staffId ${staffId}`)
+    else
+    return true;
+}
 
-    if(VALID_STAFF_ID.includes(staffId)){
-        return true;
-    }else{
-        throw new BadRequestError(`Invalid staffId ${staffId}`);
-    }
+function validateCrewStaffIds(crew){
+    crew.forEach(member => {
+        if(!VALID_STAFF_ID.includes(member.staffId))
+        throw new BadRequestError(`Invalid staffId ${member.staffId}`);
+    });
+    return true;
 }
 
 async function getWakesurfBooking(bookingId){
@@ -115,6 +129,15 @@ function initWakesurfBooking(input){
 		}
 	}
 
+    //set crew
+    if(input.crew){
+        wakesurfBooking.crew = [];
+
+        input.crew.forEach(member => {
+            wakesurfBooking.crew.push({staffId: member.staffId});
+        });
+    }
+
     return wakesurfBooking;
 }
 
@@ -127,7 +150,10 @@ function validateConfirmBookingInput(input){
 
 function validateFulfillBookingInput(input){
     utility.validateInput(Joi.object({
-		bookingId: Joi.string().required()
+		bookingId: Joi.string().required(),
+        startTime: Joi.date().iso().required(),
+		endTime: Joi.date().iso().required(),
+		utcOffset: Joi.number().min(-12).max(14).required(),
 	}), input);
 }
 
@@ -137,7 +163,7 @@ function validateCancelBookingInput(input){
 	}), input);
 }
 
-function validateBookingTime(startTime, endTime, hostPersonId){
+function validateBookingTime(startTime, endTime){
     if (startTime > endTime)
     throw new BadRequestError("endTime cannot be earlier then startTime");
 
@@ -281,7 +307,23 @@ function modelToOutput(wakesurfBooking) {
             staffId: wakesurfBooking.captain.staffId
         }
     }
+
+    if(wakesurfBooking.crew && wakesurfBooking.crew.length > 0){
+        outputObj.crew = []
+
+        wakesurfBooking.crew.forEach(member => {
+            outputObj.crew.push({staffId: member.staffId});
+        });
+    }
+
 	outputObj.status = wakesurfBooking.status;
+
+    if(wakesurfBooking.fulfillment && wakesurfBooking.fulfillment.startTime){
+        outputObj.fulfillment = {
+            startTime: wakesurfBooking.fulfillment.startTime,
+            endTime: wakesurfBooking.fulfillment.endTime
+        }
+    }
 
 	return outputObj;
 }
@@ -290,6 +332,7 @@ module.exports = {
     initWakesurfBooking,
     validateNewBookingInput,
     validateCaptainStaffId,
+    validateCrewStaffIds,
     getWakesurfBooking,
     validateConfirmBookingInput,
     validateFulfillBookingInput,

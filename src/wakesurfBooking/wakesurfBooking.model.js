@@ -17,12 +17,19 @@ const wakesurfBookingSchema = new mongoose.Schema({
 	captain: {
 		staffId: String
 	},
+	crew:[{
+		staffId: String
+	}],
 	asset:{
 		assetId: String
 	},
 	quote:{
 		price: Number,
 		currency: String
+	},
+	fulfillment:{
+		startTime: Date,
+		endTime: Date
 	}
 });
 
