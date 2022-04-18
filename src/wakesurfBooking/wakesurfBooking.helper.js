@@ -74,14 +74,13 @@ async function getWakesurfBooking(bookingId){
     return wakesurfBooking;
 }
 
-function initWakesurfBooking(input, occupancyId){
+function initWakesurfBooking(input){
     let wakesurfBooking = new WakesurfBooking();
 	wakesurfBooking._id = uuidv4();
 	wakesurfBooking.creationTime = new Date();
 	wakesurfBooking.lastUpdateTime = new Date();
-	wakesurfBooking.occupancyId = occupancyId;
-    wakesurfBooking.startTime = input.startTime;
-    wakesurfBooking.endTime = input.endTime;
+    wakesurfBooking.startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
+    wakesurfBooking.endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
     wakesurfBooking.asset = {
         assetId: input.assetId
     }

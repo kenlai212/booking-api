@@ -7,7 +7,6 @@ const wakesurfBookingSchema = new mongoose.Schema({
 	lastUpdateTime: Date,
 	startTime: Date,
 	endTime: Date,
-	occupancyId: String,
 	status: String,
 	host: {
 		personId: String,

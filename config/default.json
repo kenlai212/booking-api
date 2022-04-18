@@ -7,8 +7,7 @@
       "filePath":"C:/Users/85293/engine/lipslide/development/dev_tools/logs/booking/"
     },
     "api":{
-      "prefix":"/booking-api",
-      "occupancyApi":"http://localhost:1237/occupancy-api"
+      "prefix":"/booking-api"
     },
     "db":{
       "mongoDb":{

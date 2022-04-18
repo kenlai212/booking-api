@@ -18,24 +18,8 @@ async function newBooking(input) {
 	
 	if(input.captain)
 	helper.validateCaptainStaffId(input.captain.staffId);
-	//helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
 
-	//call reserveAsset occupancy api
-	let postOccupancyResponse;
-	const postOccupancyRequest = {
-		startTime: input.startTime,
-		endTime: input.endTime,
-		utcOffset: input.utcOffset,
-		assetType: "BOAT",
-		assetId: input.assetId,
-        referenceType: "WAKESURF_BOOKING",
-		postDate: input.postDate
-    }
-    try{
-        postOccupancyResponse = await axios.post(`${config.get("api.occupancyApi")}/occupancy`, postOccupancyRequest, {headers:{'Authorization': `token ${helper.getAccessToken()}`}});
-    }catch(error){
-        throw new InternalServerError(error, "Occupancy API not available");
-    }
+	//helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
 
 	if(mongoose.connection.readyState != 1)
     utility.initMongoDb();
@@ -43,9 +27,7 @@ async function newBooking(input) {
 	const session = await WakesurfBooking.startSession();
 	session.startTransaction();
 
-	input.startTime = postOccupancyResponse.data.startTime;
-	input.endTime = postOccupancyResponse.data.endTime;
-	let wakesurfBooking = helper.initWakesurfBooking(input, postOccupancyResponse.data.occupancyId);
+	let wakesurfBooking = helper.initWakesurfBooking(input);
 	
 	//if failed save wakesurfBooking record, publish FAILED_BOOKING so occupancyApi can release the occupancy
 	try{
@@ -180,14 +162,6 @@ async function cancelBooking(input) {
 		throw new DBError(error);
 	}
 	const output = helper.modelToOutput(wakesurfBooking);
-
-	//call release occupancy api
-    try{
-        await axios.delete(`${config.get("api.occupancyApi")}/occupancy/${output.occupancyId}`, {headers:{'Authorization': `token ${helper.getAccessToken()}`}});
-    }catch(error){
-		await session.abortTransaction();
-        throw new InternalServerError(error, "Occupancy API not available");
-    }
 	
 	const messageStr = JSON.stringify(output);
 	try{
