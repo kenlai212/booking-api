@@ -13,6 +13,8 @@ const utility = require("../utility");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
 
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
+const FULFILLED_STATUS = "FULFILLED";
+const CANCELLED_STATUS = "CANCELLED";
 
 const VALID_STAFF_ID = [
     "KO_CHUN",
@@ -83,7 +85,7 @@ async function getWakesurfBooking(bookingId){
 	}
 	
 	if(!wakesurfBooking)
-	throw new ResourceNotFoundError("WakesurfBooking", input);
+	throw new ResourceNotFoundError("WakesurfBooking", bookingId);
 
     return wakesurfBooking;
 }
@@ -148,13 +150,48 @@ function validateConfirmBookingInput(input){
 
 }
 
-function validateFulfillBookingInput(input){
+async function validateFulfillBookingInput(input){
     utility.validateInput(Joi.object({
 		bookingId: Joi.string().required(),
-        startTime: Joi.date().iso().required(),
-		endTime: Joi.date().iso().required(),
-		utcOffset: Joi.number().min(-12).max(14).required(),
+        fulfillTime: Joi.object({
+            startTime: Joi.date().iso().required(),
+            endTime: Joi.date().iso().required(),
+            utcOffset: Joi.number().min(-12).max(14).required()
+        })
 	}), input);
+
+    let wakesurfBooking = await getWakesurfBooking(input.bookingId);
+
+	if (wakesurfBooking.status === FULFILLED_STATUS)
+    throw new BadRequestError("Booking already fulfilled");
+
+	if (wakesurfBooking.status === CANCELLED_STATUS)
+    throw new BadRequestError("Cannot fulfilled a cancelled booking");
+
+    return wakesurfBooking
+}
+
+function setFulfillment(input, wakesurfBooking){
+    let startTime;
+    let endTime;
+    
+    if(input.fulfillTime){
+        startTime = lipslideCommon.isoStrToDate(input.fulfillTime.startTime, input.fulfillTime.utcOffset);
+        endTime = lipslideCommon.isoStrToDate(input.fulfillTime.endTime, input.fulfillTime.utcOffset);
+    }else{
+        startTime = wakesurfBooking.startTime;
+        endTime = wakesurfBooking.endTime;
+    }
+    
+	wakesurfBooking.fulfillment = {
+		startTime: startTime,
+		endTime: endTime
+	}
+
+	wakesurfBooking.status = FULFILLED_STATUS;
+	wakesurfBooking.lastUpdateTime = new Date();
+
+    return wakesurfBooking;
 }
 
 function validateCancelBookingInput(input){
@@ -336,6 +373,7 @@ module.exports = {
     getWakesurfBooking,
     validateConfirmBookingInput,
     validateFulfillBookingInput,
+    setFulfillment,
     validateCancelBookingInput,
     validateFindBookingInput,
     validateBookingTime,

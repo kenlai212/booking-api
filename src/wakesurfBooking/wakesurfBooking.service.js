@@ -1,6 +1,5 @@
 "use strict";
 const config = require('config');
-const axios = require("axios");
 const mongoose = require("mongoose");
 
 const lipslideCommon = require("lipslide-common");
@@ -11,7 +10,7 @@ const helper = require("./wakesurfBooking.helper");
 
 const CONFIRMED_BOOKING_STATUS = "CONFIRMED";
 const CANCELLED_STATUS = "CANCELLED";
-const FULFILLED_STATUS = "FULFILLED"
+const FULFILLED_STATUS = "FULFILLED";
 
 async function newBooking(input) {
 	helper.validateNewBookingInput(input);
@@ -95,26 +94,10 @@ async function confirmBooking(input){
 }
 
 async function fulfillBooking(input) {
-	helper.validateFulfillBookingInput(input);
+	let wakesurfBooking = await helper.validateFulfillBookingInput(input);
 
-	let wakesurfBooking = await helper.getWakesurfBooking(input.bookingId);
-
-	if (wakesurfBooking.status === FULFILLED_STATUS)
-	throw { name: customError.BAD_REQUEST_ERROR, message: "Booking already fulfilled" };
-
-	if (wakesurfBooking.status === CANCELLED_STATUS)
-	throw { name: customError.BAD_REQUEST_ERROR, message: "Cannot fulfilled a cancelled booking" };
-
-	const startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
-	const endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
-	wakesurfBooking.fulfillment = {
-		startTime: startTime,
-		endTime: endTime
-	}
-
-	wakesurfBooking.status = FULFILLED_STATUS;
-	wakesurfBooking.lastUpdateTime = new Date();
-
+	wakesurfBooking = helper.setFulfillment(input, wakesurfBooking);
+	
 	if(mongoose.connection.readyState != 1)
     utility.initMongoDb();
 
