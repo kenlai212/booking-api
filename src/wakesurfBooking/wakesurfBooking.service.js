@@ -140,7 +140,6 @@ async function cancelBooking(input) {
 
 	wakesurfBooking.status = CANCELLED_STATUS;
 	wakesurfBooking.lastUpdateTime = new Date();
-	wakesurfBooking.occupancyId = undefined;
 
 	if(mongoose.connection.readyState != 1)
     utility.initMongoDb();
