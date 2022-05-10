@@ -172,7 +172,7 @@ async function cancelBooking(input) {
 async function findBooking(input) {
 	helper.validateFindBookingInput(input);
 
-	const wakesurfBooking = helper.getWakesurfBooking(input.bookingId);
+	const wakesurfBooking = await helper.getWakesurfBooking(input.bookingId);
 	
 	return helper.modelToOutput(wakesurfBooking);
 }
