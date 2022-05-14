@@ -53,7 +53,8 @@ function validateNewBookingInput(input){
                 staffId: Joi.string().required()
             })
         ),
-        postDate: Joi.boolean()
+        postDate: Joi.boolean(),
+        channelId: Joi.string().valid("HOLIMOOD","SALES").required()
 	}), input);
 }
 
@@ -97,11 +98,11 @@ function initWakesurfBooking(input){
 	wakesurfBooking.lastUpdateTime = new Date();
     wakesurfBooking.startTime = lipslideCommon.isoStrToDate(input.startTime, input.utcOffset);
     wakesurfBooking.endTime = lipslideCommon.isoStrToDate(input.endTime, input.utcOffset);
+    wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
+    wakesurfBooking.channelId = input.channelId;
     wakesurfBooking.asset = {
         assetId: input.assetId
     }
-
-	wakesurfBooking.status = AWAITING_CONFIRMATION_STATUS;
 
     //set quote
     if(input.quote){
@@ -318,6 +319,7 @@ function modelToOutput(wakesurfBooking) {
 
 	outputObj.creationTime = moment(wakesurfBooking.creationTime).utcOffset(8,true).toDate();
     outputObj.lastUpdateTime = moment(wakesurfBooking.lastUpdateTime).utcOffset(8,true).toDate();
+    outputObj.channelId = wakesurfBooking.channelId;
     outputObj.occupancyId = wakesurfBooking.occupancyId;
     outputObj.startTime = wakesurfBooking.startTime;
     outputObj.endTime = wakesurfBooking.endTime;

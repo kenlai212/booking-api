@@ -8,6 +8,7 @@ const wakesurfBookingSchema = new mongoose.Schema({
 	startTime: Date,
 	endTime: Date,
 	status: String,
+	channelId: String,
 	host: {
 		personId: String,
 		name: String,
