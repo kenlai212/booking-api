@@ -5,6 +5,7 @@ const express = require("express");
 const lipslideCommon = require("lipslide-common");
 
 const wakesurfBookingController = require("./wakesurfBooking/wakesurfBooking.controller");
+const staffController = require("./staff/staff.controller");
 
 const router = express.Router();
 router.post(`${config.get("api.prefix")}/booking`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.newBooking);
@@ -13,5 +14,8 @@ router.put(`${config.get("api.prefix")}/booking/status/cancel`, lipslideCommon.a
 router.put(`${config.get("api.prefix")}/booking/status/fulfill`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.fulfillBooking);
 router.get(`${config.get("api.prefix")}/bookings`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.searchBookings);
 router.get(`${config.get("api.prefix")}/booking/:bookingId`, lipslideCommon.authenticateAccessToken, wakesurfBookingController.findBooking);
+
+router.post(`${config.get("api.prefix")}/staff`, lipslideCommon.authenticateAccessToken, staffController.newStaff);
+router.get(`${config.get("api.prefix")}/staff`, lipslideCommon.authenticateAccessToken, staffController.findStaff);
 
 module.exports = router;

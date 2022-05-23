@@ -13,15 +13,7 @@ const CANCELLED_STATUS = "CANCELLED";
 const FULFILLED_STATUS = "FULFILLED";
 
 async function newBooking(input) {
-	helper.validateNewBookingInput(input);
-	
-	if(input.captain)
-	helper.validateCaptainStaffId(input.captain.staffId);
-
-	if(input.crew)
-	helper.validateCrewStaffIds(input.crew)
-	
-	//helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
+	await helper.validateNewBookingInput(input);
 
 	if(mongoose.connection.readyState != 1)
     utility.initMongoDb();

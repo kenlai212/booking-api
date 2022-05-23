@@ -29,7 +29,8 @@
         "newBooking": "NEW_BOOKING",
         "confirmBooking": "CONFIRM_BOOKING",
         "fulfillBooking": "FULFILL_BOOKING",
-        "cancelBooking": "CANCEL_BOOKING"
+        "cancelBooking": "CANCEL_BOOKING",
+        "newStaff": "NEW_STAFF"
       }
     }
   }

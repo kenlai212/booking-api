@@ -11,23 +11,13 @@ const {BadRequestError, ResourceNotFoundError, InternalServerError, DBError} = l
 
 const utility = require("../utility");
 const {WakesurfBooking} = require("./wakesurfBooking.model");
+const staffService = require("../staff/staff.service");
 
 const AWAITING_CONFIRMATION_STATUS = "AWAITING_CONFIRMATION";
 const FULFILLED_STATUS = "FULFILLED";
 const CANCELLED_STATUS = "CANCELLED";
 
-const VALID_STAFF_ID = [
-    "KO_CHUN",
-    "SUNG",
-    "GERMAN",
-    "PAK",
-    "KHAN",
-    "KEN",
-    "FAI",
-    "HAY"
-]
-
-function validateNewBookingInput(input){
+async function validateNewBookingInput(input){
     utility.validateInput(Joi.object({
         startTime: Joi.date().iso().required(),
 		endTime: Joi.date().iso().required(),
@@ -56,21 +46,27 @@ function validateNewBookingInput(input){
         postDate: Joi.boolean(),
         channelId: Joi.string().valid("HOLIMOOD","SALES").required()
 	}), input);
-}
 
-function validateCaptainStaffId(staffId){
-    if(!VALID_STAFF_ID.includes(staffId))
-    throw new BadRequestError(`Invalid staffId ${staffId}`)
-    else
-    return true;
-}
+    
+    if(input.captain){
+        let captainStaff;
+        captainStaff = await staffService.findStaff({staffId: input.captain.staffId});
+	
+        if(!captainStaff)
+        throw new BadRequestError("Invalid captain.staffId");
+    } 
 
-function validateCrewStaffIds(crew){
-    crew.forEach(member => {
-        if(!VALID_STAFF_ID.includes(member.staffId))
-        throw new BadRequestError(`Invalid staffId ${member.staffId}`);
-    });
-    return true;
+	if(input.crew){
+        for(const member of input.crew){
+            let crewStaff;
+            crewStaff = await staffService.findStaff({staffId: member.staffId});
+            
+            if(!crewStaff)
+            throw new BadRequestError(`Invalid crew.staffId`);
+        }
+    }
+
+    //helper.validateBookingTime(occupancy.startTime, occupancy.endTime, input.hostPersonId);
 }
 
 async function getWakesurfBooking(bookingId){
@@ -370,8 +366,6 @@ function modelToOutput(wakesurfBooking) {
 module.exports = {
     initWakesurfBooking,
     validateNewBookingInput,
-    validateCaptainStaffId,
-    validateCrewStaffIds,
     getWakesurfBooking,
     validateConfirmBookingInput,
     validateFulfillBookingInput,

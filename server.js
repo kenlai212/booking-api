@@ -6,6 +6,7 @@ const {logger} = lipslideCommon;
 
 const routes = require("./src/routes");
 const utility = require("./src/utility");
+const worker = require("./src/worker");
 
 //catch all uncaught rejects and excpetions
 process.on("unhandledRejection", (ex) => {
@@ -49,3 +50,5 @@ app.listen(config.get("server.port"), function (err) {
 
 	logger.info(`Booking API started up. Listening to port : ${config.get("server.port")}`);
 });
+
+worker.listen();
