@@ -48,21 +48,12 @@ async function validateNewBookingInput(input){
 	}), input);
 
     
-    if(input.captain){
-        let captainStaff;
-        captainStaff = await staffService.findStaff({staffId: input.captain.staffId});
-	
-        if(!captainStaff)
-        throw new BadRequestError("Invalid captain.staffId");
-    } 
+    if(input.captain)
+    await staffService.findStaff({staffId: input.captain.staffId});
 
 	if(input.crew){
         for(const member of input.crew){
-            let crewStaff;
-            crewStaff = await staffService.findStaff({staffId: member.staffId});
-            
-            if(!crewStaff)
-            throw new BadRequestError(`Invalid crew.staffId`);
+            await staffService.findStaff({staffId: member.staffId});
         }
     }
 

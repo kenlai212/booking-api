@@ -2,7 +2,7 @@
 const mongoose = require("mongoose");
 
 const lipslideCommon = require("lipslide-common");
-const {DBError} = lipslideCommon;
+const {DBError, ResourceNotFoundError} = lipslideCommon;
 
 const utility = require("../utility");
 const helper = require("./staff.helper");
@@ -19,7 +19,6 @@ async function newStaff(input) {
 	try{
 		staff = await staff.save();
 	}catch(error){
-		await session.abortTransaction();
 		throw new DBError(error);
 	}
 
@@ -31,19 +30,14 @@ async function findStaff(input){
 
 	let staff;
 
-	if(input.staffId){
-		try{
-			staff = await Staff.findById(input.staffId);
-		}catch(error){
-			throw new DBError(error);
-		}
-	}else if(input.referenceId){
-		try{
-			staff = await Staff.findOne({referenceId: input.referenceId});
-		}catch(error){
-			throw new DBError(error);
-		}
+	try{
+		staff = await Staff.findById(input.staffId);
+	}catch(error){
+		throw new DBError(error);
 	}
+
+	if(!staff)
+	throw new ResourceNotFoundError("Staff",input)
 
 	return staff;
 }
