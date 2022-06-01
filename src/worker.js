@@ -21,7 +21,6 @@ function listen(){
                 staffId: newStaffMsg.staffId,
                 status: newStaffMsg.status,
 		        name: newStaffMsg.name,
-		        referenceId: newStaffMsg.referenceId,
                 countryCode: newStaffMsg.countryCode,
 		        phoneNumber: newStaffMsg.phoneNumber
             }
